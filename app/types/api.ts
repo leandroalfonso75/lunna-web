@@ -23,9 +23,23 @@ export interface Company {
   abc_cut_b: number
   group_up_pct: number
   group_down_pct: number
+  /** Plano de ação com IA via OpenRouter (DECISOES.md §10) — por empresa. */
+  ai_model: string | null
+  /** `true` quando a empresa tem chave **e** modelo configurados. */
+  ai_configured: boolean
+  /** `"…" + últimos 4 caracteres da chave`, ou `null` sem chave. A chave em si nunca vem da API. */
+  ai_key_hint: string | null
 }
 
-export type CompanyUpdatePayload = Partial<Omit<Company, 'id'>>
+/**
+ * `ai_configured`/`ai_key_hint` são derivados pela API — nunca enviados.
+ * `openrouter_api_key`/`remove_openrouter_api_key` não existem no shape de
+ * leitura (`Company`): a chave em si nunca é devolvida pela API.
+ */
+export type CompanyUpdatePayload = Partial<Omit<Company, 'id' | 'ai_configured' | 'ai_key_hint'>> & {
+  openrouter_api_key?: string
+  remove_openrouter_api_key?: boolean
+}
 
 export interface SyncRun {
   id: string

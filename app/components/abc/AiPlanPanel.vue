@@ -1,16 +1,24 @@
 <script setup lang="ts">
 import { SparklesIcon } from '@heroicons/vue/24/outline'
+import { computed } from 'vue'
 import { useAiPlan } from '../../composables/useAiPlan'
+import { useSessionStore } from '../../stores/session'
 
 /**
  * Plano de ação com IA (SPEC §9): "Gerar" → "Parar" (aborta) → "Gerar de
  * novo", resultado em memória por anúncio enquanto a página está aberta
  * (`useAiPlan` é module-scope, chaveado por `item_id`).
+ *
+ * DECISOES.md §10: cada empresa configura a própria chave/modelo da
+ * OpenRouter em Configurações › Empresa — sem isso o botão fica desabilitado.
  */
 const props = defineProps<{ itemId: string }>()
 
 const ai = useAiPlan()
 const state = ai.stateFor(props.itemId)
+const session = useSessionStore()
+
+const aiConfigured = computed(() => session.company?.ai_configured ?? false)
 
 function onClick() {
   if (state.status === 'loading') ai.stop(props.itemId)
@@ -27,7 +35,7 @@ function buttonLabel(): string {
 <template>
   <div class="border-t border-line pt-4">
     <div class="flex flex-wrap items-center gap-3">
-      <button type="button" class="btn-primary" @click="onClick">
+      <button type="button" class="btn-primary" :disabled="!aiConfigured" @click="onClick">
         <SparklesIcon class="h-4 w-4" aria-hidden="true" />
         {{ buttonLabel() }}
       </button>
@@ -35,7 +43,19 @@ function buttonLabel(): string {
         <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" aria-hidden="true" />
         Gerando…
       </span>
+      <span v-else-if="aiConfigured && session.company?.ai_model" class="text-[13px] text-ink-3">
+        Modelo: {{ session.company.ai_model }}
+      </span>
     </div>
+
+    <p v-if="!aiConfigured && session.isAdmin" data-test="ai-nao-configurada" class="mt-2 text-[13px] text-ink-3">
+      Configure a OpenRouter em
+      <NuxtLink to="/configuracoes?aba=empresa" class="btn-link">Configurações › Empresa</NuxtLink>
+      para gerar planos.
+    </p>
+    <p v-else-if="!aiConfigured" data-test="ai-nao-configurada" class="mt-2 text-[13px] text-ink-3">
+      Peça a um administrador para configurar a OpenRouter.
+    </p>
 
     <!-- Largura de leitura (~72ch) para não estirar o texto corrido na tela toda. -->
     <div

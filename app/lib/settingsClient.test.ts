@@ -20,6 +20,21 @@ describe('createSettingsClient', () => {
     expect(api).toHaveBeenCalledWith('/api/company', { method: 'PATCH', body: { tax_pct: 12 } })
   })
 
+  it('updateCompany aceita ai_model e openrouter_api_key (DECISOES.md §10)', async () => {
+    const { api, client } = buildClient()
+    await client.updateCompany({ ai_model: 'anthropic/claude-sonnet-4.5', openrouter_api_key: 'sk-or-abc123' })
+    expect(api).toHaveBeenCalledWith('/api/company', {
+      method: 'PATCH',
+      body: { ai_model: 'anthropic/claude-sonnet-4.5', openrouter_api_key: 'sk-or-abc123' }
+    })
+  })
+
+  it('updateCompany aceita remove_openrouter_api_key', async () => {
+    const { api, client } = buildClient()
+    await client.updateCompany({ remove_openrouter_api_key: true })
+    expect(api).toHaveBeenCalledWith('/api/company', { method: 'PATCH', body: { remove_openrouter_api_key: true } })
+  })
+
   it('listUsers faz GET /api/users', async () => {
     const { api, client } = buildClient({ users: [] })
     await client.listUsers()

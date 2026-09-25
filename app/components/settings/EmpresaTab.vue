@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useToast } from '../../composables/useToast'
 import { apiErrorMessage } from '../../lib/apiErrors'
 import type { SettingsClient } from '../../lib/settingsClient'
-import type { Company } from '../../types/api'
+import { useSessionStore } from '../../stores/session'
+import type { Company, CompanyUpdatePayload } from '../../types/api'
 import SettingsSkeleton from './SettingsSkeleton.vue'
 
 /**
@@ -13,6 +15,7 @@ import SettingsSkeleton from './SettingsSkeleton.vue'
  */
 const props = defineProps<{ settingsApi: SettingsClient }>()
 const toast = useToast()
+const session = useSessionStore()
 
 const loading = ref(true)
 const loadError = ref('')
@@ -26,11 +29,24 @@ const form = reactive({
   abc_cut_a: '',
   abc_cut_b: '',
   group_up_pct: '',
-  group_down_pct: ''
+  group_down_pct: '',
+  ai_model: ''
 })
 
 /** Snapshot do form logo após carregar/salvar — base da comparação de "há alterações". */
 const savedSnapshot = ref('')
+/** `ai_model` salvo — só entra no PATCH quando o campo muda (DECISOES.md §10). */
+const savedAiModel = ref('')
+
+// --- IA via OpenRouter (DECISOES.md §10) ------------------------------------
+// A chave digitada nunca fica no form reativo persistido/comparado — só em
+// `apiKeyInput`, sempre limpo depois de carregar/salvar/remover.
+const apiKeyInput = ref('')
+const showApiKey = ref(false)
+const aiConfigured = ref(false)
+const aiKeyHint = ref<string | null>(null)
+const confirmingRemoveKey = ref(false)
+const removingKey = ref(false)
 
 function fillForm(c: Company) {
   form.name = c.name
@@ -40,10 +56,17 @@ function fillForm(c: Company) {
   form.abc_cut_b = String(c.abc_cut_b)
   form.group_up_pct = String(c.group_up_pct)
   form.group_down_pct = String(c.group_down_pct)
+  form.ai_model = c.ai_model ?? ''
+  savedAiModel.value = form.ai_model
+  aiConfigured.value = c.ai_configured
+  aiKeyHint.value = c.ai_key_hint
+  apiKeyInput.value = ''
+  confirmingRemoveKey.value = false
   savedSnapshot.value = JSON.stringify(form)
 }
 
-const isDirty = computed(() => JSON.stringify(form) !== savedSnapshot.value)
+// A chave digitada conta como alteração mesmo sem mexer em mais nada.
+const isDirty = computed(() => JSON.stringify(form) !== savedSnapshot.value || apiKeyInput.value.length > 0)
 
 async function load() {
   loading.value = true
@@ -69,7 +92,7 @@ async function submit() {
   saveError.value = ''
   saving.value = true
   try {
-    const { company } = await props.settingsApi.updateCompany({
+    const payload: CompanyUpdatePayload = {
       name: form.name,
       tax_pct: parseDecimal(form.tax_pct),
       min_margin_pct: parseDecimal(form.min_margin_pct),
@@ -77,13 +100,33 @@ async function submit() {
       abc_cut_b: parseDecimal(form.abc_cut_b),
       group_up_pct: parseDecimal(form.group_up_pct),
       group_down_pct: parseDecimal(form.group_down_pct)
-    })
+    }
+    if (form.ai_model !== savedAiModel.value) payload.ai_model = form.ai_model || null
+    if (apiKeyInput.value) payload.openrouter_api_key = apiKeyInput.value
+
+    const { company } = await props.settingsApi.updateCompany(payload)
     fillForm(company)
+    session.setCompany(company)
     toast.success('Empresa atualizada.')
   } catch (err) {
     saveError.value = apiErrorMessage(err, 'Não foi possível salvar agora. Tente de novo.')
   } finally {
     saving.value = false
+  }
+}
+
+/** Botão "Remover chave" — confirmação inline própria, fora do Salvar (mesmo padrão de ContasTab). */
+async function removeKey() {
+  removingKey.value = true
+  try {
+    const { company } = await props.settingsApi.updateCompany({ remove_openrouter_api_key: true })
+    fillForm(company)
+    session.setCompany(company)
+    toast.success('Chave da OpenRouter removida.')
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível remover a chave agora. Tente de novo.'))
+  } finally {
+    removingKey.value = false
   }
 }
 </script>
@@ -180,6 +223,73 @@ async function submit() {
               <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-ink-3">%</span>
             </div>
             <p class="text-[13px] text-ink-3">Abaixo deste crescimento, o anúncio é classificado como "Em queda".</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-4 border-t border-line pt-6">
+        <div>
+          <h3 class="section-title">Inteligência artificial (OpenRouter)</h3>
+          <p class="page-subtitle text-[13px]">
+            O plano de ação com IA usa a conta OpenRouter da empresa — o custo de cada geração é cobrado lá.
+            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" class="btn-link">Gerar chave</a>
+            ·
+            <a href="https://openrouter.ai/models" target="_blank" rel="noopener" class="btn-link">Ver modelos</a>
+          </p>
+        </div>
+
+        <div>
+          <span v-if="aiConfigured" data-test="ai-status" class="pill-success">Configurada{{ aiKeyHint ? ` (chave ${aiKeyHint})` : '' }}</span>
+          <span v-else data-test="ai-status" class="pill-neutral">Não configurada</span>
+        </div>
+
+        <div class="space-y-1.5">
+          <label for="ai-api-key" class="field-label">Chave da API</label>
+          <div class="relative">
+            <input
+              id="ai-api-key"
+              v-model="apiKeyInput"
+              :type="showApiKey ? 'text' : 'password'"
+              autocomplete="off"
+              :placeholder="aiConfigured ? 'Deixe em branco para manter a chave atual' : 'sk-or-…'"
+              class="input pr-11"
+            />
+            <button
+              type="button"
+              class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-ink-3 hover:text-ink"
+              :aria-pressed="showApiKey"
+              :aria-label="showApiKey ? 'Ocultar chave' : 'Mostrar chave'"
+              @click="showApiKey = !showApiKey"
+            >
+              <component :is="showApiKey ? EyeSlashIcon : EyeIcon" class="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <label for="ai-model" class="field-label">Modelo</label>
+          <input id="ai-model" v-model="form.ai_model" type="text" placeholder="anthropic/claude-sonnet-4.5" class="input" />
+          <p class="text-[13px] text-ink-3">Use o identificador da página de modelos da OpenRouter (fornecedor/modelo).</p>
+        </div>
+
+        <div v-if="aiConfigured">
+          <button
+            v-if="!confirmingRemoveKey"
+            type="button"
+            data-test="remover-chave-ai"
+            class="text-[13px] font-semibold text-danger hover:underline"
+            @click="confirmingRemoveKey = true"
+          >
+            Remover chave
+          </button>
+          <div v-else class="flex flex-wrap items-center gap-3">
+            <span class="text-[15px] text-ink">Remover a chave? O plano com IA deixa de funcionar.</span>
+            <button type="button" class="text-[13px] font-semibold text-ink-2 hover:text-ink" @click="confirmingRemoveKey = false">
+              Cancelar
+            </button>
+            <button type="button" data-test="confirmar-remover-chave-ai" :disabled="removingKey" class="btn-danger-solid" @click="removeKey">
+              {{ removingKey ? 'Removendo...' : 'Sim' }}
+            </button>
           </div>
         </div>
       </div>

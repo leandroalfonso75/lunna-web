@@ -36,6 +36,11 @@ export const useSessionStore = defineStore('session', {
       this.setAccounts(mlAccounts)
     },
 
+    /** Atualiza só a empresa — usado depois de `PATCH /api/company` (aba Empresa). */
+    setCompany(company: Company) {
+      this.company = company
+    },
+
     /** Atualiza a lista de contas mantendo a seleção quando possível. */
     setAccounts(mlAccounts: MlAccount[]) {
       this.mlAccounts = mlAccounts
