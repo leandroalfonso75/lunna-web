@@ -24,10 +24,21 @@ function selectTab(tab: SettingsTab) {
 const usersCount = ref<number | null>(null)
 const accountsCount = ref<number | null>(null)
 
+function withCount(tab: SettingsTabDef, base: string): string {
+  if (tab.value === 'usuarios' && usersCount.value !== null) return `${base} (${usersCount.value})`
+  if (tab.value === 'contas' && accountsCount.value !== null) return `${base} (${accountsCount.value})`
+  return base
+}
+
 function tabLabel(tab: SettingsTabDef): string {
-  if (tab.value === 'usuarios' && usersCount.value !== null) return `${tab.label} (${usersCount.value})`
-  if (tab.value === 'contas' && accountsCount.value !== null) return `${tab.label} (${accountsCount.value})`
-  return tab.label
+  return withCount(tab, tab.label)
+}
+
+/** Abaixo de `sm` a barra de abas rola horizontalmente; "Contas do Mercado
+ * Livre" ainda assim é o rótulo mais longo — usar o curto evita depender só
+ * do scroll para ler a aba mais importante para quem não é admin. */
+function tabShortLabel(tab: SettingsTabDef): string {
+  return withCount(tab, tab.shortLabel ?? tab.label)
 }
 
 // O banner do retorno do OAuth do Mercado Livre (`?code`/`?state`/`?ml=...`,
@@ -66,7 +77,8 @@ watchEffect(() => {
         :class="currentTab === tab.value ? 'tab-active' : 'tab'"
         @click="selectTab(tab.value)"
       >
-        {{ tabLabel(tab) }}
+        <span class="sm:hidden">{{ tabShortLabel(tab) }}</span>
+        <span class="hidden sm:inline">{{ tabLabel(tab) }}</span>
       </button>
     </nav>
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveSettingsTab, settingsTabPath, visibleSettingsTabs } from './settingsTabs'
+import { resolveSettingsTab, SETTINGS_TABS, settingsTabPath, visibleSettingsTabs } from './settingsTabs'
 
 describe('visibleSettingsTabs', () => {
   it('admin vê as três abas', () => {
@@ -39,5 +39,16 @@ describe('resolveSettingsTab', () => {
 describe('settingsTabPath', () => {
   it('monta a URL da aba', () => {
     expect(settingsTabPath('contas')).toBe('/configuracoes?aba=contas')
+  })
+})
+
+describe('rótulo curto das abas (barra rolável no celular)', () => {
+  it('"contas" tem o rótulo curto "Contas ML" para caber abaixo de sm', () => {
+    expect(SETTINGS_TABS.find((t) => t.value === 'contas')?.shortLabel).toBe('Contas ML')
+  })
+
+  it('as demais abas não precisam de rótulo curto (o nome já é enxuto)', () => {
+    expect(SETTINGS_TABS.find((t) => t.value === 'empresa')?.shortLabel).toBeUndefined()
+    expect(SETTINGS_TABS.find((t) => t.value === 'usuarios')?.shortLabel).toBeUndefined()
   })
 })

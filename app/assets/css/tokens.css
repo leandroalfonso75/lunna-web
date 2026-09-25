@@ -103,10 +103,13 @@ h4 {
   margin: 0;
 }
 
-/* Números sempre alinhados em colunas. */
-table,
+/* Números sempre alinhados em colunas, nunca quebrando linha (tabelas com coluna estreita). */
+table {
+  font-variant-numeric: tabular-nums;
+}
 [data-numeric] {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 a {
@@ -180,18 +183,33 @@ a {
     @apply pill bg-primary-soft text-primary;
   }
 
+  /* Rolável na horizontal (nunca quebra abas em celular) com scroll-snap
+     para parar aba a aba; a partir de md sobra espaço e o scroll some. */
   .tab-bar {
-    @apply flex gap-6 overflow-x-auto border-b border-line md:overflow-x-visible;
+    @apply flex snap-x snap-mandatory gap-6 overflow-x-auto border-b border-line md:snap-none md:overflow-x-visible;
     scrollbar-width: none;
   }
   .tab-bar::-webkit-scrollbar {
     display: none;
   }
   .tab {
-    @apply -mb-px shrink-0 border-b-2 border-transparent pb-3 text-[14px] font-medium text-ink-2 transition-colors hover:text-ink;
+    @apply -mb-px shrink-0 snap-start whitespace-nowrap border-b-2 border-transparent pb-3 text-[14px] font-medium text-ink-2 transition-colors hover:text-ink;
   }
   .tab-active {
     @apply tab border-primary text-ink;
+  }
+
+  /* Lista de definição (rótulo à esquerda, valor à direita) usada nos
+     cartões de detalhe (Curva ABC e Anúncios). `dd` reseta a margem padrão
+     do navegador; números ficam alinhados via `[data-numeric]` acima. */
+  .def-row {
+    @apply flex items-baseline justify-between gap-3 py-1 text-[13px];
+  }
+  .def-row dt {
+    @apply text-ink-2;
+  }
+  .def-row dd {
+    @apply m-0 text-right font-medium text-ink;
   }
 
   .page {

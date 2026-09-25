@@ -60,7 +60,10 @@ onBeforeUnmount(stop)
       <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <div v-for="i in 6" :key="i" class="card h-24 animate-pulse bg-surface-2" />
       </div>
-      <div class="card h-40 animate-pulse bg-surface-2" />
+      <div class="card h-64 animate-pulse bg-surface-2" />
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div v-for="i in 3" :key="i" class="card h-56 animate-pulse bg-surface-2" />
+      </div>
     </template>
 
     <template v-else>

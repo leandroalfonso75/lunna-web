@@ -160,9 +160,16 @@ function totalPages(): number {
                 :key="column.key"
                 scope="col"
                 class="whitespace-nowrap px-3 py-2 text-left font-semibold text-ink-2"
-                :class="column.key === 'title' ? 'sticky left-0 z-10 bg-surface' : ''"
+                :class="[column.key === 'title' ? 'sticky left-0 z-10 bg-surface' : '', column.key === 'sku' ? 'min-w-[110px]' : '']"
+                :aria-sort="!filters.id && response?.sort === column.sort ? (response?.dir === 'asc' ? 'ascending' : 'descending') : undefined"
               >
-                <button v-if="!filters.id" type="button" class="inline-flex items-center gap-1 hover:text-ink" @click="table.sortBy(column.sort)">
+                <button
+                  v-if="!filters.id"
+                  type="button"
+                  class="inline-flex items-center gap-1 hover:text-ink"
+                  :class="response?.sort === column.sort ? 'text-ink' : ''"
+                  @click="table.sortBy(column.sort)"
+                >
                   {{ column.label }}
                   <ChevronUpIcon v-if="response?.sort === column.sort && response?.dir === 'asc'" class="h-3.5 w-3.5" aria-hidden="true" />
                   <ChevronDownIcon v-else-if="response?.sort === column.sort && response?.dir === 'desc'" class="h-3.5 w-3.5" aria-hidden="true" />
@@ -218,15 +225,15 @@ function totalPages(): number {
             </tr>
 
             <template v-for="item in response?.items ?? []" :key="item.id">
-              <tr class="cursor-pointer border-b border-line hover:bg-surface-2" @click="toggleRow(item)">
-                <td class="sticky left-0 z-10 max-w-[280px] bg-surface px-3 py-2">
+              <tr class="group cursor-pointer border-b border-line hover:bg-surface-2" @click="toggleRow(item)">
+                <td class="sticky left-0 z-10 max-w-[280px] bg-surface px-3 py-2 group-hover:bg-surface-2">
                   <p class="truncate font-medium text-ink">{{ item.title }}</p>
                   <p class="text-[12px] text-ink-3">
                     {{ item.id }}
                     <span v-if="item.full" class="pill-primary ml-1 px-1.5 py-0 text-[11px]">Full</span>
                   </p>
                 </td>
-                <td class="px-3 py-2 text-ink-2">{{ item.sku ?? 'sem SKU' }}</td>
+                <td class="whitespace-nowrap px-3 py-2 text-ink-2">{{ item.sku ?? 'sem SKU' }}</td>
                 <td class="px-3 py-2 text-ink-2">{{ item.status_label }}</td>
                 <td class="px-3 py-2" data-numeric>
                   <span v-if="item.original_price" class="mr-1 text-ink-3 line-through">{{ brl(item.original_price) }}</span>
@@ -269,33 +276,80 @@ function totalPages(): number {
               </tr>
 
               <tr v-if="expandedId === item.id" class="border-b border-line bg-surface-2">
-                <td :colspan="COLUMNS.length" class="px-4 py-4">
+                <td :colspan="COLUMNS.length" class="border-l-4 border-l-primary px-4 py-4">
                   <div class="grid grid-cols-1 gap-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
-                    <div>
-                      <p class="mb-1 font-semibold text-ink">Preço e oferta</p>
-                      <p class="text-ink-2">{{ brl(item.price) }} <span v-if="item.discount_pct">({{ pct(item.discount_pct) }} off)</span></p>
-                      <p class="text-ink-2">{{ item.free_shipping ? 'Frete grátis' : 'Frete pago pelo comprador' }}</p>
-                      <p class="text-ink-2">{{ item.full ? 'Full' : 'Fora do Full' }} · {{ item.catalog ? 'Catálogo' : 'Não catálogo' }}</p>
+                    <div class="card p-4">
+                      <p class="mb-2 font-semibold text-ink">Preço e oferta</p>
+                      <dl>
+                        <div class="def-row">
+                          <dt>Preço</dt>
+                          <dd data-numeric>
+                            <span v-if="item.original_price" class="mr-1 font-normal text-ink-3 line-through">{{ brl(item.original_price) }}</span>
+                            {{ brl(item.price) }}
+                          </dd>
+                        </div>
+                        <div v-if="item.discount_pct" class="def-row"><dt>Desconto</dt><dd data-numeric>{{ pct(item.discount_pct) }}</dd></div>
+                        <div class="def-row"><dt>Frete</dt><dd>{{ item.free_shipping ? 'Grátis' : 'Pago pelo comprador' }}</dd></div>
+                        <div class="def-row"><dt>Logística</dt><dd>{{ item.full ? 'Full' : 'Fora do Full' }}</dd></div>
+                        <div class="def-row"><dt>Catálogo</dt><dd>{{ item.catalog ? 'Sim' : 'Não' }}</dd></div>
+                      </dl>
                     </div>
-                    <div>
-                      <p class="mb-1 font-semibold text-ink">Desempenho 7 dias</p>
-                      <p class="text-ink-2">Visitas: {{ int(item.visits_7d) }} (antes {{ int(item.prev_visits_7d) }})</p>
-                      <p class="text-ink-2">Vendas: {{ int(item.units_7d) }} (antes {{ int(item.prev_units_7d) }})</p>
-                      <p class="text-ink-2">Conversão: {{ pct(item.conversion_7d) }} (antes {{ pct(item.prev_conversion_7d) }})</p>
-                      <p class="text-ink-2">Após tarifa: {{ brl(item.net_after_fee_7d) }}</p>
+
+                    <div class="card p-4">
+                      <p class="mb-2 font-semibold text-ink">Desempenho 7 dias</p>
+                      <div class="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-1">
+                        <span />
+                        <span class="text-right text-[11px] font-medium uppercase tracking-wide text-ink-3">Atual</span>
+                        <span class="text-right text-[11px] font-medium uppercase tracking-wide text-ink-3">Anterior</span>
+
+                        <span class="text-ink-2">Visitas</span>
+                        <span class="text-right text-ink" data-numeric>{{ int(item.visits_7d) }}</span>
+                        <span class="text-right text-ink-3" data-numeric>{{ int(item.prev_visits_7d) }}</span>
+
+                        <span class="text-ink-2">Vendas</span>
+                        <span class="text-right text-ink" data-numeric>{{ int(item.units_7d) }}</span>
+                        <span class="text-right text-ink-3" data-numeric>{{ int(item.prev_units_7d) }}</span>
+
+                        <span class="text-ink-2">Conversão</span>
+                        <span class="text-right text-ink" data-numeric>{{ pct(item.conversion_7d) }}</span>
+                        <span class="text-right text-ink-3" data-numeric>{{ pct(item.prev_conversion_7d) }}</span>
+                      </div>
+                      <dl class="mt-2 border-t border-line pt-1">
+                        <div class="def-row"><dt>Após tarifa</dt><dd data-numeric>{{ brl(item.net_after_fee_7d) }}</dd></div>
+                      </dl>
                     </div>
-                    <div>
-                      <p class="mb-1 font-semibold text-ink">Estoque e cadastro</p>
-                      <p class="text-ink-2">Disponível: {{ int(item.stock) }}</p>
-                      <p class="text-ink-2">Cobertura: {{ item.coverage_days !== null ? `${num(item.coverage_days, 1)} dias` : '—' }}</p>
-                      <p class="text-ink-2">SKU: {{ item.sku ?? 'sem SKU' }} · {{ item.variations }} variações</p>
+
+                    <div class="card p-4">
+                      <p class="mb-2 font-semibold text-ink">Estoque e cadastro</p>
+                      <dl>
+                        <div class="def-row"><dt>Disponível</dt><dd data-numeric>{{ int(item.stock) }}</dd></div>
+                        <div class="def-row"><dt>Cobertura</dt><dd data-numeric>{{ item.coverage_days !== null ? `${num(item.coverage_days, 1)} dias` : '—' }}</dd></div>
+                        <div class="def-row"><dt>SKU</dt><dd>{{ item.sku ?? 'sem SKU' }}</dd></div>
+                        <div class="def-row"><dt>Variações</dt><dd data-numeric>{{ item.variations }}</dd></div>
+                      </dl>
                     </div>
-                    <div>
-                      <p class="mb-1 font-semibold text-ink">Qualidade</p>
-                      <p v-if="item.quality_score !== null" class="text-ink-2">{{ item.quality_score }}/100 · {{ item.quality_level }}</p>
+
+                    <div class="card p-4">
+                      <p class="mb-2 font-semibold text-ink">Qualidade</p>
+                      <template v-if="item.quality_score !== null">
+                        <div class="flex items-center gap-2">
+                          <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+                            <div
+                              class="h-full rounded-full"
+                              :class="{ 'bg-success': item.quality_state === 'ok', 'bg-warning': item.quality_state === 'warn', 'bg-danger': item.quality_state === 'bad' }"
+                              :style="{ width: `${item.quality_score}%` }"
+                            />
+                          </div>
+                          <span class="shrink-0 text-ink" data-numeric>{{ item.quality_score }}/100</span>
+                        </div>
+                        <p class="mt-1 text-[12px] text-ink-3">{{ item.quality_level }}</p>
+                      </template>
                       <p v-else class="text-ink-2">O Mercado Livre não calculou.</p>
-                      <ul v-if="item.quality_actions.length" class="mt-1 list-inside list-disc text-ink-2">
-                        <li v-for="(action, i) in item.quality_actions.slice(0, 6)" :key="i">{{ action }}</li>
+                      <ul v-if="item.quality_actions.length" class="mt-2 space-y-1 text-ink-2">
+                        <li v-for="(action, i) in item.quality_actions.slice(0, 6)" :key="i" class="flex gap-1.5">
+                          <span class="text-ink-3" aria-hidden="true">•</span>
+                          <span><span class="text-ink">{{ action.title }}</span><template v-if="action.label"> — {{ action.label }}</template></span>
+                        </li>
                       </ul>
                     </div>
                   </div>

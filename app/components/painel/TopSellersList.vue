@@ -7,7 +7,13 @@ defineProps<{ items: TopSeller[] }>()
 
 <template>
   <div class="card p-4">
-    <h2 class="section-title mb-3">Mais vendidos</h2>
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <h2 class="section-title">Mais vendidos</h2>
+      <div v-if="items.length" class="flex items-center gap-3 text-[12px] text-ink-2">
+        <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm bg-primary" aria-hidden="true" /> Semana atual</span>
+        <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm bg-ink-3" aria-hidden="true" /> Semana anterior</span>
+      </div>
+    </div>
 
     <p v-if="!items.length" class="text-[14px] text-ink-3">Ninguém vendeu nas duas últimas semanas.</p>
 

@@ -19,9 +19,14 @@ const header = usePageHeader()
       <h1 class="page-title">{{ header.state.title }}</h1>
       <p v-if="header.state.subtitle" class="page-subtitle">{{ header.state.subtitle }}</p>
 
-      <div v-if="header.state.sync" class="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-ink-2">
+      <!-- `items-start` (não `items-center`/`flex-wrap`): a bolinha e o texto
+           precisam ficar SEMPRE na mesma linha, mesmo com o texto quebrando
+           ao lado dela — com `flex-wrap` o texto inteiro pulava de linha no
+           celular em vez de só quebrar palavra a palavra. `min-w-0` no
+           `<span>` do texto é o que permite ele encolher e quebrar. -->
+      <div v-if="header.state.sync" class="mt-2 flex items-start gap-2 text-[13px] text-ink-2">
         <span
-          class="inline-flex h-2 w-2 shrink-0 rounded-full"
+          class="mt-[3px] inline-flex h-2 w-2 shrink-0 rounded-full"
           :class="{
             'bg-success': header.state.sync.state === 'ok',
             'bg-warning': header.state.sync.state === 'warn',
@@ -29,7 +34,7 @@ const header = usePageHeader()
           }"
           aria-hidden="true"
         />
-        <span>
+        <span class="min-w-0">
           <template v-if="header.state.sync.last_ok_at">
             Sincronizado às {{ timeShort(header.state.sync.last_ok_at) }}
             <template v-if="header.state.sync.minutes_ago !== null">(há {{ header.state.sync.minutes_ago }} min)</template>
@@ -41,10 +46,10 @@ const header = usePageHeader()
 
       <p
         v-if="header.state.sync?.notice"
-        class="mt-1 max-w-2xl text-[13px]"
-        :class="header.state.sync.state === 'bad' ? 'text-danger' : 'text-warning'"
+        class="mt-2 max-w-2xl rounded-card border px-3 py-2 text-[13px]"
+        :class="header.state.sync.state === 'bad' ? 'border-danger bg-danger-soft text-danger' : 'border-warning bg-warning-soft text-warning'"
       >
-        {{ header.state.sync.notice.title }} — {{ header.state.sync.notice.body }}
+        <span class="font-semibold">{{ header.state.sync.notice.title }}</span> — {{ header.state.sync.notice.body }}
       </p>
     </div>
 

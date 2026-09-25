@@ -70,12 +70,11 @@ function profitLabel(): string {
 
 <template>
   <div class="space-y-4">
+    <!-- Banner único: a API já manda o texto certo em `notice` (custos não
+         cadastrados OU detalhes de cadastro ainda incompletos, SPEC §8.4) —
+         nunca montar um segundo aviso repetindo a mesma informação aqui. -->
     <p v-if="data?.notice" role="status" class="rounded-card border border-info bg-info-soft px-3 py-2 text-[13px] text-info">
       {{ data.notice }}
-    </p>
-
-    <p v-if="data && data.details.done < data.details.total" class="text-[13px] text-ink-3">
-      Detalhes carregados para {{ data.details.done }} de {{ data.details.total }} anúncios.
     </p>
 
     <p v-if="stale" role="status" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning">
@@ -134,7 +133,7 @@ function profitLabel(): string {
               <tr class="border-b border-line">
                 <th scope="col" class="px-3 py-2 text-left font-semibold text-ink-2">Curva</th>
                 <th scope="col" class="sticky left-0 z-10 bg-surface px-3 py-2 text-left font-semibold text-ink-2">Anúncio</th>
-                <th scope="col" class="px-3 py-2 text-left font-semibold text-ink-2">SKU</th>
+                <th scope="col" class="min-w-[110px] whitespace-nowrap px-3 py-2 text-left font-semibold text-ink-2">SKU</th>
                 <th scope="col" class="px-3 py-2 text-right font-semibold text-ink-2">Visitas 30d</th>
                 <th scope="col" class="px-3 py-2 text-right font-semibold text-ink-2">Vendas 30d</th>
                 <th scope="col" class="px-3 py-2 text-right font-semibold text-ink-2">vs. anterior</th>
@@ -151,9 +150,9 @@ function profitLabel(): string {
               </tr>
 
               <template v-for="row in data.rows" :key="row.id">
-                <tr class="cursor-pointer border-b border-line hover:bg-surface-2" @click="toggleRow(row)">
+                <tr class="group cursor-pointer border-b border-line hover:bg-surface-2" @click="toggleRow(row)">
                   <td class="px-3 py-2 font-semibold text-ink">{{ row.curve }}</td>
-                  <td class="sticky left-0 z-10 max-w-[280px] bg-surface px-3 py-2">
+                  <td class="sticky left-0 z-10 max-w-[280px] bg-surface px-3 py-2 group-hover:bg-surface-2">
                     <p class="truncate font-medium text-ink">{{ row.title }}</p>
                     <p class="text-[12px] text-ink-3">
                       {{ row.id }} · {{ row.status_label }}
@@ -163,7 +162,7 @@ function profitLabel(): string {
                       <span v-else-if="row.group === 'flat'" class="pill-neutral ml-1 px-1.5 py-0 text-[11px]">Estagnado</span>
                     </p>
                   </td>
-                  <td class="px-3 py-2 text-ink-2">{{ row.sku ?? 'sem SKU' }}</td>
+                  <td class="whitespace-nowrap px-3 py-2 text-ink-2">{{ row.sku ?? 'sem SKU' }}</td>
                   <td class="px-3 py-2 text-right" data-numeric>{{ int(row.visits_30d) }}</td>
                   <td class="px-3 py-2 text-right" data-numeric>{{ int(row.units_30d) }}<span v-if="row.is_new" class="ml-1 text-[12px] text-ink-3">novo</span></td>
                   <td
@@ -177,6 +176,7 @@ function profitLabel(): string {
                   <td class="px-3 py-2 text-right" data-numeric>{{ brl(row.revenue_30d) }} <span class="text-[12px] text-ink-3">({{ pct(row.share_pct) }})</span></td>
                   <td class="px-3 py-2 text-right" data-numeric :class="{ 'font-semibold text-danger': row.profit_state === 'bad' }">
                     {{ brl(row.profit_month) }}
+                    <span v-if="data?.has_costs && row.profit_is_before_cost" class="block text-[11px] font-normal text-ink-3">antes do custo</span>
                   </td>
                   <td
                     class="px-3 py-2 text-right"
@@ -192,13 +192,12 @@ function profitLabel(): string {
                 </tr>
 
                 <tr v-if="expandedId === row.id" class="border-b border-line bg-surface-2">
-                  <td colspan="11" class="px-4 py-4">
+                  <td colspan="11" class="border-l-4 border-l-primary px-4 py-4">
                     <AbcDetail
                       :row="row"
                       :detail="detailCache.get(row.id)"
                       :loading="detailLoadingId === row.id"
                       :load-error="detailErrorId === row.id"
-                      :has-costs="data.has_costs"
                       @retry="loadDetail(row.id)"
                     />
                   </td>

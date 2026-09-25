@@ -26,7 +26,7 @@ function deltaText(kpi: Kpi): string {
       <p v-if="kpi.sub_label" class="mt-0.5 text-[13px] text-ink-3">{{ kpi.sub_label }}</p>
       <p
         v-if="kpi.delta"
-        class="mt-1.5 inline-flex items-center gap-1 text-[13px] font-medium"
+        class="mt-1.5 inline-flex flex-wrap items-center gap-1 text-[13px] font-medium"
         :class="{
           'text-success': kpi.delta.direction === 'up',
           'text-danger': kpi.delta.direction === 'down',
@@ -37,6 +37,7 @@ function deltaText(kpi: Kpi): string {
         <ArrowDownIcon v-else-if="kpi.delta.direction === 'down'" class="h-3.5 w-3.5" aria-hidden="true" />
         <MinusIcon v-else class="h-3.5 w-3.5" aria-hidden="true" />
         {{ deltaText(kpi) }}
+        <span class="font-normal text-ink-3">vs. semana anterior</span>
       </p>
     </div>
   </div>

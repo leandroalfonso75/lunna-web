@@ -10,13 +10,15 @@ export type SettingsTab = 'empresa' | 'usuarios' | 'contas'
 export interface SettingsTabDef {
   value: SettingsTab
   label: string
+  /** Rótulo para telas estreitas (abaixo de `sm`) — só quando o completo não cabe na aba. */
+  shortLabel?: string
   roles: UserRole[]
 }
 
 export const SETTINGS_TABS: SettingsTabDef[] = [
   { value: 'empresa', label: 'Empresa', roles: ['admin'] },
   { value: 'usuarios', label: 'Usuários', roles: ['admin'] },
-  { value: 'contas', label: 'Contas do Mercado Livre', roles: ['admin', 'member'] }
+  { value: 'contas', label: 'Contas do Mercado Livre', shortLabel: 'Contas ML', roles: ['admin', 'member'] }
 ]
 
 export function visibleSettingsTabs(role: UserRole | null | undefined): SettingsTabDef[] {

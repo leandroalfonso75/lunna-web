@@ -11,6 +11,12 @@ export type Severity = 'bad' | 'warn' | 'info'
 export type KpiValueType = 'money' | 'int' | 'pct'
 export type ThreeState = 'ok' | 'warn' | 'bad'
 
+/** Ação pendente do Mercado Livre (até 6 por anúncio). */
+export interface QualityAction {
+  title: string
+  label: string | null
+}
+
 export interface PeriodRange {
   from: string
   to: string
@@ -160,7 +166,7 @@ export interface ItemRow {
   quality_score: number | null
   quality_state: ThreeState | null
   quality_level: string | null
-  quality_actions: string[]
+  quality_actions: QualityAction[]
   alert_keys: string[]
   lean: boolean
   links: ItemLinks
@@ -241,7 +247,7 @@ export interface AbcRow {
   revenue_30d: number
   profit_month: number | null
   profit_is_before_cost: boolean
-  profit_state: 'bad' | null
+  profit_state: ThreeState | null
   margin_pct: number | null
   margin_state: ThreeState | null
   suggestions_count: number
@@ -282,6 +288,8 @@ export interface AbcMonth {
   margin_pct: number | null
   profit_is_before_cost: boolean
   margin_state: ThreeState | null
+  /** `bad` quando o lucro é negativo (com ou sem custo) — SPEC 8.4. */
+  profit_state: ThreeState | null
 }
 
 export interface AbcUnit {
@@ -294,6 +302,8 @@ export interface AbcUnit {
   profit: number
   margin_pct: number | null
   margin_state: ThreeState | null
+  /** `bad` quando o lucro é negativo (com ou sem custo) — SPEC 8.4. */
+  profit_state: ThreeState | null
 }
 
 export interface AbcListing {
