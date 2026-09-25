@@ -1,8 +1,12 @@
 /**
  * Mapeamento dos códigos `?ml=` que `GET /auth/ml/callback` devolve no
  * redirect (DECISOES.md §5) para a mensagem em português mostrada no banner
- * de Configurações › Contas do Mercado Livre.
+ * de Configurações › Contas do Mercado Livre. Desde a mudança de segurança
+ * do fluxo, o callback só resolve `cancelada`/`link_invalido` sozinho; os
+ * demais (inclusive o sucesso, `conectada`) vêm da resposta de
+ * `POST /api/ml_accounts/connect` — ver `connectErrorMessage` abaixo.
  */
+import { apiErrorCode, apiErrorMessage } from './apiErrors'
 
 export const ML_CALLBACK_CODES = [
   'conectada',
@@ -44,4 +48,15 @@ export function isMlCallbackCode(value: unknown): value is MlCallbackCode {
 /** `null` quando `value` não é um código reconhecido (ou o parâmetro `ml` não veio). */
 export function mlCallbackMessage(value: unknown): MlCallbackMessage | null {
   return isMlCallbackCode(value) ? MESSAGES[value] : null
+}
+
+/**
+ * Banner de erro de `POST /api/ml_accounts/connect` — o corpo vem
+ * `{ errors: [...], code: "..." }`; `code` conhecido usa o texto padrão
+ * daqui, código desconhecido cai no `errors[0]` da API.
+ */
+export function connectErrorMessage(err: unknown): MlCallbackMessage {
+  const known = mlCallbackMessage(apiErrorCode(err))
+  if (known) return known
+  return { kind: 'error', text: apiErrorMessage(err, 'Não foi possível conectar a conta agora. Tente de novo.') }
 }

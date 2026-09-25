@@ -60,6 +60,16 @@ describe('createSettingsClient', () => {
     expect(result.url).toBe('https://auth.mercadolivre.com.br/...')
   })
 
+  it('connectMlAccount faz POST /api/ml_accounts/connect com code e state', async () => {
+    const { api, client } = buildClient({ code: 'conectada', ml_account: { id: 'acc1' } })
+    const result = await client.connectMlAccount('auth-code', 'state-uuid')
+    expect(api).toHaveBeenCalledWith('/api/ml_accounts/connect', {
+      method: 'POST',
+      body: { code: 'auth-code', state: 'state-uuid' }
+    })
+    expect(result.code).toBe('conectada')
+  })
+
   it('deleteMlAccount faz DELETE /api/ml_accounts/:id', async () => {
     const { api, client } = buildClient()
     await client.deleteMlAccount('acc1')

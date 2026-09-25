@@ -18,12 +18,13 @@
   --ink-2: #4a5068;
   --ink-3: #7a809a;
 
-  --primary: #3a3fb0;
-  --primary-hover: #2e3294;
-  --primary-soft: #e7e8fa;
+  /* Identidade Lunna: azul da marca (logo "L" em degradê azul->ciano). */
+  --primary: #2d5bff;
+  --primary-hover: #1f45e0;
+  --primary-soft: #eaf0ff;
   --primary-ink: #ffffff;
 
-  --accent: #e8a91e;
+  --accent: #8b5cf6;
   --success: #1e8e4e;
   --success-soft: #e3f4ea;
   --warning: #b87a00;
@@ -37,20 +38,21 @@
 }
 
 :root[data-theme='dark'] {
-  --bg: #0d0f1c;
-  --surface: #151829;
-  --surface-2: #1c2036;
-  --line: #2a2f4a;
+  /* Fundos marinhos coerentes com o logo (chevron violeta sobre marinho). */
+  --bg: #070b1f;
+  --surface: #0e1430;
+  --surface-2: #141b3d;
+  --line: #242d57;
   --ink: #eceef8;
   --ink-2: #b3b8d1;
   --ink-3: #8288a6;
 
-  --primary: #8a8fff;
-  --primary-hover: #a2a6ff;
-  --primary-soft: #23264a;
-  --primary-ink: #0d0f1c;
+  --primary: #6b8cff;
+  --primary-hover: #8aa4ff;
+  --primary-soft: #18224a;
+  --primary-ink: #070b1f;
 
-  --accent: #f2b940;
+  --accent: #a78bfa;
   --success: #4cc47f;
   --success-soft: #15301f;
   --warning: #e0a93a;

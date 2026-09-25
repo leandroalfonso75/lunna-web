@@ -15,6 +15,11 @@ export interface UserUpdatePayload {
   password?: string
 }
 
+export interface ConnectMlAccountResponse {
+  code: string
+  ml_account: MlAccount
+}
+
 /**
  * Fábrica pura das chamadas de Configurações (empresa, usuários, contas do
  * Mercado Livre, sincronização). Livre de composables do Nuxt para dar para
@@ -53,6 +58,15 @@ export function createSettingsClient(api: ApiFn) {
 
     authorizeMlAccount(): Promise<{ url: string }> {
       return api('/api/ml_accounts/authorize', { method: 'POST' })
+    },
+
+    /**
+     * Troca o `code`/`state` que `GET /auth/ml/callback` devolveu na URL
+     * (DECISOES.md §5) pela conta conectada. Erro vem com `{errors, code}`
+     * (403/409/422) — `code` mapeado em `lib/mlCallback.ts`.
+     */
+    connectMlAccount(code: string, state: string): Promise<ConnectMlAccountResponse> {
+      return api('/api/ml_accounts/connect', { method: 'POST', body: { code, state } })
     },
 
     deleteMlAccount(id: string): Promise<void> {

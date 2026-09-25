@@ -3,11 +3,14 @@ import { onMounted, ref } from 'vue'
 import { useToast } from '../../composables/useToast'
 import { apiErrorMessage } from '../../lib/apiErrors'
 import { dateTimeShort, int } from '../../lib/format'
+import { connectErrorMessage, mlCallbackMessage, type MlCallbackMessage } from '../../lib/mlCallback'
 import type { SettingsClient } from '../../lib/settingsClient'
 import type { MlAccount } from '../../types/api'
 
 const props = defineProps<{ settingsApi: SettingsClient; isAdmin: boolean }>()
 const toast = useToast()
+const route = useRoute()
+const auth = useAuth()
 
 const accounts = ref<MlAccount[]>([])
 const loading = ref(true)
@@ -27,6 +30,46 @@ async function load() {
 }
 
 onMounted(load)
+
+// --- Retorno do OAuth (DECISOES.md §5) --------------------------------------
+// O callback da API redireciona para cá com `code`+`state` (fluxo normal,
+// completado por `POST /api/ml_accounts/connect` abaixo) ou `ml=cancelada`/
+// `ml=link_invalido` (erro que o callback já resolve sozinho, sem chamada).
+const oauthBanner = ref<MlCallbackMessage | null>(null)
+const connectingAccount = ref(false)
+
+onMounted(async () => {
+  const { code, state, ml } = route.query
+
+  if (typeof ml === 'string') {
+    oauthBanner.value = mlCallbackMessage(ml)
+    stripOauthQuery()
+    return
+  }
+
+  if (typeof code !== 'string' || typeof state !== 'string') return
+
+  // Tira `code`/`state` da URL ANTES de chamar a API: nunca deixa o code de
+  // autorização visível na barra de endereço, e garante que isto só roda
+  // uma vez mesmo que algo dispare uma nova leitura da rota depois.
+  stripOauthQuery()
+  connectingAccount.value = true
+  try {
+    const result = await props.settingsApi.connectMlAccount(code, state)
+    oauthBanner.value = mlCallbackMessage(result.code) ?? { kind: 'success', text: 'Conta do Mercado Livre conectada.' }
+    await auth.me()
+    await load()
+  } catch (err) {
+    oauthBanner.value = connectErrorMessage(err)
+  } finally {
+    connectingAccount.value = false
+  }
+})
+
+function stripOauthQuery() {
+  const { code: _code, state: _state, ml: _ml, ...rest } = route.query
+  navigateTo({ path: '/configuracoes', query: rest }, { replace: true })
+}
 
 // --- Conectar / reconectar (mesmo fluxo OAuth) ------------------------------
 const connecting = ref(false)
@@ -78,6 +121,17 @@ async function confirmDisconnect(account: MlAccount) {
 
 <template>
   <div class="space-y-6">
+    <div v-if="connectingAccount" role="status" class="card p-4 text-[15px] text-ink-2">Conectando conta do Mercado Livre…</div>
+
+    <div
+      v-else-if="oauthBanner"
+      role="status"
+      class="card p-4 text-[15px]"
+      :class="oauthBanner.kind === 'success' ? 'border-success bg-success-soft text-success' : 'border-danger bg-danger-soft text-danger'"
+    >
+      {{ oauthBanner.text }}
+    </div>
+
     <div v-if="isAdmin" class="flex justify-end">
       <button type="button" data-test="conectar-conta" :disabled="connecting" class="btn-primary" @click="connect">
         {{ connecting ? 'Conectando...' : 'Conectar conta do Mercado Livre' }}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ML_CALLBACK_CODES, mlCallbackMessage } from './mlCallback'
+import { connectErrorMessage, ML_CALLBACK_CODES, mlCallbackMessage } from './mlCallback'
 
 describe('mlCallbackMessage', () => {
   it('mapeia todos os 9 códigos de DECISOES.md §5', () => {
@@ -26,5 +26,27 @@ describe('mlCallbackMessage', () => {
     expect(mlCallbackMessage(undefined)).toBeNull()
     expect(mlCallbackMessage(null)).toBeNull()
     expect(mlCallbackMessage('')).toBeNull()
+  })
+})
+
+describe('connectErrorMessage (POST /api/ml_accounts/connect, DECISOES.md §5)', () => {
+  it('usa o texto padrão quando o erro vem com um code conhecido', () => {
+    const err = { data: { errors: ['ignorado'], code: 'outra_empresa' } }
+    expect(connectErrorMessage(err)).toEqual({
+      kind: 'error',
+      text: 'Esta conta do Mercado Livre já está conectada a outra empresa.'
+    })
+  })
+
+  it('cai no errors[0] da API quando o code não é reconhecido', () => {
+    const err = { data: { errors: ['Mensagem específica da API.'], code: 'algo_novo' } }
+    expect(connectErrorMessage(err)).toEqual({ kind: 'error', text: 'Mensagem específica da API.' })
+  })
+
+  it('cai na mensagem genérica quando não há code nem errors', () => {
+    expect(connectErrorMessage(new Error('network'))).toEqual({
+      kind: 'error',
+      text: 'Não foi possível conectar a conta agora. Tente de novo.'
+    })
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { apiErrorMessage, apiErrorMessages, apiErrorStatus } from './apiErrors'
+import { apiErrorCode, apiErrorMessage, apiErrorMessages, apiErrorStatus } from './apiErrors'
 
 describe('apiErrorStatus', () => {
   it('reads the status wherever ofetch happens to put it', () => {
@@ -52,5 +52,17 @@ describe('apiErrorMessages', () => {
 
   it('falls back to a single default line', () => {
     expect(apiErrorMessages(new Error('network'), 'padrão')).toEqual(['padrão'])
+  })
+})
+
+describe('apiErrorCode', () => {
+  it('reads the code from { data: { code: "..." } } (POST /api/ml_accounts/connect)', () => {
+    expect(apiErrorCode({ data: { errors: ['x'], code: 'outra_empresa' } })).toBe('outra_empresa')
+  })
+
+  it('is undefined when there is no code', () => {
+    expect(apiErrorCode({ data: { errors: ['x'] } })).toBeUndefined()
+    expect(apiErrorCode(new Error('network'))).toBeUndefined()
+    expect(apiErrorCode(null)).toBeUndefined()
   })
 })

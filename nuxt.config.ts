@@ -16,7 +16,12 @@ export default defineNuxtConfig({
       // exige uma string, e um `title` padrão aqui rendia "Lunna · Lunna" em
       // toda página sem título próprio.
       title: 'Lunna',
-      htmlAttrs: { lang: 'pt-BR' }
+      htmlAttrs: { lang: 'pt-BR' },
+      link: [
+        { rel: 'icon', href: '/favicon.ico' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }
+      ],
+      meta: [{ name: 'theme-color', content: '#070B1F' }]
     }
   },
 

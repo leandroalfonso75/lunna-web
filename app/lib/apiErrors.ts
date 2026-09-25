@@ -8,7 +8,7 @@ interface MaybeFetchError {
   status?: unknown
   statusCode?: unknown
   response?: { status?: unknown }
-  data?: { errors?: unknown }
+  data?: { errors?: unknown; code?: unknown }
 }
 
 /** HTTP status do erro, quando dá para saber. */
@@ -26,6 +26,12 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
     if (typeof first === 'string') return first
   }
   return fallback
+}
+
+/** `code` de `{ errors: [...], code: "..." }` — usado pelo fluxo de conexão do ML (lib/mlCallback.ts). */
+export function apiErrorCode(err: unknown): string | undefined {
+  const code = (err as MaybeFetchError | null | undefined)?.data?.code
+  return typeof code === 'string' ? code : undefined
 }
 
 /** Todas as mensagens de `{ errors: [...] }` — formulários que listam uma por linha. */
