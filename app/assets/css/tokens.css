@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Tokens de tema do Lunna ("noite + lua"). Dois temas: claro (`:root`,
+ * padrão) e escuro (`:root[data-theme='dark']`) — quem põe o atributo no
+ * `<html>` é o script anti-flash de `app.vue` + `composables/useTheme.ts`,
+ * nunca CSS sozinho (`prefers-color-scheme` por si só NÃO troca nada:
+ * "sistema" é uma escolha do usuário resolvida em JS).
+ */
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #eef0f7;
+  --line: #dfe2ee;
+  --ink: #141829;
+  --ink-2: #4a5068;
+  --ink-3: #7a809a;
+
+  --primary: #3a3fb0;
+  --primary-hover: #2e3294;
+  --primary-soft: #e7e8fa;
+  --primary-ink: #ffffff;
+
+  --accent: #e8a91e;
+  --success: #1e8e4e;
+  --success-soft: #e3f4ea;
+  --warning: #b87a00;
+  --warning-soft: #fbf1da;
+  --danger: #cc3434;
+  --danger-soft: #fbe6e6;
+  --info: #2f66c8;
+  --info-soft: #e4ecfa;
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0d0f1c;
+  --surface: #151829;
+  --surface-2: #1c2036;
+  --line: #2a2f4a;
+  --ink: #eceef8;
+  --ink-2: #b3b8d1;
+  --ink-3: #8288a6;
+
+  --primary: #8a8fff;
+  --primary-hover: #a2a6ff;
+  --primary-soft: #23264a;
+  --primary-ink: #0d0f1c;
+
+  --accent: #f2b940;
+  --success: #4cc47f;
+  --success-soft: #15301f;
+  --warning: #e0a93a;
+  --warning-soft: #33280f;
+  --danger: #f06a6a;
+  --danger-soft: #3a1818;
+  --info: #6d9bf0;
+  --info-soft: #172542;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Nunca rolagem horizontal, nem "fantasma" no iOS (zoom automático ao focar
+   um campo com fonte < 16px deixa a página ampliada e rolando de lado). */
+html,
+body {
+  overflow-x: clip;
+}
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* Números sempre alinhados em colunas. */
+table,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/*
+ * Primitivos da interface — ficam aqui (e não repetidos em cada .vue) para
+ * que botão/input/card/pill tenham uma definição só.
+ */
+@layer components {
+  .btn {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-card px-4 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-primary-ink hover:bg-primary-hover;
+  }
+  .btn-secondary {
+    @apply btn border border-line bg-surface text-ink hover:bg-surface-2;
+  }
+  .btn-danger {
+    @apply btn border border-danger bg-surface text-danger hover:bg-danger-soft;
+  }
+  .btn-danger-solid {
+    @apply btn bg-danger text-primary-ink hover:brightness-95;
+  }
+  .btn-ghost {
+    @apply btn px-2 text-ink-2 hover:bg-surface-2 hover:text-ink;
+  }
+  .btn-link {
+    @apply text-[13px] font-semibold text-primary hover:text-primary-hover;
+  }
+
+  .input {
+    @apply h-[38px] w-full rounded-card border border-line bg-surface px-3 text-[15px] text-ink placeholder:text-ink-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-soft disabled:bg-surface-2;
+  }
+  select.input {
+    @apply pr-8;
+  }
+
+  .card {
+    @apply rounded-card border border-line bg-surface;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium;
+  }
+  .pill-neutral {
+    @apply pill bg-surface-2 text-ink-2;
+  }
+  .pill-success {
+    @apply pill bg-success-soft text-success;
+  }
+  .pill-warning {
+    @apply pill bg-warning-soft text-warning;
+  }
+  .pill-danger {
+    @apply pill bg-danger-soft text-danger;
+  }
+  .pill-primary {
+    @apply pill bg-primary-soft text-primary;
+  }
+
+  .tab-bar {
+    @apply flex gap-6 overflow-x-auto border-b border-line md:overflow-x-visible;
+    scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .tab {
+    @apply -mb-px shrink-0 border-b-2 border-transparent pb-3 text-[14px] font-medium text-ink-2 transition-colors hover:text-ink;
+  }
+  .tab-active {
+    @apply tab border-primary text-ink;
+  }
+
+  .page {
+    @apply mx-auto w-full max-w-content px-4 py-6 md:px-8 md:py-8;
+  }
+  .page-title {
+    @apply text-[22px] text-ink;
+  }
+  .page-subtitle {
+    @apply mt-1 text-[15px] text-ink-2;
+  }
+  .section-title {
+    @apply text-[18px] text-ink;
+  }
+  .field-label {
+    @apply mb-1.5 block text-[13px] font-medium text-ink-2;
+  }
+  .empty-state {
+    @apply flex flex-col items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface px-6 py-16 text-center;
+  }
+}
