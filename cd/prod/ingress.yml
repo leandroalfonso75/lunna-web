@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lunna-web-ingress
+  namespace: lunna
+  labels: { app: lunna-web, role: web }
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [app.change-me.invalid]
+      secretName: lunna-web-tls
+  rules:
+    - host: app.change-me.invalid
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: lunna-web, port: { number: 80 } }
