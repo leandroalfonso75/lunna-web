@@ -268,7 +268,7 @@ function totalPages(): number {
                 </td>
               </tr>
 
-              <tr v-if="expandedId === item.id" class="border-b border-line bg-surface-2/40">
+              <tr v-if="expandedId === item.id" class="border-b border-line bg-surface-2">
                 <td :colspan="COLUMNS.length" class="px-4 py-4">
                   <div class="grid grid-cols-1 gap-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
                     <div>

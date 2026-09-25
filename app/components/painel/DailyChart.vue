@@ -38,7 +38,7 @@ function tooltip(point: DailyPoint): string {
       <h2 class="section-title">Últimos 15 dias</h2>
       <div class="flex items-center gap-4 text-[13px] text-ink-2">
         <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-primary" /> Unidades</span>
-        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-info" /> Visitas</span>
+        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-accent" /> Visitas</span>
       </div>
     </div>
 
@@ -51,7 +51,7 @@ function tooltip(point: DailyPoint): string {
         v-for="(point, i) in daily"
         :key="`u-${point.day}`"
         type="button"
-        class="group flex min-w-0 flex-1 flex-col items-center justify-end gap-1 rounded-t-[3px] outline-none"
+        class="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1 rounded-t-[3px] outline-none"
         :aria-label="tooltip(point)"
         @mouseenter="activeIndex = i"
         @mouseleave="activeIndex = null"
@@ -60,8 +60,8 @@ function tooltip(point: DailyPoint): string {
       >
         <span v-if="point.units > 0" class="text-[11px] leading-none text-ink-3" data-numeric>{{ int(point.units) }}</span>
         <span
-          class="w-full rounded-t-[3px] transition-colors"
-          :class="point.is_today ? 'bg-primary' : 'bg-primary/60 group-hover:bg-primary group-focus-visible:bg-primary'"
+          class="max-h-[calc(100%-14px)] w-full rounded-t-[3px] transition-[opacity]"
+          :class="point.is_today ? 'bg-primary' : 'bg-primary opacity-50 group-hover:opacity-100 group-focus-visible:opacity-100'"
           :style="{ height: `${Math.max(unitsHeight(point), point.units > 0 ? 2 : 0)}%` }"
         />
       </button>
@@ -72,7 +72,7 @@ function tooltip(point: DailyPoint): string {
         v-for="(point, i) in daily"
         :key="`v-${point.day}`"
         type="button"
-        class="group flex min-w-0 flex-1 flex-col items-center gap-1 rounded-b-[3px] outline-none"
+        class="group flex h-full min-w-0 flex-1 flex-col items-center gap-1 rounded-b-[3px] outline-none"
         :aria-label="tooltip(point)"
         @mouseenter="activeIndex = i"
         @mouseleave="activeIndex = null"
@@ -80,8 +80,8 @@ function tooltip(point: DailyPoint): string {
         @blur="activeIndex = null"
       >
         <span
-          class="w-full rounded-b-[3px] transition-colors"
-          :class="point.is_today ? 'bg-info' : 'bg-info/50 group-hover:bg-info group-focus-visible:bg-info'"
+          class="max-h-[calc(100%-16px)] w-full rounded-b-[3px] transition-[opacity]"
+          :class="point.is_today ? 'bg-accent' : 'bg-accent opacity-40 group-hover:opacity-100 group-focus-visible:opacity-100'"
           :style="{ height: `${Math.max(visitsHeight(point), point.visits > 0 ? 2 : 0)}%` }"
         />
         <span class="text-[11px] leading-none text-ink-3" :class="{ 'font-semibold text-ink': point.is_today }">{{ dayLabel(point.day) }}</span>

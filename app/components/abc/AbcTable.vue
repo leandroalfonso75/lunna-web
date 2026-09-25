@@ -191,7 +191,7 @@ function profitLabel(): string {
                   </td>
                 </tr>
 
-                <tr v-if="expandedId === row.id" class="border-b border-line bg-surface-2/40">
+                <tr v-if="expandedId === row.id" class="border-b border-line bg-surface-2">
                   <td colspan="11" class="px-4 py-4">
                     <AbcDetail
                       :row="row"
