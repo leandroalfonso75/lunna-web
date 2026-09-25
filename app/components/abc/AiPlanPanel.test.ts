@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import AiPlanPanel from './AiPlanPanel.vue'
@@ -10,14 +10,25 @@ import type { Company, User } from '../../types/api'
  * do runtime aqui) — mockado por inteiro para isolar o que este teste
  * cobre: o botão desabilitado/habilitado conforme `ai_configured`.
  */
+const ai = vi.hoisted(() => ({
+  state: { status: 'idle', text: '', error: '' },
+  load: vi.fn()
+}))
+
 vi.mock('../../composables/useAiPlan', () => ({
   useAiPlan: () => ({
-    stateFor: () => ({ status: 'idle', text: '', error: '' }),
+    stateFor: () => ai.state,
+    load: ai.load,
     generate: vi.fn(),
     stop: vi.fn(),
     reset: vi.fn()
   })
 }))
+
+beforeEach(() => {
+  ai.state = { status: 'idle', text: '', error: '' }
+  ai.load.mockClear()
+})
 
 const ADMIN: User = { id: 'u1', name: 'Ana Admin', email: 'ana@empresa.com', role: 'admin' }
 const MEMBER: User = { id: 'u2', name: 'Bob Membro', email: 'bob@empresa.com', role: 'member' }
@@ -78,5 +89,25 @@ describe('AiPlanPanel', () => {
     expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
     expect(wrapper.find('[data-test="ai-nao-configurada"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Modelo: anthropic/claude-sonnet-4.5')
+  })
+
+  it('ao abrir, carrega o plano salvo do anúncio (polling retomado se ainda estiver gerando)', () => {
+    mountPanel(ADMIN, company({ ai_configured: true, ai_model: 'x/y' }))
+    expect(ai.load).toHaveBeenCalledWith('item1')
+  })
+
+  it('plano pronto mostra o texto e o aviso de revisão', () => {
+    ai.state = { status: 'done', text: 'Diagnóstico: tudo certo.', error: '' }
+    const wrapper = mountPanel(ADMIN, company({ ai_configured: true, ai_model: 'x/y' }))
+    expect(wrapper.text()).toContain('Diagnóstico: tudo certo.')
+    expect(wrapper.text()).toContain('Plano gerado a partir dos dados deste anúncio.')
+    expect(wrapper.get('button').text()).toContain('Gerar de novo')
+  })
+
+  it('erro mostra a mensagem e não mostra o aviso de plano gerado', () => {
+    ai.state = { status: 'error', text: '', error: 'Sem créditos na OpenRouter.' }
+    const wrapper = mountPanel(ADMIN, company({ ai_configured: true, ai_model: 'x/y' }))
+    expect(wrapper.get('[role="alert"]').text()).toBe('Sem créditos na OpenRouter.')
+    expect(wrapper.text()).not.toContain('Plano gerado a partir dos dados')
   })
 })

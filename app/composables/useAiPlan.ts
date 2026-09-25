@@ -1,79 +1,61 @@
 import { reactive } from 'vue'
-import { createAiPlanStreamer } from '../lib/aiPlanStream'
+import { createAiPlanClient } from '../lib/aiPlanClient'
+import { createAiPlanRunner, type AiPlanRunner, type AiPlanState } from '../lib/aiPlanRunner'
 import { useSessionStore } from '../stores/session'
 
-export type AiPlanStatus = 'idle' | 'loading' | 'done' | 'error'
-
-export interface AiPlanState {
-  status: AiPlanStatus
-  text: string
-  error: string
-}
+export type { AiPlanState, AiPlanStatus } from '../lib/aiPlanRunner'
 
 /**
- * Plano de ação com IA por anúncio (SPEC §9): "Gerar" → "Parar" (aborta) →
- * "Gerar de novo", resultado em memória por anúncio enquanto a página está
- * aberta — por isso o estado é module-scope, chaveado por `item_id` (mesmo
- * padrão de `useToast`), e não algo local ao componente do detalhe.
+ * Plano de ação com IA por anúncio (SPEC §9): "Gerar" → "Parar" → "Gerar de
+ * novo". A geração roda no servidor e a tela faz polling (`lib/aiPlanRunner.ts`);
+ * o plano fica salvo e é recarregado ao reabrir o anúncio (`load`). O estado é
+ * module-scope, chaveado por `item_id` (mesmo padrão de `useToast`), e não algo
+ * local ao componente do detalhe — assim o polling em curso sobrevive a fechar
+ * e reabrir a linha.
  */
 const plans = reactive(new Map<string, AiPlanState>())
-const controllers = new Map<string, AbortController>()
+let runner: AiPlanRunner | null = null
 
 function stateFor(itemId: string): AiPlanState {
   // Sempre devolve o valor via `.get()` (nunca o objeto cru recém-criado):
   // um `Map` reativo envolve cada valor lido num proxy reativo — devolver o
   // objeto cru na criação faria o componente ler uma referência que nunca
-  // dispara re-render quando `generate()` mutar o estado depois.
+  // dispara re-render quando o polling mutar o estado depois.
   if (!plans.has(itemId)) plans.set(itemId, { status: 'idle', text: '', error: '' })
   return plans.get(itemId)!
 }
 
 export function useAiPlan() {
-  const config = useRuntimeConfig()
-  const { $token } = useNuxtApp()
+  const { $api } = useNuxtApp()
   const session = useSessionStore()
-  const stream = createAiPlanStreamer({ baseURL: config.public.apiUrl, getToken: () => $token.value })
+  // Um runner só (guarda os timers de polling por anúncio), criado com o `$api` do app.
+  runner ??= createAiPlanRunner(createAiPlanClient($api))
+  const active = runner
+
+  function load(itemId: string) {
+    const accountId = session.selectedAccountId
+    if (!accountId) return
+    // Já gerando/carregado nesta sessão: o polling em curso é a fonte da verdade.
+    if (stateFor(itemId).status !== 'idle') return
+    active.load(stateFor(itemId), accountId, itemId)
+  }
 
   function generate(itemId: string) {
     const accountId = session.selectedAccountId
     if (!accountId) return
-
-    const state = stateFor(itemId)
-    state.status = 'loading'
-    state.text = ''
-    state.error = ''
-
-    const controller = new AbortController()
-    controllers.set(itemId, controller)
-
-    stream({
-      itemId,
-      accountId,
-      signal: controller.signal,
-      onData: (chunk) => {
-        state.text += chunk
-      },
-      onDone: () => {
-        state.status = 'done'
-        controllers.delete(itemId)
-      },
-      onError: (message) => {
-        state.status = 'error'
-        state.error = message
-        controllers.delete(itemId)
-      }
-    })
+    active.generate(stateFor(itemId), accountId, itemId)
   }
 
   function stop(itemId: string) {
-    controllers.get(itemId)?.abort()
+    const accountId = session.selectedAccountId
+    if (!accountId) return
+    active.stop(stateFor(itemId), accountId, itemId)
   }
 
   function reset(itemId: string) {
     plans.delete(itemId)
-    controllers.get(itemId)?.abort()
-    controllers.delete(itemId)
+    active.reset(itemId)
   }
 
-  return { stateFor, generate, stop, reset }
+  return { stateFor, load, generate, stop, reset }
 }

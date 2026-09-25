@@ -347,6 +347,15 @@ export interface AbcSuggestion {
   why: string
 }
 
+/** `GET /api/items/:id/ai-plan` (DECISOES §10): plano gerado em background, lido por polling. */
+export interface AiPlan {
+  id: string
+  status: 'pending' | 'running' | 'done' | 'error' | 'cancelled'
+  text: string
+  error: string | null
+  updated_at: string
+}
+
 export interface AbcItemDetail {
   indicators: AbcIndicators
   month: AbcMonth

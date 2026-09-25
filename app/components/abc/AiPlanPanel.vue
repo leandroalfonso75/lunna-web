@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { SparklesIcon } from '@heroicons/vue/24/outline'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useAiPlan } from '../../composables/useAiPlan'
 import { useSessionStore } from '../../stores/session'
 
 /**
- * Plano de ação com IA (SPEC §9): "Gerar" → "Parar" (aborta) → "Gerar de
- * novo", resultado em memória por anúncio enquanto a página está aberta
- * (`useAiPlan` é module-scope, chaveado por `item_id`).
+ * Plano de ação com IA (SPEC §9): "Gerar" → "Parar" → "Gerar de novo". A
+ * geração roda no servidor e a tela faz polling; o último plano fica salvo e
+ * é recarregado ao abrir o anúncio (`useAiPlan` é module-scope, chaveado por
+ * `item_id`).
  *
  * DECISOES.md §10: cada empresa configura a própria chave/modelo da
  * OpenRouter em Configurações › Empresa — sem isso o botão fica desabilitado.
@@ -17,6 +18,9 @@ const props = defineProps<{ itemId: string }>()
 const ai = useAiPlan()
 const state = ai.stateFor(props.itemId)
 const session = useSessionStore()
+
+// Só no cliente: mostra o plano salvo (ou retoma o acompanhamento de um em geração).
+onMounted(() => ai.load(props.itemId))
 
 const aiConfigured = computed(() => session.company?.ai_configured ?? false)
 
