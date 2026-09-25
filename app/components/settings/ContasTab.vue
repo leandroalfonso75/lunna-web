@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { LinkIcon } from '@heroicons/vue/24/outline'
 import { onMounted, ref } from 'vue'
 import { useToast } from '../../composables/useToast'
 import { apiErrorMessage } from '../../lib/apiErrors'
@@ -6,8 +7,10 @@ import { dateTimeShort, int } from '../../lib/format'
 import { connectErrorMessage, mlCallbackMessage, type MlCallbackMessage } from '../../lib/mlCallback'
 import type { SettingsClient } from '../../lib/settingsClient'
 import type { MlAccount } from '../../types/api'
+import SettingsSkeleton from './SettingsSkeleton.vue'
 
 const props = defineProps<{ settingsApi: SettingsClient; isAdmin: boolean }>()
+const emit = defineEmits<{ loaded: [count: number] }>()
 const toast = useToast()
 const route = useRoute()
 const auth = useAuth()
@@ -15,6 +18,21 @@ const auth = useAuth()
 const accounts = ref<MlAccount[]>([])
 const loading = ref(true)
 const loadError = ref('')
+
+/** "há 3 minutos" — nativo (`Intl.RelativeTimeFormat`), sem heurística própria. */
+const relativeTimeFormatter = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' })
+
+function relativeTime(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '—'
+  const diffSec = (date.getTime() - Date.now()) / 1000
+  const abs = Math.abs(diffSec)
+  if (abs < 60) return relativeTimeFormatter.format(Math.round(diffSec), 'second')
+  if (abs < 3600) return relativeTimeFormatter.format(Math.round(diffSec / 60), 'minute')
+  if (abs < 86400) return relativeTimeFormatter.format(Math.round(diffSec / 3600), 'hour')
+  return relativeTimeFormatter.format(Math.round(diffSec / 86400), 'day')
+}
 
 async function load() {
   loading.value = true
@@ -26,6 +44,7 @@ async function load() {
     loadError.value = 'Não foi possível carregar as contas agora. Tente de novo.'
   } finally {
     loading.value = false
+    emit('loaded', accounts.value.length)
   }
 }
 
@@ -109,6 +128,7 @@ async function confirmDisconnect(account: MlAccount) {
   try {
     await props.settingsApi.deleteMlAccount(account.id)
     accounts.value = accounts.value.filter((a) => a.id !== account.id)
+    emit('loaded', accounts.value.length)
     toast.success('Conta desconectada.')
   } catch (err) {
     toast.error(apiErrorMessage(err, 'Não foi possível desconectar agora. Tente de novo.'))
@@ -132,13 +152,13 @@ async function confirmDisconnect(account: MlAccount) {
       {{ oauthBanner.text }}
     </div>
 
-    <div v-if="isAdmin" class="flex justify-end">
+    <div v-if="isAdmin && accounts.length" class="flex justify-end">
       <button type="button" data-test="conectar-conta" :disabled="connecting" class="btn-primary" @click="connect">
         {{ connecting ? 'Conectando...' : 'Conectar conta do Mercado Livre' }}
       </button>
     </div>
 
-    <div v-if="loading" role="status" class="text-[15px] text-ink-2">Carregando...</div>
+    <SettingsSkeleton v-if="loading" :rows="2" />
 
     <div v-else-if="loadError" class="card p-6 text-center" role="alert">
       <p class="text-[15px] text-danger">{{ loadError }}</p>
@@ -146,7 +166,13 @@ async function confirmDisconnect(account: MlAccount) {
     </div>
 
     <div v-else-if="!accounts.length" class="empty-state">
-      <p class="text-[15px] text-ink-2">Nenhuma conta do Mercado Livre conectada ainda.</p>
+      <LinkIcon class="h-8 w-8 text-ink-3" aria-hidden="true" />
+      <p class="text-[15px] text-ink-2">
+        {{ isAdmin ? 'Nenhuma conta do Mercado Livre conectada ainda.' : 'Peça a um administrador para conectar uma conta do Mercado Livre.' }}
+      </p>
+      <button v-if="isAdmin" type="button" data-test="conectar-conta" :disabled="connecting" class="btn-primary" @click="connect">
+        {{ connecting ? 'Conectando...' : 'Conectar conta do Mercado Livre' }}
+      </button>
     </div>
 
     <ul v-else class="space-y-3">
@@ -166,7 +192,11 @@ async function confirmDisconnect(account: MlAccount) {
         </p>
 
         <div v-if="account.last_sync" class="text-[13px] text-ink-3">
-          Última sincronização: {{ dateTimeShort(account.last_sync.finished_at ?? account.last_sync.started_at) }} —
+          Última sincronização:
+          <span :title="dateTimeShort(account.last_sync.finished_at ?? account.last_sync.started_at)">
+            {{ relativeTime(account.last_sync.finished_at ?? account.last_sync.started_at) }}
+          </span>
+          —
           <span :class="account.last_sync.ok ? 'text-success' : 'text-danger'">{{ account.last_sync.ok ? 'ok' : 'falha' }}</span>
           · {{ int(account.last_sync.items) }} itens · {{ int(account.last_sync.orders) }} pedidos
           <span v-if="account.last_sync.detail"> — {{ account.last_sync.detail }}</span>

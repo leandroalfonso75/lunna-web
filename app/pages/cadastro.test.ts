@@ -67,4 +67,44 @@ describe('cadastro', () => {
     const wrapper = mountCadastro(signupMock)
     expect(wrapper.find('a[href="/login"]').exists()).toBe(true)
   })
+
+  it('o botão de mostrar/ocultar alterna o tipo do campo de senha e o aria-pressed', async () => {
+    const wrapper = mountCadastro(signupMock)
+    const toggle = wrapper.get('[data-test="alternar-senha"]')
+
+    expect(wrapper.get('#password').attributes('type')).toBe('password')
+    expect(toggle.attributes('aria-pressed')).toBe('false')
+
+    await toggle.trigger('click')
+
+    expect(wrapper.get('#password').attributes('type')).toBe('text')
+    expect(toggle.attributes('aria-pressed')).toBe('true')
+    expect(toggle.attributes('aria-label')).toBe('Ocultar senha')
+  })
+
+  it('desabilita o botão de criar conta enquanto o cadastro está em andamento', async () => {
+    let resolveSignup: () => void = () => {}
+    signupMock.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveSignup = resolve
+      })
+    )
+    const wrapper = mountCadastro(signupMock)
+
+    await wrapper.get('#company-name').setValue('Empresa Ana')
+    await wrapper.get('#name').setValue('Ana')
+    await wrapper.get('#email').setValue('ana@empresa.com')
+    await wrapper.get('#password').setValue('segredo123')
+    await wrapper.get('form').trigger('submit.prevent')
+
+    const button = wrapper.get('[data-test="signup-submit"]')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.text()).toContain('Criando...')
+
+    resolveSignup()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-test="signup-submit"]').attributes('disabled')).toBeUndefined()
+  })
 })

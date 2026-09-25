@@ -41,7 +41,7 @@ export default <Partial<Config>>{
         card: '0 1px 2px rgba(20, 24, 41, 0.06)'
       },
       maxWidth: {
-        content: '1200px'
+        content: '1440px'
       }
     }
   },

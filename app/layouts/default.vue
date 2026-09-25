@@ -1,6 +1,15 @@
 <script setup lang="ts">
-import { Bars3Icon, ChartBarIcon, Cog6ToothIcon, HomeIcon, ListBulletIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Dialog, DialogPanel } from '@headlessui/vue'
+import {
+  Bars3Icon,
+  ChartBarIcon,
+  ChevronUpDownIcon,
+  Cog6ToothIcon,
+  HomeIcon,
+  ListBulletIcon,
+  XMarkIcon
+} from '@heroicons/vue/24/outline'
+import { ref, watch } from 'vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { usePageHeader } from '../composables/usePageHeader'
 import { useToast } from '../composables/useToast'
@@ -8,10 +17,10 @@ import { useSessionStore } from '../stores/session'
 
 /**
  * Layout SaaS com menu lateral (substitui a barra superior do W1): sidebar
- * fixa em >= 1024px (`lg:`), gaveta com overlay abaixo disso — mesma
- * mecânica de gaveta do W1 (fecha ao navegar/Esc), só que agora com a
- * navegação de 4 itens (Visão geral/Anúncios/Curva ABC/Configurações) e o
- * seletor de conta no topo da sidebar em vez do cabeçalho.
+ * fixa em >= 1024px (`lg:`), gaveta com overlay abaixo disso. A gaveta usa
+ * `Dialog`/`DialogPanel` do headlessui — foco preso, fecha com Esc/clique
+ * fora e devolve o foco ao botão que abriu, tudo de graça (nenhum código de
+ * focus-trap escrito à mão aqui).
  *
  * O título/selo de sync da barra compacta (< 1024px) vêm de
  * `usePageHeader()` (singleton escrito por cada página) — a página é dona
@@ -23,11 +32,19 @@ const route = useRoute()
 const toast = useToast()
 const header = usePageHeader()
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Visão geral', icon: HomeIcon },
-  { to: '/anuncios', label: 'Anúncios', icon: ListBulletIcon },
-  { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon },
-  { to: '/configuracoes', label: 'Configurações', icon: Cog6ToothIcon }
+const NAV_SECTIONS = [
+  {
+    label: 'Painel',
+    items: [
+      { to: '/', label: 'Visão geral', icon: HomeIcon },
+      { to: '/anuncios', label: 'Anúncios', icon: ListBulletIcon },
+      { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon }
+    ]
+  },
+  {
+    label: 'Conta',
+    items: [{ to: '/configuracoes', label: 'Configurações', icon: Cog6ToothIcon }]
+  }
 ]
 
 function isActive(to: string): boolean {
@@ -41,6 +58,15 @@ function onAccountChange(event: Event) {
   session.selectAccount((event.target as HTMLSelectElement).value)
 }
 
+/** Iniciais do nome (até 2 letras) para o avatar do rodapé da sidebar. */
+function initials(name: string | undefined | null): string {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  const first = parts[0]?.[0] ?? ''
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : ''
+  return (first + last).toUpperCase() || '?'
+}
+
 // --- Gaveta (< 1024px) -------------------------------------------------------
 const drawerOpen = ref(false)
 
@@ -49,13 +75,6 @@ function closeDrawer() {
 }
 
 watch(() => route.fullPath, closeDrawer)
-
-function onKeydown(event: KeyboardEvent) {
-  if (drawerOpen.value && event.key === 'Escape') closeDrawer()
-}
-
-onMounted(() => document.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
@@ -68,7 +87,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
     </a>
 
     <!-- Sidebar fixa (>= 1024px) -->
-    <aside class="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-60 lg:shrink-0 lg:flex-col lg:border-r lg:border-line lg:bg-surface">
+    <aside class="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:border-r lg:border-line lg:bg-surface">
       <div class="px-5 py-5">
         <NuxtLink to="/" class="flex items-center gap-2">
           <img src="/brand/lunna-mark-128.png" alt="" width="32" height="32" class="h-8 w-8 shrink-0" />
@@ -77,42 +96,61 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
       </div>
 
       <div v-if="session.mlAccounts.length >= 1" class="px-3 pb-4">
-        <label class="field-label" for="conta-sidebar">Conta do Mercado Livre</label>
-        <select
-          id="conta-sidebar"
-          data-test="seletor-conta"
-          :value="session.selectedAccountId ?? ''"
-          class="input"
-          aria-label="Conta do Mercado Livre"
-          @change="onAccountChange"
-        >
-          <option v-for="acc in session.mlAccounts" :key="acc.id" :value="acc.id">{{ acc.nickname }}</option>
-        </select>
+        <div class="relative">
+          <label for="conta-sidebar" class="field-label">Conta do Mercado Livre</label>
+          <div class="pointer-events-none flex items-center justify-between gap-2 rounded-card border border-line bg-surface px-3 py-2">
+            <div class="min-w-0">
+              <p class="truncate text-[14px] font-semibold text-ink">{{ session.selectedAccount?.nickname ?? 'Selecionar conta' }}</p>
+              <p class="truncate text-[12px] text-ink-3">Seller ID {{ session.selectedAccount?.seller_id }}</p>
+            </div>
+            <ChevronUpDownIcon class="h-4 w-4 shrink-0 text-ink-3" aria-hidden="true" />
+          </div>
+          <select
+            id="conta-sidebar"
+            data-test="seletor-conta"
+            :value="session.selectedAccountId ?? ''"
+            class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            aria-label="Conta do Mercado Livre"
+            @change="onAccountChange"
+          >
+            <option v-for="acc in session.mlAccounts" :key="acc.id" :value="acc.id">{{ acc.nickname }}</option>
+          </select>
+        </div>
       </div>
       <div v-else-if="session.isAdmin" class="px-3 pb-4">
         <NuxtLink to="/configuracoes?aba=contas" class="btn-secondary w-full">Conectar conta</NuxtLink>
       </div>
 
-      <nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-3" aria-label="Navegação principal">
-        <NuxtLink
-          v-for="item in NAV_ITEMS"
-          :key="item.to"
-          :to="item.to"
-          class="flex items-center gap-2.5 rounded-card px-3 py-2 text-[14px] font-medium transition-colors"
-          :class="isActive(item.to) ? 'bg-primary-soft text-primary' : 'text-ink-2 hover:bg-surface-2 hover:text-ink'"
-        >
-          <component :is="item.icon" class="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
-          {{ item.label }}
-        </NuxtLink>
+      <nav class="flex flex-1 flex-col gap-5 overflow-y-auto px-3" aria-label="Navegação principal">
+        <div v-for="section in NAV_SECTIONS" :key="section.label">
+          <p class="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">{{ section.label }}</p>
+          <div class="flex flex-col gap-1">
+            <NuxtLink
+              v-for="item in section.items"
+              :key="item.to"
+              :to="item.to"
+              class="flex items-center gap-2.5 rounded-card border-l-[3px] px-3 py-2 text-[14px] font-medium transition-colors"
+              :class="isActive(item.to) ? 'border-primary bg-primary-soft text-primary' : 'border-transparent text-ink-2 hover:bg-surface-2 hover:text-ink'"
+            >
+              <component :is="item.icon" class="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+              {{ item.label }}
+            </NuxtLink>
+          </div>
+        </div>
       </nav>
 
       <div class="border-t border-line px-3 py-4">
         <div class="px-3 pb-3">
           <ThemeToggle compact />
         </div>
-        <div class="px-3 pb-2">
-          <p class="truncate text-[14px] font-medium text-ink">{{ session.user?.name }}</p>
-          <p class="truncate text-[13px] text-ink-3">{{ session.company?.name }}</p>
+        <div class="flex items-center gap-2.5 px-3 pb-2">
+          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[13px] font-semibold text-primary">
+            {{ initials(session.user?.name) }}
+          </div>
+          <div class="min-w-0">
+            <p class="truncate text-[14px] font-medium text-ink">{{ session.user?.name }}</p>
+            <p class="truncate text-[13px] text-ink-3">{{ session.company?.name }}</p>
+          </div>
         </div>
         <button
           type="button"
@@ -154,69 +192,90 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
         />
       </header>
 
-      <!-- Gaveta (< 1024px) -->
-      <div
-        v-if="drawerOpen"
-        class="fixed inset-0 z-50 flex bg-black/30 lg:hidden"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Menu"
-        @click.self="closeDrawer"
-      >
-        <div id="menu-lateral" class="flex h-full w-72 max-w-[85vw] flex-col border-r border-line bg-surface">
-          <div class="flex items-center justify-between px-5 py-4">
-            <span class="flex items-center gap-2">
-              <img src="/brand/lunna-mark-128.png" alt="" width="32" height="32" class="h-8 w-8 shrink-0" />
-              <span class="text-[18px] font-bold text-ink">Lunna</span>
-            </span>
-            <button type="button" data-test="fechar-menu" class="btn-ghost" aria-label="Fechar menu" @click="closeDrawer">
-              <XMarkIcon class="h-5 w-5" aria-hidden="true" />
-            </button>
-          </div>
-
-          <div v-if="session.mlAccounts.length >= 1" class="px-3 py-3">
-            <label class="field-label" for="conta-gaveta">Conta do Mercado Livre</label>
-            <select id="conta-gaveta" :value="session.selectedAccountId ?? ''" class="input" @change="onAccountChange">
-              <option v-for="acc in session.mlAccounts" :key="acc.id" :value="acc.id">{{ acc.nickname }}</option>
-            </select>
-          </div>
-          <div v-else-if="session.isAdmin" class="px-3 py-3">
-            <NuxtLink to="/configuracoes?aba=contas" class="btn-secondary w-full" @click="closeDrawer">Conectar conta</NuxtLink>
-          </div>
-
-          <nav class="flex flex-col gap-1 px-3" aria-label="Navegação principal">
-            <NuxtLink
-              v-for="item in NAV_ITEMS"
-              :key="item.to"
-              :to="item.to"
-              class="flex items-center gap-2.5 rounded-card px-3 py-2 text-[14px] font-medium"
-              :class="isActive(item.to) ? 'bg-primary-soft text-primary' : 'text-ink-2 hover:bg-surface-2 hover:text-ink'"
-            >
-              <component :is="item.icon" class="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
-              {{ item.label }}
-            </NuxtLink>
-          </nav>
-
-          <div class="flex-1" />
-
-          <div class="border-t border-line px-3 py-4">
-            <div class="px-3 pb-3">
-              <ThemeToggle compact />
+      <!-- Gaveta (< 1024px) — headlessui Dialog: foco preso, Esc/clique fora fecha, foco volta ao botão que abriu. -->
+      <Dialog :open="drawerOpen" aria-label="Menu" class="relative z-50 lg:hidden" @close="closeDrawer">
+        <div class="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div class="fixed inset-0 flex">
+          <DialogPanel id="menu-lateral" class="flex h-full w-72 max-w-[85vw] flex-col border-r border-line bg-surface">
+            <div class="flex items-center justify-between px-5 py-4">
+              <span class="flex items-center gap-2">
+                <img src="/brand/lunna-mark-128.png" alt="" width="32" height="32" class="h-8 w-8 shrink-0" />
+                <span class="text-[18px] font-bold text-ink">Lunna</span>
+              </span>
+              <button type="button" data-test="fechar-menu" class="btn-ghost" aria-label="Fechar menu" @click="closeDrawer">
+                <XMarkIcon class="h-5 w-5" aria-hidden="true" />
+              </button>
             </div>
-            <div class="px-3 pb-2">
-              <p class="truncate text-[14px] font-medium text-ink">{{ session.user?.name }}</p>
-              <p class="truncate text-[13px] text-ink-3">{{ session.company?.name }}</p>
+
+            <div v-if="session.mlAccounts.length >= 1" class="px-3 py-3">
+              <div class="relative">
+                <label for="conta-gaveta" class="field-label">Conta do Mercado Livre</label>
+                <div class="pointer-events-none flex items-center justify-between gap-2 rounded-card border border-line bg-surface px-3 py-2">
+                  <div class="min-w-0">
+                    <p class="truncate text-[14px] font-semibold text-ink">{{ session.selectedAccount?.nickname ?? 'Selecionar conta' }}</p>
+                    <p class="truncate text-[12px] text-ink-3">Seller ID {{ session.selectedAccount?.seller_id }}</p>
+                  </div>
+                  <ChevronUpDownIcon class="h-4 w-4 shrink-0 text-ink-3" aria-hidden="true" />
+                </div>
+                <select
+                  id="conta-gaveta"
+                  :value="session.selectedAccountId ?? ''"
+                  class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="Conta do Mercado Livre"
+                  @change="onAccountChange"
+                >
+                  <option v-for="acc in session.mlAccounts" :key="acc.id" :value="acc.id">{{ acc.nickname }}</option>
+                </select>
+              </div>
             </div>
-            <button
-              type="button"
-              class="w-full rounded-card px-3 py-2 text-left text-[14px] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
-              @click="sair"
-            >
-              Sair
-            </button>
-          </div>
+            <div v-else-if="session.isAdmin" class="px-3 py-3">
+              <NuxtLink to="/configuracoes?aba=contas" class="btn-secondary w-full" @click="closeDrawer">Conectar conta</NuxtLink>
+            </div>
+
+            <nav class="flex flex-col gap-5 px-3" aria-label="Navegação principal">
+              <div v-for="section in NAV_SECTIONS" :key="section.label">
+                <p class="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">{{ section.label }}</p>
+                <div class="flex flex-col gap-1">
+                  <NuxtLink
+                    v-for="item in section.items"
+                    :key="item.to"
+                    :to="item.to"
+                    class="flex items-center gap-2.5 rounded-card border-l-[3px] px-3 py-2 text-[14px] font-medium"
+                    :class="isActive(item.to) ? 'border-primary bg-primary-soft text-primary' : 'border-transparent text-ink-2 hover:bg-surface-2 hover:text-ink'"
+                  >
+                    <component :is="item.icon" class="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+                    {{ item.label }}
+                  </NuxtLink>
+                </div>
+              </div>
+            </nav>
+
+            <div class="flex-1" />
+
+            <div class="border-t border-line px-3 py-4">
+              <div class="px-3 pb-3">
+                <ThemeToggle compact />
+              </div>
+              <div class="flex items-center gap-2.5 px-3 pb-2">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[13px] font-semibold text-primary">
+                  {{ initials(session.user?.name) }}
+                </div>
+                <div class="min-w-0">
+                  <p class="truncate text-[14px] font-medium text-ink">{{ session.user?.name }}</p>
+                  <p class="truncate text-[13px] text-ink-3">{{ session.company?.name }}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="w-full rounded-card px-3 py-2 text-left text-[14px] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+                @click="sair"
+              >
+                Sair
+              </button>
+            </div>
+          </DialogPanel>
         </div>
-      </div>
+      </Dialog>
 
       <main id="conteudo" class="min-w-0">
         <slot />

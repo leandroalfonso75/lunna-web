@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, watchEffect } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import ContasTab from '../../components/settings/ContasTab.vue'
 import EmpresaTab from '../../components/settings/EmpresaTab.vue'
 import UsuariosTab from '../../components/settings/UsuariosTab.vue'
 import { usePageHeader } from '../../composables/usePageHeader'
-import { resolveSettingsTab, settingsTabPath, visibleSettingsTabs, type SettingsTab } from '../../lib/settingsTabs'
+import { resolveSettingsTab, settingsTabPath, visibleSettingsTabs, type SettingsTab, type SettingsTabDef } from '../../lib/settingsTabs'
 import { useSessionStore } from '../../stores/session'
 
 const route = useRoute()
@@ -16,6 +16,18 @@ const currentTab = computed<SettingsTab | null>(() => resolveSettingsTab(route.q
 
 function selectTab(tab: SettingsTab) {
   navigateTo(settingsTabPath(tab))
+}
+
+// Contagem nas abas ("Usuários (N)", "Contas (N)") — preenchida pelo evento
+// `loaded` de cada aba na primeira vez que ela carrega (evita duplicar a
+// busca que a própria aba já faz).
+const usersCount = ref<number | null>(null)
+const accountsCount = ref<number | null>(null)
+
+function tabLabel(tab: SettingsTabDef): string {
+  if (tab.value === 'usuarios' && usersCount.value !== null) return `${tab.label} (${usersCount.value})`
+  if (tab.value === 'contas' && accountsCount.value !== null) return `${tab.label} (${accountsCount.value})`
+  return tab.label
 }
 
 // O banner do retorno do OAuth do Mercado Livre (`?code`/`?state`/`?ml=...`,
@@ -41,6 +53,7 @@ watchEffect(() => {
   <div class="page space-y-6">
     <header>
       <h1 class="page-title">Configurações</h1>
+      <p class="page-subtitle">Gerencie sua empresa, equipe e contas do Mercado Livre.</p>
     </header>
 
     <nav class="tab-bar" aria-label="Abas de configurações">
@@ -53,12 +66,12 @@ watchEffect(() => {
         :class="currentTab === tab.value ? 'tab-active' : 'tab'"
         @click="selectTab(tab.value)"
       >
-        {{ tab.label }}
+        {{ tabLabel(tab) }}
       </button>
     </nav>
 
     <EmpresaTab v-if="currentTab === 'empresa'" :settings-api="settingsApi" />
-    <UsuariosTab v-else-if="currentTab === 'usuarios'" :settings-api="settingsApi" />
-    <ContasTab v-else-if="currentTab === 'contas'" :settings-api="settingsApi" :is-admin="session.isAdmin" />
+    <UsuariosTab v-else-if="currentTab === 'usuarios'" :settings-api="settingsApi" @loaded="usersCount = $event" />
+    <ContasTab v-else-if="currentTab === 'contas'" :settings-api="settingsApi" :is-admin="session.isAdmin" @loaded="accountsCount = $event" />
   </div>
 </template>

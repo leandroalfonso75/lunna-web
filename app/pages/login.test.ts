@@ -64,4 +64,42 @@ describe('login', () => {
     const wrapper = mountLogin(loginMock)
     expect(wrapper.find('a[href="/cadastro"]').exists()).toBe(true)
   })
+
+  it('o botão de mostrar/ocultar alterna o tipo do campo de senha e o aria-pressed', async () => {
+    const wrapper = mountLogin(loginMock)
+    const toggle = wrapper.get('[data-test="alternar-senha"]')
+
+    expect(wrapper.get('#password').attributes('type')).toBe('password')
+    expect(toggle.attributes('aria-pressed')).toBe('false')
+
+    await toggle.trigger('click')
+
+    expect(wrapper.get('#password').attributes('type')).toBe('text')
+    expect(toggle.attributes('aria-pressed')).toBe('true')
+    expect(toggle.attributes('aria-label')).toBe('Ocultar senha')
+  })
+
+  it('desabilita o botão de entrar enquanto o login está em andamento', async () => {
+    let resolveLogin: () => void = () => {}
+    loginMock.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveLogin = resolve
+      })
+    )
+    const wrapper = mountLogin(loginMock)
+
+    await wrapper.get('#email').setValue('ana@empresa.com')
+    await wrapper.get('#password').setValue('segredo123')
+    await wrapper.get('form').trigger('submit.prevent')
+
+    const button = wrapper.get('button[type="submit"]')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.text()).toContain('Entrando...')
+
+    resolveLogin()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+  })
 })

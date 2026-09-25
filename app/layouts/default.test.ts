@@ -61,9 +61,11 @@ describe('layouts/default.vue (sidebar SaaS)', () => {
     expect(source).toContain('session.company?.name')
   })
 
-  it('a gaveta fecha ao navegar (watch de route.fullPath) e com Esc', () => {
+  it('a gaveta fecha ao navegar (watch de route.fullPath) e usa o Dialog do headlessui (foco preso, Esc/clique fora fecha, foco volta ao abrir)', () => {
     expect(source).toContain('watch(() => route.fullPath, closeDrawer)')
-    expect(source).toContain("event.key === 'Escape'")
+    expect(source).toContain("import { Dialog, DialogPanel } from '@headlessui/vue'")
+    expect(source).toContain('<Dialog')
+    expect(source).toContain('@close="closeDrawer"')
   })
 
   it('a barra compacta lê título e selo de sync de usePageHeader() (a página escreve, o layout só lê)', () => {
