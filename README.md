@@ -40,4 +40,5 @@ npm run test
 ## Deploy
 
 Imagem `vinnialfonso/lunna-web` (Dockerfile na raiz, usuário 1001, health em `/api/saude`) e manifests em
-`cd/prod/`. A ordem de aplicação dos dois repos está em `lunna-api/cd/prod/README.md`.
+`cd/prod/`. Produção em https://gestao.lunnashop.com.br; o deploy dos dois repos é feito pelo
+`cd/prod/deploy.sh` do lunna-api (detalhes em `lunna-api/cd/prod/README.md`).

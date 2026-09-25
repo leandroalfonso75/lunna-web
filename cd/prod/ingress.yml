@@ -10,10 +10,10 @@ metadata:
 spec:
   ingressClassName: nginx
   tls:
-    - hosts: [app.change-me.invalid]
+    - hosts: [gestao.lunnashop.com.br]
       secretName: lunna-web-tls
   rules:
-    - host: app.change-me.invalid
+    - host: gestao.lunnashop.com.br
       http:
         paths:
           - path: /

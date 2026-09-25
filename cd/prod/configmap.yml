@@ -1,5 +1,5 @@
 # Única env do front, lida em runtime (a mesma imagem serve qualquer ambiente).
-# Domínio placeholder: trocar antes do primeiro deploy (ver lunna-api/cd/prod/README.md).
+# Produção: front em gestao.lunnashop.com.br, API em api.lunnashop.com.br.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,4 +9,4 @@ metadata:
     app: lunna-web
 data:
   NODE_ENV: production
-  NUXT_PUBLIC_API_URL: https://api.change-me.invalid
+  NUXT_PUBLIC_API_URL: https://api.lunnashop.com.br
