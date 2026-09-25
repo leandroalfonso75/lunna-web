@@ -50,7 +50,7 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div class="page space-y-6">
+  <div class="page max-w-4xl space-y-6">
     <header>
       <h1 class="page-title">Configurações</h1>
       <p class="page-subtitle">Gerencie sua empresa, equipe e contas do Mercado Livre.</p>
