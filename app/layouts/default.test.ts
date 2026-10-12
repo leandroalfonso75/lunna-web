@@ -31,6 +31,10 @@ describe('layouts/default.vue (sidebar SaaS)', () => {
     expect(source).toContain("{ to: '/configuracoes', label: 'Configurações', icon: Cog6ToothIcon }")
   })
 
+  it('mostra o Radar Mercado Livre no menu Painel', () => {
+    expect(source).toContain("{ to: '/radar-ml', label: 'Radar Mercado Livre', icon: SignalIcon }")
+  })
+
   it('o seletor de conta ML só aparece com pelo menos 1 conta', () => {
     expect(source).toContain('session.mlAccounts.length >= 1')
   })

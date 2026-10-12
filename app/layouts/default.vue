@@ -7,6 +7,7 @@ import {
   Cog6ToothIcon,
   HomeIcon,
   ListBulletIcon,
+  SignalIcon,
   XMarkIcon
 } from '@heroicons/vue/24/outline'
 import { ref, watch } from 'vue'
@@ -38,7 +39,8 @@ const NAV_SECTIONS = [
     items: [
       { to: '/', label: 'Visão geral', icon: HomeIcon },
       { to: '/anuncios', label: 'Anúncios', icon: ListBulletIcon },
-      { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon }
+      { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon },
+      { to: '/radar-ml', label: 'Radar Mercado Livre', icon: SignalIcon }
     ]
   },
   {
