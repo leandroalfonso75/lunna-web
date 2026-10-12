@@ -33,6 +33,17 @@ export interface OlistProduct {
     available: Decimal
     location: string | null
     deposits: OlistDeposit[]
+    /** Estoque do Full, lido do Mercado Livre e ligado pelo SKU. */
+    full: {
+      linked: boolean
+      available: number | null
+      not_available: number | null
+      total: number | null
+      listings: number
+      synced_at: string | null
+    }
+    /** Disponível no Olist + disponível no Full (calculado pela API). */
+    total_available: Decimal
   }
   olist_created_at: string | null
   olist_updated_at: string | null

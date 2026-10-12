@@ -36,7 +36,7 @@ const hasValue = (v: OlistProduct['price']) => (toNumber(v) ?? 0) > 0
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div class="min-w-0">
         <h1 class="page-title">Produtos</h1>
-        <p class="page-subtitle max-w-2xl">Produtos cadastrados no Olist ERP, com preços, custo e estoque.</p>
+        <p class="page-subtitle max-w-2xl">Produtos cadastrados no Olist ERP, com preços, custo e estoque (Olist, Full no Mercado Livre e total).</p>
         <p v-if="olist.connected.value" class="mt-2 text-[13px] text-ink-2" data-test="produtos-sync" role="status">
           <template v-if="olist.syncing.value">Atualizando agora…</template>
           <template v-else-if="olist.lastSyncedAt.value">
@@ -103,9 +103,9 @@ const hasValue = (v: OlistProduct['price']) => (toNumber(v) ?? 0) > 0
                 <th scope="col" class="px-3 py-2 text-right font-semibold">Preço</th>
                 <th scope="col" class="px-3 py-2 text-right font-semibold">Promocional</th>
                 <th scope="col" class="px-3 py-2 text-right font-semibold">Custo</th>
-                <th scope="col" class="px-3 py-2 text-right font-semibold">Estoque</th>
-                <th scope="col" class="px-3 py-2 text-right font-semibold">Reservado</th>
-                <th scope="col" class="px-3 py-2 text-right font-semibold">Disponível</th>
+                <th scope="col" class="px-3 py-2 text-right font-semibold">Estoque Olist<span class="block text-[11px] font-normal text-ink-3">disponível</span></th>
+                <th scope="col" class="px-3 py-2 text-right font-semibold">Estoque Full<span class="block text-[11px] font-normal text-ink-3">Mercado Livre</span></th>
+                <th scope="col" class="px-3 py-2 text-right font-semibold">Estoque total<span class="block text-[11px] font-normal text-ink-3">Olist + Full</span></th>
               </tr>
             </thead>
             <tbody>
@@ -130,13 +130,23 @@ const hasValue = (v: OlistProduct['price']) => (toNumber(v) ?? 0) > 0
                   <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums">{{ money(p.price) }}</td>
                   <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums">{{ hasValue(p.promo_price) ? money(p.promo_price) : '—' }}</td>
                   <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums">{{ hasValue(p.cost_price) ? money(p.cost_price) : '—' }}</td>
-                  <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums">{{ formatQty(p.stock.balance) }}</td>
-                  <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums">{{ formatQty(p.stock.reserved) }}</td>
                   <td
                     class="whitespace-nowrap px-3 py-2 text-right tabular-nums"
                     :class="(toNumber(p.stock.available) ?? 0) < 0 ? 'font-semibold text-danger' : ''"
+                    data-test="estoque-olist"
                   >
                     {{ formatQty(p.stock.available) }}
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums" data-test="estoque-full">
+                    <template v-if="p.stock.full.linked">{{ formatQty(p.stock.full.available) }}</template>
+                    <span v-else class="text-ink-3" title="Sem anúncio Full no Mercado Livre com este SKU">—</span>
+                  </td>
+                  <td
+                    class="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums"
+                    :class="(toNumber(p.stock.total_available) ?? 0) < 0 ? 'text-danger' : 'text-ink'"
+                    data-test="estoque-total"
+                  >
+                    {{ formatQty(p.stock.total_available) }}
                   </td>
                 </tr>
                 <tr v-if="expanded === p.id" class="border-b border-line bg-surface-2" data-test="produto-detalhe">
@@ -148,6 +158,18 @@ const hasValue = (v: OlistProduct['price']) => (toNumber(v) ?? 0) > 0
                       <div><dt class="text-ink-3">Variação</dt><dd>{{ VARIATION_LABEL[p.variation_kind ?? ''] ?? '—' }}</dd></div>
                       <div><dt class="text-ink-3">Unidade</dt><dd>{{ p.unit || '—' }}</dd></div>
                       <div><dt class="text-ink-3">Localização no estoque</dt><dd>{{ p.stock.location || '—' }}</dd></div>
+                      <div><dt class="text-ink-3">Saldo no Olist</dt><dd>{{ formatQty(p.stock.balance) }}</dd></div>
+                      <div><dt class="text-ink-3">Reservado no Olist</dt><dd>{{ formatQty(p.stock.reserved) }}</dd></div>
+                      <div>
+                        <dt class="text-ink-3">Full: indisponível / total</dt>
+                        <dd>
+                          <template v-if="p.stock.full.linked">
+                            {{ formatQty(p.stock.full.not_available) }} / {{ formatQty(p.stock.full.total) }}
+                            <span class="text-[12px] text-ink-3">({{ p.stock.full.listings }} anúncio{{ p.stock.full.listings === 1 ? '' : 's' }}, lido às {{ dateTimeShort(p.stock.full.synced_at) }})</span>
+                          </template>
+                          <template v-else>sem anúncio Full com este SKU</template>
+                        </dd>
+                      </div>
                       <div><dt class="text-ink-3">Custo médio</dt><dd>{{ hasValue(p.avg_cost_price) ? money(p.avg_cost_price) : '—' }}</dd></div>
                       <div><dt class="text-ink-3">Cadastrado no Olist</dt><dd>{{ dateTimeShort(p.olist_created_at) }}</dd></div>
                       <div><dt class="text-ink-3">Alterado no Olist</dt><dd>{{ dateTimeShort(p.olist_updated_at) }}</dd></div>
