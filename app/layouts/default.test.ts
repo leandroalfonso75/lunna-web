@@ -31,6 +31,15 @@ describe('layouts/default.vue (sidebar SaaS)', () => {
     expect(source).toContain("{ to: '/configuracoes', label: 'Configurações', icon: Cog6ToothIcon }")
   })
 
+  it('mostra Produtos logo abaixo de Visão geral', () => {
+    const visao = source.indexOf("{ to: '/', label: 'Visão geral'")
+    const produtos = source.indexOf("{ to: '/produtos', label: 'Produtos', icon: CubeIcon }")
+    const anuncios = source.indexOf("{ to: '/anuncios'")
+    expect(visao).toBeGreaterThan(-1)
+    expect(produtos).toBeGreaterThan(visao)
+    expect(produtos).toBeLessThan(anuncios)
+  })
+
   it('mostra o Radar Mercado Livre no menu Painel', () => {
     expect(source).toContain("{ to: '/radar-ml', label: 'Radar Mercado Livre', icon: SignalIcon }")
   })

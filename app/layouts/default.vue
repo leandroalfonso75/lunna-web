@@ -5,6 +5,7 @@ import {
   ChartBarIcon,
   ChevronUpDownIcon,
   Cog6ToothIcon,
+  CubeIcon,
   HomeIcon,
   ListBulletIcon,
   SignalIcon,
@@ -38,6 +39,7 @@ const NAV_SECTIONS = [
     label: 'Painel',
     items: [
       { to: '/', label: 'Visão geral', icon: HomeIcon },
+      { to: '/produtos', label: 'Produtos', icon: CubeIcon },
       { to: '/anuncios', label: 'Anúncios', icon: ListBulletIcon },
       { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon },
       { to: '/radar-ml', label: 'Radar Mercado Livre', icon: SignalIcon }
