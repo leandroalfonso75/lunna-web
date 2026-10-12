@@ -34,7 +34,9 @@ const collections = useRadarCollections()
 const data = ref<RadarData | null>(null)
 const index = ref<RadarIndex | null>(null)
 const loadError = ref('')
+/** `filters` é o que o usuário está editando; `applied` é o que a última busca usou. */
 const filters = reactive(defaultFilters())
+const applied = reactive(defaultFilters())
 const page = ref(0)
 const PAGE_SIZE = 50
 const copyLabel = ref('Copiar resultado')
@@ -62,7 +64,7 @@ watchEffect(() => {
   header.state.onRefresh = null
 })
 
-const result = computed(() => (index.value ? filterItems(index.value, filters) : []))
+const result = computed(() => (index.value ? filterItems(index.value, applied) : []))
 const summary = computed(() => summarize(result.value))
 const pages = computed(() => Math.max(1, Math.ceil(result.value.length / PAGE_SIZE)))
 const rows = computed(() => result.value.slice(page.value * PAGE_SIZE, (page.value + 1) * PAGE_SIZE))
@@ -70,7 +72,18 @@ const rows = computed(() => result.value.slice(page.value * PAGE_SIZE, (page.val
 const levels = computed(() => (index.value ? categoryLevels(index.value, filters.category) : []))
 
 // Qualquer mudança de filtro volta para a primeira página.
-watch(filters, () => { page.value = 0 }, { deep: true })
+// Ordenação e aba de tipo agem direto no resultado; o resto só vale após "Pesquisar".
+const filterKey = (f: typeof filters) => JSON.stringify({ ...f, sort: '', type: '' })
+const dirty = computed(() => filterKey(filters) !== filterKey(applied))
+
+function search() {
+  const catalogChanged = filters.catalog !== applied.catalog
+  Object.assign(applied, filters, { sort: applied.sort, type: catalogChanged ? 'all' : applied.type })
+  page.value = 0
+}
+
+watch(() => applied.sort, () => { page.value = 0 })
+watch(() => applied.type, () => { page.value = 0 })
 
 function selectCategory(level: number, value: string) {
   filters.category = pickCategory(filters.category, level, value)
@@ -78,6 +91,8 @@ function selectCategory(level: number, value: string) {
 
 function clear() {
   Object.assign(filters, defaultFilters())
+  Object.assign(applied, defaultFilters())
+  page.value = 0
 }
 
 function setPeriod(days: number) {
@@ -86,7 +101,7 @@ function setPeriod(days: number) {
 }
 
 function setSort(sort: RadarSort) {
-  filters.sort = filters.sort === 'price_d' && sort === 'price_d' ? 'price_a' : sort
+  applied.sort = applied.sort === 'price_d' && sort === 'price_d' ? 'price_a' : sort
 }
 
 async function copy() {
@@ -140,7 +155,7 @@ const SORTS: { value: RadarSort; label: string }[] = [
 
     <div v-else class="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
       <!-- Filtros -->
-      <aside class="card space-y-4 p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto" aria-label="Filtros">
+      <form class="card space-y-4 p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto" aria-label="Filtros" data-test="filtros" @submit.prevent="search">
         <div class="flex items-center justify-between">
           <h2 class="section-title">Filtros</h2>
           <button type="button" class="btn-link" data-test="limpar" @click="clear">Limpar tudo</button>
@@ -266,7 +281,14 @@ const SORTS: { value: RadarSort; label: string }[] = [
             <option value="none">Sem avaliação</option>
           </select>
         </fieldset>
-      </aside>
+        <div class="sticky bottom-0 -mx-4 -mb-4 space-y-1 border-t border-line bg-surface px-4 py-3">
+          <button type="submit" class="btn-primary w-full" data-test="pesquisar">
+            <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
+            Pesquisar
+          </button>
+          <p v-if="dirty" class="text-center text-[12px] text-warning" role="status">Filtros alterados. Clique em Pesquisar para atualizar.</p>
+        </div>
+      </form>
 
       <!-- Resultado -->
       <section class="min-w-0 space-y-4">
@@ -307,15 +329,15 @@ const SORTS: { value: RadarSort; label: string }[] = [
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <div v-if="filters.catalog === 'both'" class="inline-flex overflow-hidden rounded-card border border-line" role="group" aria-label="Tipo de anúncio">
+          <div v-if="applied.catalog === 'both'" class="inline-flex overflow-hidden rounded-card border border-line" role="group" aria-label="Tipo de anúncio">
             <button
               v-for="t in [{ v: 'all', l: 'Todos' }, { v: 'cat', l: 'Catálogo' }, { v: 'tra', l: 'Tradicional' }] as const"
               :key="t.v"
               type="button"
               class="px-3 py-1.5 text-[13px]"
-              :class="filters.type === t.v ? 'bg-primary text-primary-ink' : 'bg-surface text-ink'"
-              :aria-pressed="filters.type === t.v"
-              @click="filters.type = t.v"
+              :class="applied.type === t.v ? 'bg-primary text-primary-ink' : 'bg-surface text-ink'"
+              :aria-pressed="applied.type === t.v"
+              @click="applied.type = t.v"
             >
               {{ t.l }}
             </button>
@@ -323,7 +345,7 @@ const SORTS: { value: RadarSort; label: string }[] = [
           <span class="text-[13px] text-ink-3">{{ int(summary.total) }} anúncios</span>
           <span class="flex-1" />
           <label for="radar-ordem" class="text-[13px] text-ink-3">Ordenar:</label>
-          <select id="radar-ordem" v-model="filters.sort" class="input w-auto">
+          <select id="radar-ordem" v-model="applied.sort" class="input w-auto">
             <option v-for="s in SORTS" :key="s.value" :value="s.value">{{ s.label }}</option>
           </select>
           <button type="button" class="btn-secondary" @click="copy">{{ copyLabel }}</button>
