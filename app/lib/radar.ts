@@ -29,12 +29,13 @@ export interface RadarItem {
   title: string
   catId: string
   catName: string
-  path: string[]
   isCatalog: boolean
   seller: string
   brand: string
   sellerKey: string
   brandKey: string
+  /** Caminhos completos da categoria e de todas as suas ancestrais. */
+  pathKeys: string[]
   /** Dia de criação (epoch / 86400). */
   day: number
   sold: number
@@ -45,29 +46,32 @@ export interface RadarItem {
   revenue: number
 }
 
+/** Nó da árvore de categorias, identificado pelo caminho completo ("A > B > C"). */
 export interface RadarCategory {
-  id: string
+  key: string
   name: string
-  parent: string | null
   children: string[]
+  /** Anúncios da base nesta categoria (incluindo subcategorias). */
   count: number
 }
 
 export interface RadarIndex {
   refDay: number
   items: RadarItem[]
-  cats: Record<string, RadarCategory>
-  rootId: string
+  tree: Record<string, RadarCategory>
+  /** Categorias de topo, em ordem alfabética. */
+  roots: string[]
 }
+
+export const CATEGORY_SEP = ' > '
 
 export type RadarSort = 'rev' | 'avg' | 'sold' | 'date' | 'price_d' | 'price_a' | 'rat'
 export type CatalogMode = 'only' | 'excl' | 'both'
 export type ListingType = 'all' | 'cat' | 'tra'
 
 export interface RadarFilters {
-  c2: string
-  c3: string
-  c4: string
+  /** Caminho completo da categoria escolhida ('' = todas). */
+  category: string
   /** Período em dias (0 = todos). Ignorado se `customDays` estiver preenchido. */
   period: number
   customDays: string
@@ -90,7 +94,7 @@ export const PERIODS = [15, 30, 60, 90, 120, 150, 180]
 
 export function defaultFilters(): RadarFilters {
   return {
-    c2: '', c3: '', c4: '', period: 180, customDays: '', catalog: 'both', type: 'all',
+    category: '', period: 180, customDays: '', catalog: 'both', type: 'all',
     seller: '', brand: '', priceMin: '', priceMax: '', revMin: '', revMax: '',
     soldMin: '', soldMax: '', rating: '', sort: 'rev'
   }
@@ -101,17 +105,31 @@ export function normalize(s: string | null | undefined): string {
   return (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 }
 
-export function buildIndex(data: RadarData): RadarIndex {
-  const cats: Record<string, RadarCategory> = {}
-  for (const [id, name, parent] of data.cats) cats[id] = { id, name, parent, children: [], count: 0 }
-  for (const c of Object.values(cats)) {
-    const parent = c.parent ? cats[c.parent] : undefined
-    if (parent) parent.children.push(c.id)
+/**
+ * Monta o índice de busca. `categoryPaths` é a lista completa de categorias
+ * do Mercado Livre ("Categoria > Sub > Sub"); categorias da base que não
+ * estiverem na lista entram na árvore mesmo assim.
+ */
+export function buildIndex(data: RadarData, categoryPaths: string[] = []): RadarIndex {
+  const tree: Record<string, RadarCategory> = {}
+  const touch = (path: string[]): string[] => {
+    const keys: string[] = []
+    path.forEach((name, i) => {
+      const key = path.slice(0, i + 1).join(CATEGORY_SEP)
+      if (!tree[key]) {
+        tree[key] = { key, name, children: [], count: 0 }
+        if (i > 0) tree[path.slice(0, i).join(CATEGORY_SEP)]?.children.push(key)
+      }
+      keys.push(key)
+    })
+    return keys
   }
-  const pathOf = (id: string): string[] => {
+  for (const p of categoryPaths) touch(p.split(CATEGORY_SEP))
+
+  const byId = new Map(data.cats.map(([id, name, parent]) => [id, { name, parent }]))
+  const namePath = (id: string): string[] => {
     const out: string[] = []
-    const cur: string | null = id
-    for (let c = cur ? cats[cur] : undefined; c; c = c.parent ? cats[c.parent] : undefined) out.push(c.id)
+    for (let c = byId.get(id); c; c = c.parent ? byId.get(c.parent) : undefined) out.unshift(c.name)
     return out
   }
   const items = data.items.map((row): RadarItem => {
@@ -119,24 +137,46 @@ export function buildIndex(data: RadarData): RadarIndex {
     const seller = sellerIdx >= 0 ? (data.sellers[sellerIdx] ?? '') : ''
     const brand = brandIdx >= 0 ? (data.brands[brandIdx] ?? '') : ''
     const months = Math.max(Math.max(data.ref - day, 1) / 30.4375, 1)
+    const pathKeys = touch(namePath(catId))
     return {
-      id, title, catId, catName: cats[catId]?.name ?? '', path: pathOf(catId), isCatalog: !!isCatalog,
+      id, title, catId, catName: byId.get(catId)?.name ?? '', pathKeys, isCatalog: !!isCatalog,
       seller, brand, sellerKey: normalize(seller), brandKey: normalize(brand), day, sold, price,
       rating: rating ? rating / 10 : null, monthlyAvg: sold / months, revenue: sold * price
     }
   })
-  for (const it of items) for (const c of it.path) { const cat = cats[c]; if (cat) cat.count++ }
-  return { refDay: data.ref, items, cats, rootId: data.root }
+  for (const it of items) for (const k of it.pathKeys) { const c = tree[k]; if (c) c.count++ }
+  for (const c of Object.values(tree)) c.children.sort((x, y) => (tree[x]?.name ?? '').localeCompare(tree[y]?.name ?? '', 'pt'))
+  const roots = Object.values(tree).filter((c) => !c.key.includes(CATEGORY_SEP)).map((c) => c.key)
+  roots.sort((x, y) => (tree[x]?.name ?? '').localeCompare(tree[y]?.name ?? '', 'pt'))
+  return { refDay: data.ref, items, tree, roots }
 }
 
-/** Filhos com anúncios de uma categoria, em ordem alfabética. */
-export function childrenOf(index: RadarIndex, parentId: string): RadarCategory[] {
-  const parent = index.cats[parentId]
-  if (!parent) return []
-  return parent.children
-    .map((id) => index.cats[id])
-    .filter((c): c is RadarCategory => !!c && c.count > 0)
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt'))
+/** Filhos diretos de uma categoria ('' = categorias de topo). */
+export function childrenOf(index: RadarIndex, key: string): RadarCategory[] {
+  const keys = key ? (index.tree[key]?.children ?? []) : index.roots
+  return keys.map((k) => index.tree[k]).filter((c): c is RadarCategory => !!c)
+}
+
+/** Seletores em cascata: um por nível, até a categoria mais funda escolhida (+1 vazio). */
+export function categoryLevels(index: RadarIndex, selected: string): { options: RadarCategory[]; value: string }[] {
+  const names = selected ? selected.split(CATEGORY_SEP) : []
+  const levels: { options: RadarCategory[]; value: string }[] = []
+  let parent = ''
+  for (let i = 0; ; i++) {
+    const options = childrenOf(index, parent)
+    if (!options.length) break
+    const value = names.length > i ? names.slice(0, i + 1).join(CATEGORY_SEP) : ''
+    levels.push({ options, value })
+    if (!value) break
+    parent = value
+  }
+  return levels
+}
+
+/** Categoria ao escolher `value` no nível `level` ('' volta para a do nível anterior). */
+export function pickCategory(selected: string, level: number, value: string): string {
+  if (value) return value
+  return selected ? selected.split(CATEGORY_SEP).slice(0, level).join(CATEGORY_SEP) : ''
 }
 
 const toNum = (v: string): number | null => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v))
@@ -157,7 +197,7 @@ export function effectiveDays(f: RadarFilters): number {
 }
 
 export function filterItems(index: RadarIndex, f: RadarFilters): RadarItem[] {
-  const cat = f.c4 || f.c3 || f.c2
+  const cat = f.category
   const days = effectiveDays(f)
   const minDay = days ? index.refDay - days : -Infinity
   const seller = normalize(f.seller)
@@ -168,7 +208,7 @@ export function filterItems(index: RadarIndex, f: RadarFilters): RadarItem[] {
   const minRating = f.rating && f.rating !== 'none' ? Number(f.rating) : null
 
   const out = index.items.filter((it) => {
-    if (cat && !it.path.includes(cat)) return false
+    if (cat && !it.pathKeys.includes(cat)) return false
     if (it.day < minDay) return false
     if (f.catalog === 'only' && !it.isCatalog) return false
     if (f.catalog === 'excl' && it.isCatalog) return false

@@ -6,11 +6,12 @@ import { brl, int } from '../lib/format'
 import {
   PERIODS,
   buildIndex,
-  childrenOf,
+  categoryLevels,
   defaultFilters,
   filterItems,
   formatDay,
   itemUrl,
+  pickCategory,
   splitBold,
   summarize,
   toTsv,
@@ -37,9 +38,12 @@ const copyLabel = ref('Copiar resultado')
 
 onMounted(async () => {
   try {
-    const raw = await $fetch<RadarData>('/radar/data.json')
+    const [raw, paths] = await Promise.all([
+      $fetch<RadarData>('/radar/data.json'),
+      $fetch<string[]>('/radar/categorias.json')
+    ])
     data.value = raw
-    index.value = buildIndex(raw)
+    index.value = buildIndex(raw, paths)
   } catch {
     loadError.value = 'Não foi possível carregar a base do Radar. Recarregue a página.'
   }
@@ -47,7 +51,7 @@ onMounted(async () => {
 
 watchEffect(() => {
   header.state.title = 'Radar Mercado Livre'
-  header.state.subtitle = 'Beleza e Cuidado Pessoal · base coletada no site do Mercado Livre'
+  header.state.subtitle = 'Todas as categorias · base coletada no site do Mercado Livre'
   header.state.sync = null
   header.state.generatedAt = null
   header.state.refreshing = false
@@ -59,14 +63,14 @@ const summary = computed(() => summarize(result.value))
 const pages = computed(() => Math.max(1, Math.ceil(result.value.length / PAGE_SIZE)))
 const rows = computed(() => result.value.slice(page.value * PAGE_SIZE, (page.value + 1) * PAGE_SIZE))
 
-const level2 = computed(() => (index.value ? childrenOf(index.value, index.value.rootId) : []))
-const level3 = computed(() => (index.value && filters.c2 ? childrenOf(index.value, filters.c2) : []))
-const level4 = computed(() => (index.value && filters.c3 ? childrenOf(index.value, filters.c3) : []))
+const levels = computed(() => (index.value ? categoryLevels(index.value, filters.category) : []))
 
 // Qualquer mudança de filtro volta para a primeira página.
 watch(filters, () => { page.value = 0 }, { deep: true })
-watch(() => filters.c2, () => { filters.c3 = ''; filters.c4 = '' })
-watch(() => filters.c3, () => { filters.c4 = '' })
+
+function selectCategory(level: number, value: string) {
+  filters.category = pickCategory(filters.category, level, value)
+}
 
 function clear() {
   Object.assign(filters, defaultFilters())
@@ -135,18 +139,21 @@ const SORTS: { value: RadarSort; label: string }[] = [
 
         <fieldset class="space-y-2 border-t border-line pt-3">
           <legend class="field-label">Categoria</legend>
-          <select v-model="filters.c2" class="input" aria-label="Categoria" data-test="cat-2">
-            <option value="">Todas de Beleza e Cuidado Pessoal</option>
-            <option v-for="c in level2" :key="c.id" :value="c.id">{{ c.name }} ({{ int(c.count) }})</option>
+          <select
+            v-for="(lvl, i) in levels"
+            :key="i"
+            :value="lvl.value"
+            class="input"
+            :aria-label="i === 0 ? 'Categoria' : `Subcategoria nível ${i}`"
+            :data-test="`cat-${i}`"
+            @change="selectCategory(i, ($event.target as HTMLSelectElement).value)"
+          >
+            <option value="">{{ i === 0 ? 'Todas as categorias' : 'Todas as subcategorias' }}</option>
+            <option v-for="c in lvl.options" :key="c.key" :value="c.key">{{ c.name }} ({{ int(c.count) }})</option>
           </select>
-          <select v-model="filters.c3" class="input" :disabled="!level3.length" aria-label="Subcategoria">
-            <option value="">Todas as subcategorias</option>
-            <option v-for="c in level3" :key="c.id" :value="c.id">{{ c.name }} ({{ int(c.count) }})</option>
-          </select>
-          <select v-model="filters.c4" class="input" :disabled="!level4.length" aria-label="Sub-subcategoria">
-            <option value="">Todas</option>
-            <option v-for="c in level4" :key="c.id" :value="c.id">{{ c.name }} ({{ int(c.count) }})</option>
-          </select>
+          <p class="text-[12px] text-ink-3">
+            A base coletada hoje só tem anúncios de Beleza e Cuidado Pessoal; as demais categorias aparecem com (0) até serem coletadas.
+          </p>
         </fieldset>
 
         <fieldset class="border-t border-line pt-3">

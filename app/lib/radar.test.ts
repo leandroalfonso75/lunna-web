@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildIndex, childrenOf, defaultFilters, effectiveDays, filterItems, formatDay, splitBold, summarize, toTsv,
+  buildIndex, categoryLevels, childrenOf, pickCategory, defaultFilters, effectiveDays, filterItems, formatDay, splitBold, summarize, toTsv,
   type RadarData
 } from './radar'
 
@@ -21,7 +21,7 @@ const data: RadarData = {
     [3, 'Shampoo', 'B', 0, -1, -1, 950, 0, 30, 0]
   ]
 }
-const index = buildIndex(data)
+const index = buildIndex(data, ['Beleza > Perfumes > Femininos', 'Beleza > Perfumes > Masculinos', 'Pet Shop > Rações'])
 
 describe('buildIndex', () => {
   it('calcula receita, média mensal e nota', () => {
@@ -33,13 +33,27 @@ describe('buildIndex', () => {
   })
 
   it('conta anúncios por categoria, incluindo ancestrais', () => {
-    expect(index.cats.R!.count).toBe(3)
-    expect(index.cats.A!.count).toBe(1)
-    expect(index.cats.A1!.count).toBe(1)
+    expect(index.tree['Beleza']!.count).toBe(3)
+    expect(index.tree['Beleza > Perfumes']!.count).toBe(1)
+    expect(index.tree['Beleza > Perfumes > Femininos']!.count).toBe(1)
   })
 
-  it('lista só filhos com anúncios, em ordem alfabética', () => {
-    expect(childrenOf(index, 'R').map((c) => c.name)).toEqual(['Cabelo', 'Perfumes'])
+  it('inclui categorias da lista do ML mesmo sem anúncios na base', () => {
+    expect(index.roots).toEqual(['Beleza', 'Pet Shop'])
+    expect(index.tree['Pet Shop > Rações']!.count).toBe(0)
+    expect(childrenOf(index, 'Beleza > Perfumes').map((c) => c.name)).toEqual(['Femininos', 'Masculinos'])
+  })
+
+  it('lista filhos em ordem alfabética', () => {
+    expect(childrenOf(index, 'Beleza').map((c) => c.name)).toEqual(['Cabelo', 'Perfumes'])
+  })
+
+  it('monta os seletores em cascata e volta um nível ao limpar', () => {
+    const levels = categoryLevels(index, 'Beleza > Perfumes')
+    expect(levels.map((l) => l.value)).toEqual(['Beleza', 'Beleza > Perfumes', ''])
+    expect(pickCategory('Beleza > Perfumes', 1, '')).toBe('Beleza')
+    expect(pickCategory('Beleza > Perfumes', 0, '')).toBe('')
+    expect(pickCategory('Beleza', 1, 'Beleza > Cabelo')).toBe('Beleza > Cabelo')
   })
 })
 
@@ -57,8 +71,15 @@ describe('filterItems', () => {
     expect(ids(f)).toEqual([1, 3])
   })
 
+  it('30 dias traz criados há até 30 dias e exclui os de 31 dias ou mais', () => {
+    const d: RadarData = { ...data, items: [[10, 'A', 'B', 0, -1, -1, 970, 1, 10, 0], [11, 'B', 'B', 0, -1, -1, 969, 1, 10, 0]] }
+    const idx = buildIndex(d)
+    expect(filterItems(idx, { ...defaultFilters(), period: 30 }).map((i) => i.id)).toEqual([10])
+  })
+
   it('filtra por categoria (inclui descendentes)', () => {
-    expect(ids({ ...defaultFilters(), period: 0, c2: 'A' })).toEqual([2])
+    expect(ids({ ...defaultFilters(), period: 0, category: 'Beleza > Perfumes' })).toEqual([2])
+    expect(ids({ ...defaultFilters(), period: 0, category: 'Pet Shop' })).toEqual([])
   })
 
   it('catálogo: apenas, excluir e abas de tipo', () => {
