@@ -16,6 +16,8 @@ export type Decimal = string | number | null
 
 export interface OlistProduct {
   id: number
+  /** Variação: id do produto pai (quando o pai existe). */
+  parent_id?: number | null
   sku: string | null
   description: string | null
   kind: string | null
@@ -48,6 +50,9 @@ export interface OlistProduct {
   olist_created_at: string | null
   olist_updated_at: string | null
   synced_at: string
+  /** Só o pai traz as variações; o estoque dele já é a soma delas. */
+  variations_count?: number
+  variations: OlistProduct[]
 }
 
 export interface OlistProductsResponse {
