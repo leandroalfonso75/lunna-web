@@ -3,8 +3,10 @@ import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import { usePageHeader } from '../composables/usePageHeader'
 import { useRadarCollections } from '../composables/useRadarCollections'
+import { useRadarSearches } from '../composables/useRadarSearches'
 import { brl, dateTimeShort, int } from '../lib/format'
 import { COLLECTION_STATUS_LABEL } from '../lib/radarCollectionsClient'
+import { describeFilters, restoreFilters, type RadarSearch } from '../lib/radarSearchesClient'
 import {
   PERIODS,
   buildIndex,
@@ -30,6 +32,7 @@ import {
  */
 const header = usePageHeader()
 const collections = useRadarCollections()
+const history = useRadarSearches()
 
 const data = ref<RadarData | null>(null)
 const index = ref<RadarIndex | null>(null)
@@ -41,6 +44,9 @@ const page = ref(0)
 /** A busca só roda depois de "Pesquisar", com a categoria escolhida (obrigatória). */
 const searched = ref(false)
 const categoryError = ref('')
+/** Painel "Consultas dos últimos 3 meses" e a consulta reaberta (se houver). */
+const historyOpen = ref(false)
+const openedSearch = ref<RadarSearch | null>(null)
 const PAGE_SIZE = 50
 const copyLabel = ref('Copiar resultado')
 
@@ -89,6 +95,36 @@ function search() {
   const catalogChanged = filters.catalog !== applied.catalog
   Object.assign(applied, filters, { sort: applied.sort, type: catalogChanged ? 'all' : applied.type })
   page.value = 0
+  openedSearch.value = null
+  if (index.value) {
+    const found = summarize(filterItems(index.value, applied))
+    void history.save({
+      category_path: applied.category,
+      filters: { ...applied },
+      data_ref: new Date(index.value.refDay * 86400000).toISOString().slice(0, 10),
+      total_items: found.total,
+      total_sold: found.sold,
+      total_revenue: Math.round(found.revenue * 100) / 100,
+      median_price: found.medianPrice
+    })
+  }
+}
+
+async function toggleHistory() {
+  historyOpen.value = !historyOpen.value
+  if (historyOpen.value) await history.load()
+}
+
+/** Reabre uma consulta salva: reaplica os filtros e mostra o resultado completo. */
+function openSearch(saved: RadarSearch) {
+  const restored = restoreFilters(saved.filters, defaultFilters())
+  Object.assign(filters, restored)
+  Object.assign(applied, restored)
+  categoryError.value = ''
+  searched.value = true
+  page.value = 0
+  openedSearch.value = saved
+  historyOpen.value = false
 }
 
 watch(() => applied.sort, () => { page.value = 0 })
@@ -103,6 +139,7 @@ function clear() {
   Object.assign(applied, defaultFilters())
   searched.value = false
   categoryError.value = ''
+  openedSearch.value = null
   page.value = 0
 }
 
@@ -156,10 +193,36 @@ const SORTS: { value: RadarSort; label: string }[] = [
           avaliação. Os números vêm de uma coleta no site do Mercado Livre, não de consulta ao vivo.
         </p>
       </div>
-      <span v-if="index" class="pill-neutral" data-test="radar-base">
-        Dados de {{ formatDay(index.refDay) }} · {{ int(index.items.length) }} anúncios
-      </span>
+      <div class="flex flex-col items-end gap-2">
+        <button type="button" class="btn-secondary" data-test="consultas-anteriores" :aria-expanded="historyOpen" @click="toggleHistory">
+          Consultar pesquisas dos últimos 3 meses
+        </button>
+        <span v-if="index" class="pill-neutral" data-test="radar-base">
+          Dados de {{ formatDay(index.refDay) }} · {{ int(index.items.length) }} anúncios
+        </span>
+      </div>
     </header>
+
+    <section v-if="historyOpen" class="card p-4" data-test="historico" aria-label="Consultas dos últimos 3 meses">
+      <div class="mb-2 flex items-center justify-between">
+        <h2 class="section-title">Pesquisas realizadas nos últimos 3 meses</h2>
+        <button type="button" class="btn-link" @click="historyOpen = false">Fechar</button>
+      </div>
+      <p v-if="history.loading.value" class="py-4 text-center text-ink-3" role="status">Carregando consultas…</p>
+      <p v-else-if="!history.searches.value.length" class="py-4 text-center text-ink-3">Nenhuma pesquisa nos últimos 3 meses.</p>
+      <ul v-else class="max-h-96 divide-y divide-line overflow-y-auto text-[13px]">
+        <li v-for="h in history.searches.value" :key="h.id">
+          <button type="button" class="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-1 py-2 text-left hover:bg-surface-2" data-test="consulta" @click="openSearch(h)">
+            <span class="min-w-0 flex-1">
+              <span class="block truncate font-semibold text-ink" :title="h.category_path">{{ h.category_path }}</span>
+              <span class="block truncate text-[12px] text-ink-3">{{ describeFilters(h.filters) || 'sem outros filtros' }}</span>
+            </span>
+            <span class="text-[12px] text-ink-2">{{ int(h.total_items) }} anúncios · {{ brl(Number(h.total_revenue)) }}</span>
+            <span class="text-[12px] text-ink-3">{{ dateTimeShort(h.searched_at) }}<template v-if="h.searched_by"> · {{ h.searched_by }}</template></span>
+          </button>
+        </li>
+      </ul>
+    </section>
 
     <div v-if="loadError" class="card p-6 text-center text-danger" role="alert">{{ loadError }}</div>
     <div v-else-if="!index" class="card p-10 text-center text-ink-3" role="status">Carregando anúncios…</div>
@@ -198,6 +261,9 @@ const SORTS: { value: RadarSort; label: string }[] = [
               <p class="mt-1 text-ink-3">Pedido registrado. A coleta só acontece quando for executada sob comando.</p>
             </template>
             <template v-else>
+        <p v-if="openedSearch" class="rounded-card border border-info bg-info-soft px-3 py-2 text-[13px] text-info" data-test="consulta-aberta">
+          Consulta de {{ dateTimeShort(openedSearch.searched_at) }}<template v-if="openedSearch.searched_by"> por {{ openedSearch.searched_by }}</template>, sobre a base de {{ openedSearch.data_ref ? formatDay(Math.floor(Date.parse(openedSearch.data_ref) / 86400000)) : '—' }}. Altere os filtros e clique em Pesquisar para fazer uma nova.
+        </p>
               <p class="text-ink-2">
                 {{ selectedCategory.count ? 'Quer atualizar os dados desta categoria?' : 'Esta categoria ainda não foi coletada.' }}
               </p>
