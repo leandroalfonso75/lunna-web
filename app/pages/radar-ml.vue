@@ -38,6 +38,9 @@ const loadError = ref('')
 const filters = reactive(defaultFilters())
 const applied = reactive(defaultFilters())
 const page = ref(0)
+/** A busca só roda depois de "Pesquisar", com a categoria escolhida (obrigatória). */
+const searched = ref(false)
+const categoryError = ref('')
 const PAGE_SIZE = 50
 const copyLabel = ref('Copiar resultado')
 
@@ -77,6 +80,12 @@ const filterKey = (f: typeof filters) => JSON.stringify({ ...f, sort: '', type: 
 const dirty = computed(() => filterKey(filters) !== filterKey(applied))
 
 function search() {
+  if (!filters.category) {
+    categoryError.value = 'Escolha uma categoria para pesquisar. As subcategorias são opcionais.'
+    return
+  }
+  categoryError.value = ''
+  searched.value = true
   const catalogChanged = filters.catalog !== applied.catalog
   Object.assign(applied, filters, { sort: applied.sort, type: catalogChanged ? 'all' : applied.type })
   page.value = 0
@@ -92,6 +101,8 @@ function selectCategory(level: number, value: string) {
 function clear() {
   Object.assign(filters, defaultFilters())
   Object.assign(applied, defaultFilters())
+  searched.value = false
+  categoryError.value = ''
   page.value = 0
 }
 
@@ -162,22 +173,25 @@ const SORTS: { value: RadarSort; label: string }[] = [
         </div>
 
         <fieldset class="space-y-2 border-t border-line pt-3">
-          <legend class="field-label">Categoria</legend>
+          <legend class="field-label">Categoria <span class="text-danger" aria-hidden="true">*</span> <span class="font-normal text-ink-3">(obrigatória)</span></legend>
           <select
             v-for="(lvl, i) in levels"
             :key="i"
             :value="lvl.value"
             class="input"
+            :aria-required="i === 0"
             :aria-label="i === 0 ? 'Categoria' : `Subcategoria nível ${i}`"
             :data-test="`cat-${i}`"
             @change="selectCategory(i, ($event.target as HTMLSelectElement).value)"
           >
-            <option value="">{{ i === 0 ? 'Todas as categorias' : 'Todas as subcategorias' }}</option>
+            <option value="">{{ i === 0 ? 'Selecione a categoria' : 'Todas as subcategorias' }}</option>
             <option v-for="c in lvl.options" :key="c.key" :value="c.key">{{ c.name }} ({{ int(c.count) }})</option>
           </select>
           <p class="text-[12px] text-ink-3">
             A base coletada hoje só tem anúncios de Beleza e Cuidado Pessoal; as demais categorias aparecem com (0) até serem coletadas.
           </p>
+          <p v-if="categoryError" class="text-[12px] text-danger" role="alert" data-test="erro-categoria">{{ categoryError }}</p>
+          <p class="text-[12px] text-ink-3">Sem escolher subcategoria, a pesquisa traz os anúncios de todas as subcategorias abaixo da categoria.</p>
           <div v-if="selectedCategory" class="rounded-card border border-line bg-surface-2 p-3 text-[13px]" data-test="pedir-coleta">
             <template v-if="activeRequest">
               <span :class="STATUS_PILL[activeRequest.status]">{{ COLLECTION_STATUS_LABEL[activeRequest.status] }}</span>
@@ -305,6 +319,12 @@ const SORTS: { value: RadarSort; label: string }[] = [
           </ul>
         </div>
 
+        <div v-if="!searched" class="card p-10 text-center text-ink-3" data-test="radar-vazio">
+          <MagnifyingGlassIcon class="mx-auto mb-2 h-6 w-6" aria-hidden="true" />
+          Escolha a categoria (as subcategorias são opcionais), ajuste os demais filtros e clique em <b class="text-ink-2">Pesquisar</b>.
+        </div>
+
+        <template v-else>
         <div class="grid grid-cols-2 gap-3 2xl:grid-cols-4" data-test="radar-kpis">
           <div class="card p-3">
             <p class="text-[12px] text-ink-3">Anúncios encontrados</p>
@@ -416,6 +436,8 @@ const SORTS: { value: RadarSort; label: string }[] = [
           <span class="text-[13px] text-ink-3">Página {{ page + 1 }} de {{ int(pages) }}</span>
           <button type="button" class="btn-secondary" :disabled="page >= pages - 1" @click="page++">Próximos →</button>
         </div>
+
+        </template>
 
         <p class="max-w-4xl text-[12px] text-ink-3">
           <template v-for="(p, i) in noteParts" :key="i">
