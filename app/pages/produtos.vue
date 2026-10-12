@@ -59,6 +59,15 @@ watchEffect(() => {
     </div>
 
     <template v-else-if="olist.olist.value">
+      <p
+        v-if="olist.olist.value.costs?.status === 'forbidden'"
+        class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning"
+        role="status"
+        data-test="custo-indisponivel"
+      >
+        O custo (PEPS) está indisponível: o aplicativo do Olist ainda não tem permissão para ler as movimentações de estoque.
+        Um administrador precisa liberar a leitura de estoque no painel do Olist e reconectar a conta.
+      </p>
       <div class="card flex flex-wrap items-center gap-3 p-3">
         <div class="relative min-w-[240px] flex-1">
           <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" aria-hidden="true" />

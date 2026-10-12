@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDownIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import { ref } from 'vue'
 import { brl, dateTimeShort } from '../../lib/format'
 import { KIND_LABEL, STATUS_LABEL, VARIATION_LABEL, formatQty, toNumber, type OlistProduct } from '../../lib/olistClient'
@@ -19,6 +19,13 @@ const money = (v: OlistProduct['price']) => brl(toNumber(v))
 const hasValue = (v: OlistProduct['price']) => (toNumber(v) ?? 0) > 0
 const isNegative = (v: OlistProduct['price']) => (toNumber(v) ?? 0) < 0
 const hasVariations = () => (props.product.variations?.length ?? 0) > 0
+
+const warningText = () => `Atenção: ${formatQty(props.product.cost.warning_units)} unidade(s) em estoque sem valor de custo informado na entrada.`
+const costText = () => {
+  const cost = props.product.cost
+  if (cost.range) return cost.range[0] === cost.range[1] ? brl(cost.range[0]) : `${brl(cost.range[0])} a ${brl(cost.range[1])}`
+  return toNumber(cost.fifo_unit) === null ? '—' : money(cost.fifo_unit)
+}
 </script>
 
 <template>
@@ -52,7 +59,14 @@ const hasVariations = () => (props.product.variations?.length ?? 0) > 0
     </td>
     <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums">{{ money(product.price) }}</td>
     <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums">{{ hasValue(product.promo_price) ? money(product.promo_price) : '—' }}</td>
-    <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums">{{ hasValue(product.cost_price) ? money(product.cost_price) : '—' }}</td>
+    <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums" data-test="custo-peps">
+      <span class="inline-flex items-center justify-end gap-1">
+        <span v-if="product.cost.warning" class="inline-flex" :title="warningText()" role="img" :aria-label="warningText()" data-test="custo-aviso">
+          <ExclamationTriangleIcon class="h-4 w-4 text-warning" aria-hidden="true" />
+        </span>
+        <span :title="product.cost.available ? 'Custo PEPS: da entrada mais antiga que ainda tem saldo' : 'Custo ainda não calculado'">{{ costText() }}</span>
+      </span>
+    </td>
     <td class="whitespace-nowrap px-3 py-2 text-right tabular-nums" :class="isNegative(product.stock.available) ? 'font-semibold text-danger' : ''" data-test="estoque-olist">
       {{ formatQty(product.stock.available) }}
     </td>
@@ -92,7 +106,9 @@ const hasVariations = () => (props.product.variations?.length ?? 0) > 0
             <template v-else>sem anúncio Full com este SKU</template>
           </dd>
         </div>
-        <div><dt class="text-ink-3">Custo médio</dt><dd>{{ hasValue(product.avg_cost_price) ? money(product.avg_cost_price) : '—' }}</dd></div>
+        <div><dt class="text-ink-3">Custo PEPS (próxima saída)</dt><dd>{{ costText() }}</dd></div>
+        <div><dt class="text-ink-3">Valor do estoque (PEPS)</dt><dd>{{ product.cost.available ? money(product.cost.stock_value) : '—' }}</dd></div>
+        <div><dt class="text-ink-3">Custo cadastrado no Olist</dt><dd>{{ hasValue(product.cost.registered) ? money(product.cost.registered) : '—' }}</dd></div>
         <div><dt class="text-ink-3">Cadastrado no Olist</dt><dd>{{ dateTimeShort(product.olist_created_at) }}</dd></div>
         <div><dt class="text-ink-3">Alterado no Olist</dt><dd>{{ dateTimeShort(product.olist_updated_at) }}</dd></div>
         <div><dt class="text-ink-3">Lido pelo Lunna</dt><dd>{{ dateTimeShort(product.synced_at) }}</dd></div>
@@ -100,6 +116,38 @@ const hasVariations = () => (props.product.variations?.length ?? 0) > 0
       <p v-if="hasVariations()" class="mt-3 text-[12px] text-ink-3">
         Produto com variações: o estoque mostrado é a soma das {{ product.variations.length }} variações.
       </p>
+      <p v-if="product.cost.warning" class="mt-3 flex items-start gap-2 rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning" role="alert" data-test="custo-aviso-detalhe">
+        <ExclamationTriangleIcon class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <span>
+          {{ warningText() }} Informe o custo da entrada no Olist (Suprimentos &gt; Controle de Estoque) para o PEPS ficar completo.
+        </span>
+      </p>
+      <div v-if="product.cost.layers.length" class="mt-4">
+        <p class="mb-1 text-[12px] font-semibold text-ink-2">Entradas com saldo (PEPS: a mais antiga sai primeiro)</p>
+        <table class="w-full max-w-xl border-collapse text-[12px]">
+          <thead>
+            <tr class="border-b border-line text-left text-ink-3">
+              <th class="py-1 pr-3 font-medium">Entrada</th>
+              <th class="px-3 py-1 text-right font-medium">Qtd. entrada</th>
+              <th class="px-3 py-1 text-right font-medium">Saldo</th>
+              <th class="px-3 py-1 text-right font-medium">Custo unit.</th>
+              <th class="py-1 pl-3 text-right font-medium">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(layer, i) in product.cost.layers" :key="i" class="border-b border-line" data-test="camada-peps">
+              <td class="py-1 pr-3">{{ dateTimeShort(layer.moved_at) }}</td>
+              <td class="px-3 py-1 text-right tabular-nums">{{ formatQty(layer.quantity) }}</td>
+              <td class="px-3 py-1 text-right tabular-nums">{{ formatQty(layer.remaining) }}</td>
+              <td class="px-3 py-1 text-right tabular-nums">
+                <span v-if="layer.unit_cost === null" class="text-warning">sem custo</span>
+                <template v-else>{{ brl(layer.unit_cost) }}</template>
+              </td>
+              <td class="py-1 pl-3 text-right tabular-nums">{{ layer.unit_cost === null ? '—' : brl(layer.unit_cost * layer.remaining) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <div v-if="product.stock.deposits.length" class="mt-4">
         <p class="mb-1 text-[12px] font-semibold text-ink-2">Estoque por depósito</p>
         <table class="w-full max-w-xl border-collapse text-[12px]">

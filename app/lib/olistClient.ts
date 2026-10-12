@@ -14,6 +14,30 @@ export interface OlistDeposit {
 /** Número que a API devolve como texto decimal ("229.9") ou null. */
 export type Decimal = string | number | null
 
+export interface OlistCostLayer {
+  moved_at: string | null
+  quantity: number
+  remaining: number
+  unit_cost: number | null
+  origin: string | null
+}
+
+/** Custo PEPS calculado das entradas do Controle de Estoque do Olist. */
+export interface OlistCost {
+  available: boolean
+  fifo_unit: Decimal
+  /** Só no produto pai: menor e maior custo entre as variações. */
+  range?: [number, number] | null
+  stock_value: Decimal
+  units: Decimal
+  warning: boolean
+  warning_units: Decimal
+  shortfall?: Decimal
+  layers: OlistCostLayer[]
+  calculated_at: string | null
+  registered: Decimal
+}
+
 export interface OlistProduct {
   id: number
   /** Variação: id do produto pai (quando o pai existe). */
@@ -29,6 +53,7 @@ export interface OlistProduct {
   promo_price: Decimal
   cost_price: Decimal
   avg_cost_price: Decimal
+  cost: OlistCost
   stock: {
     balance: Decimal
     reserved: Decimal
@@ -80,6 +105,8 @@ export interface OlistStatus {
   error?: string | null
   products_count?: number
   last_sync?: OlistSyncRun | null
+  /** Leitura das movimentações de estoque (custo PEPS): ok, forbidden (app sem permissão) ou error. */
+  costs?: { status: 'ok' | 'forbidden' | 'error' | null; checked_at: string | null }
 }
 
 export interface OlistProductsQuery {
