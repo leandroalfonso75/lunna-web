@@ -2,7 +2,9 @@
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import { usePageHeader } from '../composables/usePageHeader'
-import { brl, int } from '../lib/format'
+import { useRadarCollections } from '../composables/useRadarCollections'
+import { brl, dateTimeShort, int } from '../lib/format'
+import { COLLECTION_STATUS_LABEL } from '../lib/radarCollectionsClient'
 import {
   PERIODS,
   buildIndex,
@@ -27,6 +29,7 @@ import {
  * Os números NÃO são ao vivo. Ver `lib/radar.ts` sobre onde a regra mora.
  */
 const header = usePageHeader()
+const collections = useRadarCollections()
 
 const data = ref<RadarData | null>(null)
 const index = ref<RadarIndex | null>(null)
@@ -37,6 +40,7 @@ const PAGE_SIZE = 50
 const copyLabel = ref('Copiar resultado')
 
 onMounted(async () => {
+  void collections.load()
   try {
     const [raw, paths] = await Promise.all([
       $fetch<RadarData>('/radar/data.json'),
@@ -100,6 +104,11 @@ const stars = (r: number | null) => (r ? `★ ${r.toFixed(1).replace('.', ',')}`
 const noteParts = computed(() => splitBold(data.value?.note ?? ''))
 const sellerNote = computed(() => splitBold(data.value?.sellerNote ?? '').map((p) => p.text).join(''))
 
+/** Categoria escolhida sem anúncios na base: dá para pedir a coleta dela. */
+const selectedCategory = computed(() => (index.value && filters.category ? (index.value.tree[filters.category] ?? null) : null))
+const activeRequest = computed(() => (filters.category ? collections.activeByPath.value.get(filters.category) : undefined))
+const STATUS_PILL: Record<string, string> = { requested: 'pill-warning', collecting: 'pill-primary', done: 'pill-success', failed: 'pill-danger' }
+
 const SORTS: { value: RadarSort; label: string }[] = [
   { value: 'rev', label: 'Maior receita' },
   { value: 'avg', label: 'Maior média de vendas/mês' },
@@ -154,6 +163,21 @@ const SORTS: { value: RadarSort; label: string }[] = [
           <p class="text-[12px] text-ink-3">
             A base coletada hoje só tem anúncios de Beleza e Cuidado Pessoal; as demais categorias aparecem com (0) até serem coletadas.
           </p>
+          <div v-if="selectedCategory" class="rounded-card border border-line bg-surface-2 p-3 text-[13px]" data-test="pedir-coleta">
+            <template v-if="activeRequest">
+              <span :class="STATUS_PILL[activeRequest.status]">{{ COLLECTION_STATUS_LABEL[activeRequest.status] }}</span>
+              <p class="mt-1 text-ink-3">Pedido registrado. A coleta só acontece quando for executada sob comando.</p>
+            </template>
+            <template v-else>
+              <p class="text-ink-2">
+                {{ selectedCategory.count ? 'Quer atualizar os dados desta categoria?' : 'Esta categoria ainda não foi coletada.' }}
+              </p>
+              <button type="button" class="btn-secondary mt-2 w-full" :disabled="collections.busy.value" @click="collections.request(filters.category)">
+                Pedir coleta desta categoria
+              </button>
+              <p class="mt-1 text-[12px] text-ink-3">Inclui as subcategorias. Nada é coletado até a coleta ser executada.</p>
+            </template>
+          </div>
         </fieldset>
 
         <fieldset class="border-t border-line pt-3">
@@ -246,6 +270,19 @@ const SORTS: { value: RadarSort; label: string }[] = [
 
       <!-- Resultado -->
       <section class="min-w-0 space-y-4">
+        <div v-if="collections.collections.value.length" class="card p-3" data-test="pedidos-coleta">
+          <h2 class="section-title mb-2">Pedidos de coleta</h2>
+          <ul class="divide-y divide-line text-[13px]">
+            <li v-for="c in collections.collections.value.slice(0, 8)" :key="c.id" class="flex flex-wrap items-center gap-2 py-1.5">
+              <span :class="STATUS_PILL[c.status]">{{ COLLECTION_STATUS_LABEL[c.status] }}</span>
+              <span class="min-w-0 flex-1 truncate" :title="c.category_path">{{ c.category_path }}</span>
+              <span class="text-[12px] text-ink-3">{{ dateTimeShort(c.requested_at) }}<template v-if="c.requested_by"> · {{ c.requested_by }}</template></span>
+              <span v-if="c.error" class="w-full text-[12px] text-danger">{{ c.error }}</span>
+              <button v-if="c.status === 'requested'" type="button" class="btn-link" :disabled="collections.busy.value" @click="collections.cancel(c.id)">Cancelar</button>
+            </li>
+          </ul>
+        </div>
+
         <div class="grid grid-cols-2 gap-3 2xl:grid-cols-4" data-test="radar-kpis">
           <div class="card p-3">
             <p class="text-[12px] text-ink-3">Anúncios encontrados</p>
