@@ -85,6 +85,11 @@ const levels = computed(() => (index.value ? categoryLevels(index.value, filters
 const filterKey = (f: typeof filters) => JSON.stringify({ ...f, sort: '', type: '' })
 const dirty = computed(() => filterKey(filters) !== filterKey(applied))
 
+/** Consulta reaberta: a categoria dela é o piso; só dá para refinar para subcategorias de dentro. */
+const baseCategory = computed(() => openedSearch.value?.category_path ?? '')
+const lockedDepth = computed(() => (baseCategory.value ? baseCategory.value.split(' > ').length : 0))
+const insideBase = (path: string) => !baseCategory.value || path === baseCategory.value || path.startsWith(`${baseCategory.value} > `)
+
 function search() {
   if (!filters.category) {
     categoryError.value = 'Escolha uma categoria para pesquisar. As subcategorias são opcionais.'
@@ -92,9 +97,12 @@ function search() {
   }
   categoryError.value = ''
   searched.value = true
+  const reopened = !!openedSearch.value
   const catalogChanged = filters.catalog !== applied.catalog
   Object.assign(applied, filters, { sort: applied.sort, type: catalogChanged ? 'all' : applied.type })
   page.value = 0
+  // Refinar uma consulta reaberta não cria uma nova entrada no histórico.
+  if (reopened) return
   openedSearch.value = null
   if (index.value) {
     const found = summarize(filterItems(index.value, applied))
@@ -131,7 +139,14 @@ watch(() => applied.sort, () => { page.value = 0 })
 watch(() => applied.type, () => { page.value = 0 })
 
 function selectCategory(level: number, value: string) {
-  filters.category = pickCategory(filters.category, level, value)
+  const next = pickCategory(filters.category, level, value)
+  if (!insideBase(next)) return
+  filters.category = next
+  // Numa consulta reaberta, escolher a subcategoria já filtra a lista na hora.
+  if (openedSearch.value) {
+    applied.category = next
+    page.value = 0
+  }
 }
 
 function clear() {
@@ -243,6 +258,7 @@ const SORTS: { value: RadarSort; label: string }[] = [
             :value="lvl.value"
             class="input"
             :aria-required="i === 0"
+            :disabled="i < lockedDepth"
             :aria-label="i === 0 ? 'Categoria' : `Subcategoria nível ${i}`"
             :data-test="`cat-${i}`"
             @change="selectCategory(i, ($event.target as HTMLSelectElement).value)"
@@ -262,7 +278,7 @@ const SORTS: { value: RadarSort; label: string }[] = [
             </template>
             <template v-else>
         <p v-if="openedSearch" class="rounded-card border border-info bg-info-soft px-3 py-2 text-[13px] text-info" data-test="consulta-aberta">
-          Consulta de {{ dateTimeShort(openedSearch.searched_at) }}<template v-if="openedSearch.searched_by"> por {{ openedSearch.searched_by }}</template>, sobre a base de {{ openedSearch.data_ref ? formatDay(Math.floor(Date.parse(openedSearch.data_ref) / 86400000)) : '—' }}. Altere os filtros e clique em Pesquisar para fazer uma nova.
+          Consulta de {{ dateTimeShort(openedSearch.searched_at) }}<template v-if="openedSearch.searched_by"> por {{ openedSearch.searched_by }}</template>, sobre a base de {{ openedSearch.data_ref ? formatDay(Math.floor(Date.parse(openedSearch.data_ref) / 86400000)) : '—' }}. Escolha uma subcategoria à esquerda para ver só os anúncios dela. Para uma pesquisa nova, use “Limpar tudo”.
         </p>
               <p class="text-ink-2">
                 {{ selectedCategory.count ? 'Quer atualizar os dados desta categoria?' : 'Esta categoria ainda não foi coletada.' }}
