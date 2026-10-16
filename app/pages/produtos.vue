@@ -71,8 +71,8 @@ watchEffect(() => {
         role="status"
         data-test="custo-indisponivel"
       >
-        O custo (PEPS) está indisponível: o aplicativo do Olist ainda não tem permissão para ler as movimentações de estoque.
-        Um administrador precisa liberar a leitura de estoque no painel do Olist e reconectar a conta.
+        O custo (PEPS) está indisponível: o Olist bloqueou a leitura do histórico de movimentações de estoque (acesso negado), mesmo com o aplicativo autorizado.
+        Confira se o usuário do Olist que autorizou tem permissão para ver o histórico do Controle de Estoque e, se continuar, peça ao suporte do Olist para liberar esse acesso ao aplicativo.
       </p>
       <div class="card flex flex-wrap items-center gap-3 p-3">
         <div class="relative min-w-[240px] flex-1">
