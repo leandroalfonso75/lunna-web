@@ -134,6 +134,27 @@ export interface ItemLinks {
   seller_panel: string
 }
 
+/** Resultado por unidade de um anúncio: lucro líquido = preço − custo − comissão − frete/taxas − despesas fixas. */
+export interface ItemEconomics {
+  price: number
+  /** Custo unitário do Olist (ou manual); null = sem custo. */
+  cost: number | null
+  cost_source: 'peps' | 'cadastro' | 'custo_medio' | 'manual' | null
+  commission: number
+  /** Frete pago pelo vendedor + taxa fixa + financiamento. */
+  shipping_fees: number
+  shipping: number
+  fixed_fee: number
+  financing: number
+  fixed_expenses: number
+  fixed_expenses_pct: number
+  net_profit: number | null
+  net_profit_pct: number | null
+  fees_known: boolean
+  /** false = o detalhe da tarifa ainda não foi lido: a tarifa inteira entrou como comissão. */
+  fees_split: boolean
+}
+
 export interface ItemRow {
   id: string
   title: string
@@ -161,6 +182,7 @@ export interface ItemRow {
   units_delta_direction: Direction | null
   revenue_7d: number | null
   net_after_fee_7d: number | null
+  economics: ItemEconomics | null
   coverage_days: number | null
   coverage_state: ThreeState | null
   quality_score: number | null
