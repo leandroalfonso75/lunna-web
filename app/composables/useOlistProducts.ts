@@ -93,6 +93,16 @@ export function useOlistProducts() {
     await loadProducts({ silent: true })
   }
 
+  /** Reconectar: abre a autorização do Olist (o retorno cai nas configurações do Lunna). */
+  async function reconnect() {
+    try {
+      const { url } = await client.authorize()
+      window.location.href = url
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível iniciar a conexão com o Olist.'))
+    }
+  }
+
   function goTo(next: number) {
     page.value = Math.min(Math.max(0, next), pages.value - 1)
     void loadProducts()
@@ -132,6 +142,6 @@ export function useOlistProducts() {
 
   return {
     olist, products, total, lastSyncedAt, loading, error, syncing, q, status, page, pages, connected, lastRun,
-    pageSize: PAGE_SIZE, refreshNow, goTo
+    pageSize: PAGE_SIZE, refreshNow, reconnect, goTo
   }
 }

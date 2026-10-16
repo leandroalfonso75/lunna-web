@@ -3,6 +3,7 @@ import { ArrowPathIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { watchEffect } from 'vue'
 import OlistProductRow from '../components/produtos/OlistProductRow.vue'
 import { useOlistProducts } from '../composables/useOlistProducts'
+import { useSessionStore } from '../stores/session'
 import { usePageHeader } from '../composables/usePageHeader'
 import { dateTimeShort, int } from '../lib/format'
 
@@ -13,6 +14,7 @@ import { dateTimeShort, int } from '../lib/format'
  */
 const header = usePageHeader()
 const olist = useOlistProducts()
+const session = useSessionStore()
 
 watchEffect(() => {
   header.state.title = 'Produtos'
@@ -54,8 +56,12 @@ watchEffect(() => {
     <div v-if="olist.olist.value && !olist.connected.value" class="card p-8 text-center" data-test="olist-desconectado">
       <p class="text-[15px] font-semibold text-ink">O Olist ERP ainda não está conectado.</p>
       <p class="mt-1 text-[13px] text-ink-3">
-        {{ olist.olist.value.status === 'reauth_required' ? 'A conexão expirou e precisa ser refeita por um administrador.' : 'Peça a um administrador para conectar a conta do Olist.' }}
+        {{ olist.olist.value.status === 'reauth_required' ? 'O acesso salvo expirou (o Olist renova por no máximo 1 dia) e precisa ser autorizado de novo.' : 'Conecte a conta do Olist para ver os produtos.' }}
       </p>
+      <button v-if="session.isAdmin" type="button" class="btn-primary mt-4" data-test="reconectar-olist" @click="olist.reconnect()">
+        Reconectar ao Olist
+      </button>
+      <p v-else class="mt-2 text-[13px] text-ink-3">Peça a um administrador para reconectar.</p>
     </div>
 
     <template v-else-if="olist.olist.value">

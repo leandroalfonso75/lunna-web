@@ -137,6 +137,11 @@ export function createOlistClient(api: ApiFn) {
 
     sync(): Promise<{ sync_run: OlistSyncRun; already_running: boolean }> {
       return api('/api/olist/sync', { method: 'POST' })
+    },
+
+    /** Só administradores: devolve a URL do Olist para autorizar (ou reautorizar) o acesso. */
+    authorize(): Promise<{ url: string }> {
+      return api("/api/olist/authorize", { method: "POST" })
     }
   }
 }
