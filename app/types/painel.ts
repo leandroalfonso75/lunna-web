@@ -139,7 +139,7 @@ export interface ItemEconomics {
   price: number
   /** Custo unitário do Olist (ou manual); null = sem custo. */
   cost: number | null
-  cost_source: 'peps' | 'cadastro' | 'custo_medio' | 'kit' | 'manual' | null
+  cost_source: 'peps' | 'cadastro' | 'custo_medio' | 'ultima_entrada' | 'kit' | 'manual' | null
   commission: number
   /** Frete pago pelo vendedor + taxa fixa + financiamento. */
   shipping_fees: number
