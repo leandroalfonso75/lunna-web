@@ -57,17 +57,19 @@ const LOGISTIC_TABS: { value: SalesFilters['logistic']; label: string }[] = [
 
 const COLUMNS = [
   { key: 'date', label: 'Data', sort: 'date', width: 'w-[9%]', align: 'left' },
-  { key: 'sale', label: 'Venda', width: 'w-[23%] max-xl:w-[33%]', align: 'left' },
+  { key: 'sale', label: 'Venda', width: 'w-[20%] max-xl:w-[33%]', align: 'left' },
   { key: 'total', label: 'Valor', sort: 'total', width: 'w-[9%]', align: 'right' },
   { key: 'fee', label: 'Tarifa', width: 'w-[8%]', align: 'right', hide: true },
   { key: 'shipping_cost', label: 'Frete', width: 'w-[8%]', align: 'right', hide: true },
   { key: 'tax', label: 'Imposto', width: 'w-[8%]', align: 'right', hide: true },
+  { key: 'fixed_expenses', label: 'Desp. fixas', width: 'w-[8%]', align: 'right', hide: true },
   { key: 'cost', label: 'Custo', width: 'w-[8%]', align: 'right', hide: true },
   { key: 'profit', label: 'Lucro líquido', sort: 'profit_pct', width: 'w-[10%]', align: 'right' },
   { key: 'shipping', label: 'Envio', width: 'w-[13%] max-xl:w-[16%]', align: 'left' }
 ]
 
 const taxPct = (row: SaleRow) => (row.economics && row.economics.revenue ? (row.economics.tax / row.economics.revenue) * 100 : 0)
+const fixedPct = (row: SaleRow) => (row.economics && row.economics.revenue ? (row.economics.fixed_expenses / row.economics.revenue) * 100 : 0)
 const money = (v: number | null | undefined) => (v === null || v === undefined ? '—' : num(v, 2))
 const expanded = ref<number | null>(null)
 
@@ -252,6 +254,10 @@ function onDate(which: 'from' | 'to', event: Event) {
                 </td>
                 <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric data-test="col-imposto">
                   <span v-if="row.economics" :title="`${num(taxPct(row), 1)}% da receita dos itens`">{{ money(row.economics.tax) }}</span>
+                  <span v-else>—</span>
+                </td>
+                <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric data-test="col-despesas">
+                  <span v-if="row.economics" :title="`${num(fixedPct(row), 1)}% do valor da venda`">{{ money(row.economics.fixed_expenses) }}</span>
                   <span v-else>—</span>
                 </td>
                 <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>
