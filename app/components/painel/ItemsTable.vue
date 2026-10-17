@@ -39,7 +39,7 @@ const COLUMNS: { key: string; label: string; sort?: string; filter?: 'text' | 'n
   { key: 'shipping_fees', label: 'Frete/taxas', width: 'w-[8%]' },
   { key: 'fixed_expenses', label: 'Desp. fixas', width: 'w-[7%]' },
   { key: 'tax', label: 'Imposto', width: 'w-[7%]' },
-  { key: 'net_profit', label: 'Lucro líquido', width: 'w-[10%]' },
+  { key: 'net_profit', label: 'Lucro líquido', sort: 'net_profit_pct', width: 'w-[10%]' },
   { key: 'coverage_days', label: 'Cobertura', sort: 'coverage_days', filter: 'numeric', placeholder: '<14', width: 'w-[7%]', hide: true },
   { key: 'quality_score', label: 'Qualidade', sort: 'quality_score', filter: 'numeric', placeholder: '>=70', width: 'w-[8%]', hide: true }
 ]
@@ -193,7 +193,7 @@ function totalPages(): number {
                 </button>
                 <span v-else>
                   {{ column.label }}
-                  <span v-if="MONEY_COLUMNS.includes(column.key)" class="block text-[10px] font-normal text-ink-3">{{ column.key === 'net_profit' ? 'R$ e %' : 'R$' }}</span>
+                  <span v-if="MONEY_COLUMNS.includes(column.key)" class="block text-[10px] font-normal text-ink-3">{{ column.key === 'net_profit' ? '% e R$' : 'R$' }}</span>
                 </span>
               </th>
             </tr>
@@ -289,8 +289,8 @@ function totalPages(): number {
                 </td>
                 <td class="px-2 py-2 text-right" data-numeric data-test="col-lucro">
                   <template v-if="item.economics && item.economics.net_profit !== null">
-                    <span class="block font-semibold" :class="item.economics.net_profit < 0 ? 'text-danger' : 'text-success'">{{ money(item.economics.net_profit) }}</span>
-                    <span class="block text-[11px]" :class="item.economics.net_profit < 0 ? 'text-danger' : 'text-ink-3'">{{ pct(item.economics.net_profit_pct) }}</span>
+                    <span class="block font-semibold" :class="item.economics.net_profit < 0 ? 'text-danger' : 'text-success'" data-test="lucro-pct">{{ pct(item.economics.net_profit_pct) }}</span>
+                    <span class="block text-[11px] text-ink-3" data-test="lucro-valor">{{ money(item.economics.net_profit) }}</span>
                   </template>
                   <span v-else class="text-ink-3" :title="item.economics ? 'Sem custo no Olist: o lucro não pode ser calculado' : ''">—</span>
                 </td>
