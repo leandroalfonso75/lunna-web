@@ -11,6 +11,7 @@ const COST_SOURCE_LABEL: Record<string, string> = {
   peps: 'Custo PEPS do Olist',
   cadastro: 'Custo cadastrado no produto do Olist',
   custo_medio: 'Custo médio do produto no Olist',
+  kit: 'Kit: soma do custo dos componentes no Olist',
   manual: 'Custo informado manualmente'
 }
 

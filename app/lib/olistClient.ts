@@ -22,6 +22,25 @@ export interface OlistCostLayer {
   origin: string | null
 }
 
+export interface OlistKitComponent {
+  id: number
+  sku: string | null
+  description: string | null
+  quantity: number
+  unit_cost: number | null
+  cost_source: string | null
+  subtotal: number | null
+  available: number | null
+  kits_possible: number | null
+}
+
+/** Composição de um kit: o custo e o estoque saem dos componentes. */
+export interface OlistKit {
+  components: OlistKitComponent[]
+  missing_cost: string[]
+  complete: boolean
+}
+
 /** Custo PEPS calculado das entradas do Controle de Estoque do Olist. */
 export interface OlistCost {
   available: boolean
@@ -32,6 +51,10 @@ export interface OlistCost {
   units: Decimal
   warning: boolean
   warning_units: Decimal
+  /** Kit: SKUs de componentes sem custo. */
+  warning_skus?: string[]
+  /** "kit" quando o custo é a soma dos componentes. */
+  source?: string
   /** Unidades do histórico menos o estoque de hoje (Olist + Full): diferente de 0 = o histórico não fecha. */
   balance_gap?: number | null
   shortfall?: Decimal
@@ -56,6 +79,8 @@ export interface OlistProduct {
   cost_price: Decimal
   avg_cost_price: Decimal
   cost: OlistCost
+  /** Só kits: composição com custo e estoque de cada componente. */
+  kit?: OlistKit | null
   stock: {
     balance: Decimal
     reserved: Decimal
