@@ -122,6 +122,10 @@ const costText = () => {
           {{ warningText() }} Informe o custo da entrada no Olist (Suprimentos &gt; Controle de Estoque) para o PEPS ficar completo.
         </span>
       </p>
+      <p v-if="product.cost.balance_gap" class="mt-3 text-[12px] text-ink-3" data-test="custo-diferenca">
+        O histórico de movimentações do Olist explica {{ formatQty(Math.abs(product.cost.balance_gap)) }} unidade(s)
+        {{ product.cost.balance_gap > 0 ? 'a mais' : 'a menos' }} do que o estoque de hoje; o custo PEPS considera só o que o histórico mostra.
+      </p>
       <div v-if="product.cost.layers.length" class="mt-4">
         <p class="mb-1 text-[12px] font-semibold text-ink-2">Entradas com saldo (PEPS: a mais antiga sai primeiro)</p>
         <table class="w-full max-w-xl border-collapse text-[12px]">

@@ -32,6 +32,8 @@ export interface OlistCost {
   units: Decimal
   warning: boolean
   warning_units: Decimal
+  /** Unidades do histórico menos o estoque de hoje (Olist + Full): diferente de 0 = o histórico não fecha. */
+  balance_gap?: number | null
   shortfall?: Decimal
   layers: OlistCostLayer[]
   calculated_at: string | null
