@@ -8,6 +8,7 @@ import {
   CubeIcon,
   HomeIcon,
   ListBulletIcon,
+  ShoppingBagIcon,
   SignalIcon,
   XMarkIcon
 } from '@heroicons/vue/24/outline'
@@ -41,6 +42,7 @@ const NAV_SECTIONS = [
       { to: '/', label: 'Visão geral', icon: HomeIcon },
       { to: '/produtos', label: 'Produtos', icon: CubeIcon },
       { to: '/anuncios', label: 'Anúncios', icon: ListBulletIcon },
+      { to: '/vendas', label: 'Vendas', icon: ShoppingBagIcon },
       { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon },
       { to: '/radar-ml', label: 'Radar Mercado Livre', icon: SignalIcon }
     ]
