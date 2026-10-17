@@ -30,7 +30,7 @@ function feesHint(e: ItemEconomics): string {
  * o que o usuário digitou/clicou.
  */
 const COLUMNS: { key: string; label: string; sort?: string; filter?: 'text' | 'numeric'; placeholder?: string; width: string; hide?: boolean }[] = [
-  { key: 'title', label: 'Anúncio', sort: 'title', filter: 'text', placeholder: 'título ou ID', width: 'w-[24%] max-xl:w-[28%]' },
+  { key: 'title', label: 'Anúncio', sort: 'title', filter: 'text', placeholder: 'título ou ID', width: 'w-[20%] max-xl:w-[24%]' },
   { key: 'sku', label: 'SKU', sort: 'sku', filter: 'text', placeholder: 'sem sku', width: 'w-[8%]' },
   { key: 'price', label: 'Preço', sort: 'price', filter: 'numeric', placeholder: '>50', width: 'w-[8%]' },
   { key: 'stock', label: 'Estoque', sort: 'stock', filter: 'numeric', placeholder: '>10', width: 'w-[6%]' },
@@ -38,12 +38,13 @@ const COLUMNS: { key: string; label: string; sort?: string; filter?: 'text' | 'n
   { key: 'commission', label: 'Comissão', width: 'w-[8%]' },
   { key: 'shipping_fees', label: 'Frete/taxas', width: 'w-[8%]' },
   { key: 'fixed_expenses', label: 'Desp. fixas', width: 'w-[7%]' },
+  { key: 'tax', label: 'Imposto', width: 'w-[7%]' },
   { key: 'net_profit', label: 'Lucro líquido', width: 'w-[10%]' },
   { key: 'coverage_days', label: 'Cobertura', sort: 'coverage_days', filter: 'numeric', placeholder: '<14', width: 'w-[7%]', hide: true },
   { key: 'quality_score', label: 'Qualidade', sort: 'quality_score', filter: 'numeric', placeholder: '>=70', width: 'w-[8%]', hide: true }
 ]
 
-const MONEY_COLUMNS = ['cost', 'commission', 'shipping_fees', 'fixed_expenses', 'net_profit']
+const MONEY_COLUMNS = ['cost', 'commission', 'shipping_fees', 'fixed_expenses', 'tax', 'net_profit']
 
 const STATUS_TABS: { value: 'active' | 'paused' | 'closed' | 'all'; label: string }[] = [
   { value: 'active', label: 'Ativos' },
@@ -282,6 +283,10 @@ function totalPages(): number {
                   <span v-if="item.economics" :title="`${num(item.economics.fixed_expenses_pct, 1)}% do preço de venda`">{{ money(item.economics.fixed_expenses) }}</span>
                   <span v-else class="text-ink-3">—</span>
                 </td>
+                <td class="px-2 py-2 text-right" data-numeric data-test="col-imposto">
+                  <span v-if="item.economics" :title="`${num(item.economics.tax_pct, 1)}% do preço de venda (Configurações > Impostos e margem)`">{{ money(item.economics.tax) }}</span>
+                  <span v-else class="text-ink-3">—</span>
+                </td>
                 <td class="px-2 py-2 text-right" data-numeric data-test="col-lucro">
                   <template v-if="item.economics && item.economics.net_profit !== null">
                     <span class="block font-semibold" :class="item.economics.net_profit < 0 ? 'text-danger' : 'text-success'">{{ money(item.economics.net_profit) }}</span>
@@ -375,6 +380,7 @@ function totalPages(): number {
                         <div v-if="item.economics.fees_known" class="def-row"><dt>Comissão</dt><dd data-numeric>− {{ brl(item.economics.commission) }}</dd></div>
                         <div class="def-row"><dt>Frete/taxas</dt><dd data-numeric>− {{ brl(item.economics.shipping_fees) }}</dd></div>
                         <div class="def-row"><dt>Despesas fixas ({{ num(item.economics.fixed_expenses_pct, 1) }}%)</dt><dd data-numeric>− {{ brl(item.economics.fixed_expenses) }}</dd></div>
+                        <div class="def-row"><dt>Imposto ({{ num(item.economics.tax_pct, 1) }}%)</dt><dd data-numeric>− {{ brl(item.economics.tax) }}</dd></div>
                         <div class="def-row border-t border-line pt-1">
                           <dt class="font-semibold text-ink">Lucro líquido</dt>
                           <dd v-if="item.economics.net_profit !== null" data-numeric class="font-semibold" :class="item.economics.net_profit < 0 ? 'text-danger' : 'text-success'">

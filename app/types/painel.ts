@@ -148,6 +148,9 @@ export interface ItemEconomics {
   financing: number
   fixed_expenses: number
   fixed_expenses_pct: number
+  /** Imposto sobre a venda: tax_pct das Configurações (Impostos e margem) × preço. */
+  tax: number
+  tax_pct: number
   net_profit: number | null
   net_profit_pct: number | null
   fees_known: boolean
