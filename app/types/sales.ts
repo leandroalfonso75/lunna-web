@@ -25,6 +25,10 @@ export interface SaleShipping {
   method_name?: string | null
   tracking_number?: string | null
   seller_cost?: number | null
+  /** Parte desta venda no frete do envio (igual a seller_cost quando o envio não é compartilhado). */
+  seller_cost_share?: number | null
+  /** Outras vendas do mesmo envio (carrinho). */
+  shared_with?: number[]
   buyer_cost?: number | null
   list_cost?: number | null
   destination?: string | null
