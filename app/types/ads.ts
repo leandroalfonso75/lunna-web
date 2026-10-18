@@ -53,7 +53,7 @@ export interface AdsResponse {
   previous: AdsMetrics | null
   daily: AdsDay[]
   campaigns: AdsCampaign[]
-  sync: { last_sync_at: string | null; campaigns: number; ads: number }
+  sync: { last_sync_at: string | null; recent_sync_at: string | null; campaigns: number; ads: number }
 }
 
 export interface AdsItemFlag {
@@ -81,8 +81,18 @@ export interface AdsItem {
   flag: AdsItemFlag | null
 }
 
+/** Período escolhido: atalho (today, yesterday, 7d…) ou datas (period = 'custom'). */
+export interface AdsRange {
+  period: string
+  from: string
+  to: string
+}
+
 export interface AdsItemsResponse {
   window: string
+  /** true quando o período foi consultado no Mercado Livre na hora (hoje, ontem, datas, 60 dias). */
+  live: boolean
+  live_error: boolean
   items: AdsItem[]
   total: number
   page: number

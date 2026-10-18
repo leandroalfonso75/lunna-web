@@ -66,7 +66,7 @@ function dayLabel(date: string): string {
         <div
           v-for="day in daily"
           :key="day.date"
-          class="group flex h-full flex-1 items-end gap-[1px]"
+          class="group flex h-full max-w-[4rem] flex-1 items-end gap-[1px]"
           :title="`${dayLabel(day.date)}: vendas ${brl(day.total_amount)} · investimento ${brl(day.cost)} · ${int(day.clicks)} cliques`"
         >
           <div class="w-1/2 rounded-t bg-primary opacity-70 group-hover:opacity-100" :style="{ height: `${Math.max(1, (day.total_amount / max) * 100)}%` }" />

@@ -3,7 +3,7 @@ import { buildAdsItemsQuery, createAdsClient } from '../lib/adsClient'
 import { apiErrorMessage } from '../lib/apiErrors'
 import { withTransientRetry } from '../lib/transientRetry'
 import { useSessionStore } from '../stores/session'
-import type { AdsItemsFilters, AdsItemsResponse, AdsResponse } from '../types/ads'
+import type { AdsItemsFilters, AdsItemsResponse, AdsRange, AdsResponse } from '../types/ads'
 import { usePolling } from './usePolling'
 
 const DEBOUNCE_MS = 300
@@ -17,7 +17,7 @@ export function useAds() {
   const client = createAdsClient($api)
   const session = useSessionStore()
 
-  const period = ref('30d')
+  const range = reactive<AdsRange>({ period: '30d', from: '', to: '' })
   const tab = ref<'campanhas' | 'anuncios'>('campanhas')
   const overview = ref<AdsResponse | null>(null)
   const itemsResponse = ref<AdsItemsResponse | null>(null)
@@ -42,7 +42,7 @@ export function useAds() {
     overviewController = mine
     loading.value = true
     try {
-      const data = await withTransientRetry(() => client.overview(accountId, period.value, { signal: mine.signal }))
+      const data = await withTransientRetry(() => client.overview(accountId, { ...range }, { signal: mine.signal }))
       if (mine.signal.aborted) return
       overview.value = data
       stale.value = false
@@ -64,7 +64,7 @@ export function useAds() {
     itemsController = mine
     itemsLoading.value = true
     try {
-      const data = await withTransientRetry(() => client.items(buildAdsItemsQuery(accountId, period.value, filters), { signal: mine.signal }))
+      const data = await withTransientRetry(() => client.items(buildAdsItemsQuery(accountId, { ...range }, filters), { signal: mine.signal }))
       if (mine.signal.aborted) return
       itemsResponse.value = data
     } catch (err) {
@@ -87,9 +87,16 @@ export function useAds() {
   }
 
   function setPeriod(value: string) {
-    period.value = value
+    range.period = value
     filters.page = 1
     refreshAll()
+  }
+
+  /** Datas escolhidas: só consulta quando as duas estiverem preenchidas. */
+  function setCustomRange(from: string, to: string) {
+    Object.assign(range, { period: 'custom', from, to })
+    filters.page = 1
+    if (from && to) refreshAll()
   }
 
   function changeFilters(patch: Partial<AdsItemsFilters>, debounced = false) {
@@ -113,7 +120,8 @@ export function useAds() {
   /** "Ver anúncios desta campanha": troca de aba já filtrando. */
   function showCampaignItems(campaignId: number) {
     tab.value = 'anuncios'
-    changeFilters({ campaignId: String(campaignId), status: '', flag: '', q: '' })
+    // abre já nos anúncios ativos (os pausados não gastam)
+    changeFilters({ campaignId: String(campaignId), status: 'active', flag: '', q: '' })
   }
 
   async function syncNow() {
@@ -146,7 +154,7 @@ export function useAds() {
   )
 
   return {
-    period, tab, overview, itemsResponse, loading, itemsLoading, loadError, stale, syncing, syncMessage, filters,
-    setPeriod, changeFilters, sortBy, setPage, showCampaignItems, syncNow, ...polling
+    range, tab, overview, itemsResponse, loading, itemsLoading, loadError, stale, syncing, syncMessage, filters,
+    setPeriod, setCustomRange, changeFilters, sortBy, setPage, showCampaignItems, syncNow, ...polling
   }
 }

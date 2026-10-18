@@ -98,7 +98,7 @@ function dayLabel(date: string): string {
                     <div class="def-row"><dt>Custo por clique</dt><dd data-numeric>{{ brl(c.metrics.cpc) }}</dd></div>
                     <div class="def-row"><dt>Conversão</dt><dd data-numeric>{{ pct(c.metrics.cvr) }}</dd></div>
                   </dl>
-                  <button type="button" class="btn-link mt-3" @click.stop="emit('show-items', c.id)">Ver os {{ int(c.ads_count) }} anúncios desta campanha</button>
+                  <button type="button" class="btn-link mt-3" @click.stop="emit('show-items', c.id)">Ver os anúncios ativos desta campanha</button>
                 </div>
                 <div class="card p-4 md:col-span-2 xl:col-span-1">
                   <p class="mb-2 font-semibold text-ink">Por dia</p>

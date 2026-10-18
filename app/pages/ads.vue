@@ -17,7 +17,7 @@ import { useSessionStore } from '../stores/session'
  */
 const session = useSessionStore()
 const ads = useAds()
-const { period, tab, overview, itemsResponse, itemsLoading, loading, loadError, stale, syncing, syncMessage, filters } = ads
+const { range, tab, overview, itemsResponse, itemsLoading, loading, loadError, stale, syncing, syncMessage, filters } = ads
 
 const header = usePageHeader()
 watchEffect(() => {
@@ -33,9 +33,17 @@ onMounted(ads.start)
 onBeforeUnmount(ads.stop)
 
 const PERIODS = [
+  { value: 'today', label: 'Hoje' }, { value: 'yesterday', label: 'Ontem' },
   { value: '7d', label: '7 dias' }, { value: '30d', label: '30 dias' },
   { value: '60d', label: '60 dias' }, { value: '90d', label: '3 meses' }
 ]
+
+const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+
+function onDate(which: 'from' | 'to', event: Event) {
+  const value = (event.target as HTMLInputElement).value
+  ads.setCustomRange(which === 'from' ? value : range.from, which === 'to' ? value : range.to)
+}
 
 const TABS = [
   { value: 'campanhas' as const, label: 'Campanhas' },
@@ -54,12 +62,16 @@ const TABS = [
         :key="p.value"
         type="button"
         class="rounded-full border px-3 py-1 text-[13px]"
-        :class="period === p.value ? 'border-primary bg-primary text-white' : 'border-line bg-surface text-ink-2 hover:bg-surface-2'"
-        :aria-pressed="period === p.value"
+        :class="range.period === p.value ? 'border-primary bg-primary text-white' : 'border-line bg-surface text-ink-2 hover:bg-surface-2'"
+        :aria-pressed="range.period === p.value"
         @click="ads.setPeriod(p.value)"
       >{{ p.label }}</button>
-      <span v-if="overview?.sync.last_sync_at" class="ml-2 text-[12px] text-ink-3">
-        Lido do Mercado Livre em {{ dateTimeShort(overview.sync.last_sync_at) }} (atualiza a cada 3 horas)
+      <span class="mx-1 text-[12px] text-ink-3">ou</span>
+      <input type="date" class="input h-8 w-auto text-[13px]" :class="range.period === 'custom' ? 'border-primary' : ''" :value="range.from" :max="today" aria-label="Data inicial" @change="onDate('from', $event)" />
+      <span class="text-[12px] text-ink-3">até</span>
+      <input type="date" class="input h-8 w-auto text-[13px]" :class="range.period === 'custom' ? 'border-primary' : ''" :value="range.to" :max="today" aria-label="Data final" @change="onDate('to', $event)" />
+      <span v-if="overview?.sync.recent_sync_at || overview?.sync.last_sync_at" class="ml-2 text-[12px] text-ink-3">
+        Dados do Mercado Livre lidos em {{ dateTimeShort(overview.sync.recent_sync_at ?? overview.sync.last_sync_at) }}
       </span>
       <button v-if="session.isAdmin" type="button" class="btn-link ml-auto text-[13px]" :disabled="syncing" @click="ads.syncNow">
         {{ syncing ? 'Pedindo…' : 'Atualizar do Mercado Livre agora' }}
@@ -99,7 +111,11 @@ const TABS = [
         </button>
       </div>
 
+      <p v-if="range.period === 'custom' && (!range.from || !range.to)" class="text-[13px] text-ink-3">Escolha a data inicial e a final para ver o período.</p>
       <CampaignsTable v-if="tab === 'campanhas' && overview" :campaigns="overview.campaigns" @show-items="ads.showCampaignItems" />
+      <p v-if="tab === 'anuncios' && itemsResponse?.live_error" role="status" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning">
+        Não foi possível consultar os números dos anúncios deste período no Mercado Livre agora. Tente de novo em instantes.
+      </p>
       <AdsItemsTable
         v-else-if="tab === 'anuncios'"
         :response="itemsResponse"
