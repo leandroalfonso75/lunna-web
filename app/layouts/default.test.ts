@@ -39,6 +39,14 @@ describe('layouts/default.vue (sidebar SaaS)', () => {
     expect(vendas).toBeLessThan(abc)
   })
 
+  it('mostra Ads logo abaixo de Vendas', () => {
+    const vendas = source.indexOf("{ to: '/vendas'")
+    const ads = source.indexOf("{ to: '/ads', label: 'Ads', icon: MegaphoneIcon }")
+    const abc = source.indexOf("{ to: '/curva-abc'")
+    expect(ads).toBeGreaterThan(vendas)
+    expect(ads).toBeLessThan(abc)
+  })
+
   it('mostra Produtos logo abaixo de Visão geral', () => {
     const visao = source.indexOf("{ to: '/', label: 'Visão geral'")
     const produtos = source.indexOf("{ to: '/produtos', label: 'Produtos', icon: CubeIcon }")

@@ -8,6 +8,7 @@ import {
   CubeIcon,
   HomeIcon,
   ListBulletIcon,
+  MegaphoneIcon,
   ShoppingBagIcon,
   SignalIcon,
   XMarkIcon
@@ -43,6 +44,7 @@ const NAV_SECTIONS = [
       { to: '/produtos', label: 'Produtos', icon: CubeIcon },
       { to: '/anuncios', label: 'Anúncios', icon: ListBulletIcon },
       { to: '/vendas', label: 'Vendas', icon: ShoppingBagIcon },
+      { to: '/ads', label: 'Ads', icon: MegaphoneIcon },
       { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon },
       { to: '/radar-ml', label: 'Radar Mercado Livre', icon: SignalIcon }
     ]
