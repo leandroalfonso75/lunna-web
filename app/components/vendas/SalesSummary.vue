@@ -48,7 +48,7 @@ function dayLabel(date: string): string {
         <div
           v-for="day in daily"
           :key="day.date"
-          class="group relative flex h-full flex-1 items-end"
+          class="group relative flex h-full max-w-[4rem] flex-1 items-end"
           :title="`${dayLabel(day.date)}: ${int(day.orders)} vendas · ${brl(day.revenue)} · lucro ${brl(day.net_profit)}`"
         >
           <div class="w-full rounded-t bg-primary opacity-70 group-hover:opacity-100" :style="{ height: `${Math.max(2, (day.revenue / max) * 100)}%` }" />
