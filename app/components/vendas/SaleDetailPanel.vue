@@ -48,6 +48,22 @@ const money = (v: number | null | undefined) => brl(v)
             {{ detail.economics.net_profit === null ? '—' : `${money(detail.economics.net_profit)} (${pct(detail.economics.net_profit_pct)})` }}
           </dd>
         </div>
+        <div class="def-row" data-test="detalhe-ads">
+          <dt>Custo com Ads<template v-if="detail.economics.ads_state === 'pendente'"> (pendente)</template></dt>
+          <dd data-numeric>{{ detail.economics.ads_state === 'sem_ads' ? 'sem Ads' : `− ${money(detail.economics.ads_cost)}` }}</dd>
+        </div>
+        <div class="def-row border-t border-line pt-1 font-semibold">
+          <dt>Lucro líquido pós Ads</dt>
+          <dd data-numeric :class="(detail.economics.net_profit_after_ads ?? 0) < 0 ? 'text-danger' : 'text-success'">
+            {{ detail.economics.net_profit_after_ads === null ? '—' : `${money(detail.economics.net_profit_after_ads)} (${pct(detail.economics.net_profit_after_ads_pct)})` }}
+          </dd>
+        </div>
+        <p v-for="line in detail.economics.ads_lines" :key="line.item_id" class="mt-1 text-[11px] text-ink-3">
+          Ads de {{ line.item_id }} no dia: {{ money(line.day_cost) }} ÷ {{ line.units_day }} {{ line.units_day === 1 ? 'unidade vendida' : 'unidades vendidas' }}
+        </p>
+        <p v-if="detail.economics.ads_state === 'pendente'" class="mt-1 text-[11px] text-warning">
+          O dia desta venda ainda não fechou na leitura de Ads; o valor é refeito a cada atualização.
+        </p>
       </dl>
       <p v-else class="text-ink-3">Venda cancelada: não entra nos totais.</p>
       <a :href="mlLink" target="_blank" rel="noopener" class="btn-link mt-3 inline-block">Abrir no Mercado Livre</a>

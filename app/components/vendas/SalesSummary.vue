@@ -11,7 +11,9 @@ const cards = computed(() => [
   { key: 'profit', label: 'Lucro líquido', value: brl(props.summary.net_profit), hint: props.summary.net_profit_pct === null ? 'Sem custo nos itens' : `${pct(props.summary.net_profit_pct)} do faturamento`, tone: props.summary.net_profit < 0 ? 'text-danger' : 'text-success' },
   { key: 'fees', label: 'Tarifas + frete', value: brl(props.summary.fee + props.summary.shipping_cost), hint: `Tarifa ${brl(props.summary.fee)} · frete ${brl(props.summary.shipping_cost)}` },
   { key: 'tax', label: 'Imposto + despesas', value: brl(props.summary.tax + props.summary.fixed_expenses), hint: `Imposto ${brl(props.summary.tax)} · fixas ${brl(props.summary.fixed_expenses)}` },
-  { key: 'cost', label: 'Custo dos produtos', value: brl(props.summary.cost), hint: 'Do Olist (PEPS) pelo SKU' }
+  { key: 'cost', label: 'Custo dos produtos', value: brl(props.summary.cost), hint: 'Do Olist (PEPS) pelo SKU' },
+  { key: 'ads', label: 'Custo com Ads', value: brl(props.summary.ads_cost), hint: props.summary.orders_ads_pending ? `${int(props.summary.orders_ads_pending)} vendas com Ads ainda pendente` : 'Gasto de Ads dividido entre as vendas' },
+  { key: 'after_ads', label: 'Lucro pós Ads', value: brl(props.summary.net_profit_after_ads), hint: props.summary.net_profit_after_ads_pct === null ? 'Sem custo nos itens' : `${pct(props.summary.net_profit_after_ads_pct)} do faturamento`, tone: props.summary.net_profit_after_ads < 0 ? 'text-danger' : 'text-success' }
 ])
 
 const max = computed(() => Math.max(1, ...props.daily.map((d) => d.revenue)))
@@ -25,7 +27,7 @@ function dayLabel(date: string): string {
 
 <template>
   <section class="space-y-4" aria-label="Resumo das vendas">
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
       <div v-for="card in cards" :key="card.key" class="card p-4" :data-test="`kpi-${card.key}`">
         <p class="text-[12px] font-medium text-ink-2">{{ card.label }}</p>
         <p class="mt-1 text-[20px] font-semibold leading-tight" :class="card.tone ?? 'text-ink'" data-numeric>{{ card.value }}</p>

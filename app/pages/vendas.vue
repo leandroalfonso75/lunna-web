@@ -56,17 +56,25 @@ const LOGISTIC_TABS: { value: SalesFilters['logistic']; label: string }[] = [
 ]
 
 const COLUMNS = [
-  { key: 'date', label: 'Data', sort: 'date', width: 'w-[9%]', align: 'left' },
-  { key: 'sale', label: 'Venda', width: 'w-[20%] max-xl:w-[33%]', align: 'left' },
-  { key: 'total', label: 'Valor', sort: 'total', width: 'w-[9%]', align: 'right' },
-  { key: 'fee', label: 'Tarifa', width: 'w-[8%]', align: 'right', hide: true },
-  { key: 'shipping_cost', label: 'Frete', width: 'w-[8%]', align: 'right', hide: true },
-  { key: 'tax', label: 'Imposto', width: 'w-[8%]', align: 'right', hide: true },
-  { key: 'fixed_expenses', label: 'Desp. fixas', width: 'w-[8%]', align: 'right', hide: true },
-  { key: 'cost', label: 'Custo', width: 'w-[8%]', align: 'right', hide: true },
-  { key: 'profit', label: 'Lucro líquido', sort: 'profit_pct', width: 'w-[10%]', align: 'right' },
-  { key: 'shipping', label: 'Envio', width: 'w-[13%] max-xl:w-[16%]', align: 'left' }
+  { key: 'date', label: 'Data', sort: 'date', width: 'w-[7%]', align: 'left' },
+  { key: 'sale', label: 'Venda', width: 'w-[16%] max-xl:w-[28%]', align: 'left' },
+  { key: 'total', label: 'Valor', sort: 'total', width: 'w-[7%]', align: 'right' },
+  { key: 'fee', label: 'Tarifa', width: 'w-[6%]', align: 'right', hide: true },
+  { key: 'shipping_cost', label: 'Frete', width: 'w-[6%]', align: 'right', hide: true },
+  { key: 'tax', label: 'Imposto', width: 'w-[6%]', align: 'right', hide: true },
+  { key: 'fixed_expenses', label: 'Desp. fixas', width: 'w-[6%]', align: 'right', hide: true },
+  { key: 'cost', label: 'Custo', width: 'w-[6%]', align: 'right', hide: true },
+  { key: 'profit', label: 'Lucro líquido', sort: 'profit_pct', width: 'w-[8%]', align: 'right' },
+  { key: 'ads_cost', label: 'Custo Ads', sort: 'ads_cost', width: 'w-[7%]', align: 'right' },
+  { key: 'profit_after_ads', label: 'Lucro pós Ads', sort: 'profit_after_ads_pct', width: 'w-[9%]', align: 'right' },
+  { key: 'shipping', label: 'Envio', width: 'w-[11%] max-xl:w-[14%]', align: 'left' }
 ]
+
+const ADS_HINT: Record<string, string> = {
+  apurado: 'Gasto de Ads do anúncio no dia da venda, dividido entre as unidades vendidas dele nesse dia',
+  pendente: 'O dia da venda ainda não fechou na leitura de Ads: o valor é refeito a cada atualização até fechar',
+  sem_ads: 'Anúncio fora de campanhas de Ads'
+}
 
 const taxPct = (row: SaleRow) => (row.economics && row.economics.revenue ? (row.economics.tax / row.economics.revenue) * 100 : 0)
 const fixedPct = (row: SaleRow) => (row.economics && row.economics.revenue ? (row.economics.fixed_expenses / row.economics.revenue) * 100 : 0)
@@ -215,7 +223,7 @@ function onDate(which: 'from' | 'to', event: Event) {
                 </button>
                 <span v-else>
                   {{ c.label }}
-                  <span v-if="c.key === 'profit'" class="block text-[10px] font-normal text-ink-3">% e R$</span>
+                  <span v-if="c.key === 'profit' || c.key === 'profit_after_ads'" class="block text-[10px] font-normal text-ink-3">% e R$</span>
                 </span>
               </th>
             </tr>
@@ -273,6 +281,20 @@ function onDate(which: 'from' | 'to', event: Event) {
                     <span class="block text-[11px] text-ink-3">{{ money(row.economics.net_profit) }}</span>
                   </template>
                   <span v-else class="text-ink-3" :title="row.economics ? 'Sem custo de algum item: o lucro não pode ser calculado' : 'Venda cancelada'">—</span>
+                </td>
+                <td class="px-2 py-2 text-right align-top" data-numeric data-test="col-ads">
+                  <template v-if="row.economics && row.economics.ads_state !== 'sem_ads'">
+                    <span :title="ADS_HINT[row.economics.ads_state]">{{ row.economics.ads_cost > 0 ? money(row.economics.ads_cost) : '0,00' }}</span>
+                    <span v-if="row.economics.ads_state === 'pendente'" class="block text-[10px] text-warning" :title="ADS_HINT.pendente">pendente</span>
+                  </template>
+                  <span v-else class="text-ink-3" :title="row.economics ? ADS_HINT.sem_ads : ''">—</span>
+                </td>
+                <td class="px-2 py-2 text-right align-top" data-numeric data-test="col-lucro-pos-ads">
+                  <template v-if="row.economics && row.economics.net_profit_after_ads !== null">
+                    <span class="block font-semibold" :class="row.economics.net_profit_after_ads < 0 ? 'text-danger' : 'text-success'">{{ pct(row.economics.net_profit_after_ads_pct) }}</span>
+                    <span class="block text-[11px] text-ink-3">{{ money(row.economics.net_profit_after_ads) }}</span>
+                  </template>
+                  <span v-else class="text-ink-3">—</span>
                 </td>
                 <td class="px-2 py-2 align-top">
                   <span :class="tone(row.shipping.tone)">{{ row.shipping.label }}</span>
