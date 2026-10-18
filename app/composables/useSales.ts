@@ -19,7 +19,7 @@ export function useSales() {
   const session = useSessionStore()
 
   const filters = reactive<SalesFilters>({
-    period: '30d', from: '', to: '', status: '', shipping: '', logistic: '', q: '',
+    period: 'today', from: '', to: '', status: '', shipping: '', logistic: '', q: '',
     sort: 'date', dir: 'desc', page: 1, perPage: 50
   })
   const response = ref<SalesResponse | null>(null)
