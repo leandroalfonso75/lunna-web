@@ -42,6 +42,8 @@ export interface PromotionSettings {
   automation_enabled: boolean
   /** Margem mínima que vale para o anúncio (a dele ou a geral de Configurações). */
   effective_min_pct: number
+  /** Margem máxima que vale (a dele ou a geral; null = sem teto). */
+  effective_max_pct: number | null
 }
 
 export interface PromotionItemRow {
@@ -101,7 +103,7 @@ export interface PromotionsResponse {
   sort: string
   dir: 'asc' | 'desc'
   promotions: MlPromotionRow[]
-  rules: { min_margin_pct: number }
+  rules: { min_margin_pct: number; max_margin_pct: number | null }
   synced_at: string | null
 }
 
@@ -113,6 +115,37 @@ export interface PromotionsFilters {
   dir: 'asc' | 'desc'
   page: number
   perPage: number
+}
+
+/** Resposta de aplicar/sair: o resultado em texto e o anúncio já relido. */
+export interface PromotionActionResult {
+  ok: boolean
+  message: string
+  item: PromotionItemDetail
+}
+
+export interface PromotionActionLog {
+  id: number
+  item_id: string
+  title: string | null
+  kind: string
+  kind_label: string
+  source: string
+  source_label: string
+  ok: boolean
+  error: string | null
+  from: { name: string; price: number | null; margin_pct: number | null } | null
+  to: { name: string; price: number | null; margin_pct: number | null } | null
+  gain: number | null
+  user: string | null
+  created_at: string
+}
+
+/** Oferta escolhida na tela (sem ela, vale a melhor). */
+export interface PromotionTarget {
+  promotion_id: string | null
+  promotion_type: string
+  action: 'aderir' | 'editar_preco'
 }
 
 export interface PromotionSettingsInput {

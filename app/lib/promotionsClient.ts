@@ -1,4 +1,4 @@
-import type { PromotionItemDetail, PromotionSettingsInput, PromotionsFilters, PromotionsResponse } from '../types/promotions'
+import type { PromotionActionLog, PromotionActionResult, PromotionItemDetail, PromotionSettingsInput, PromotionsFilters, PromotionsResponse, PromotionTarget } from '../types/promotions'
 
 type ApiFn = (path: string, options?: Record<string, unknown>) => Promise<any>
 
@@ -31,6 +31,22 @@ export function createPromotionsClient(api: ApiFn) {
     /** CSV com todas as promoções da Central e os anúncios de cada uma (ativos e candidatos). */
     export(accountId: string): Promise<Blob> {
       return api('/api/promotions/export', { query: { account_id: accountId }, responseType: 'blob' })
+    },
+    /** Aplica no Mercado Livre a melhor oferta do anúncio, ou a escolhida. Só administradores. */
+    apply(accountId: string, itemId: string, target?: PromotionTarget): Promise<PromotionActionResult> {
+      const body = target ? { promotion_id: target.promotion_id ?? '', promotion_type: target.promotion_type, action: target.action } : {}
+      return api(`/api/promotions/items/${itemId}/apply`, { method: 'POST', query: { account_id: accountId }, body })
+    },
+    /** Tira o anúncio da promoção de preço atual. Só administradores. */
+    leave(accountId: string, itemId: string): Promise<PromotionActionResult> {
+      return api(`/api/promotions/items/${itemId}/leave`, { method: 'POST', query: { account_id: accountId } })
+    },
+    /** Aplica a melhor oferta em vários anúncios, em fila no servidor. Só administradores. */
+    applyBest(accountId: string, itemIds: string[]): Promise<{ queued: number }> {
+      return api('/api/promotions/apply_best', { method: 'POST', query: { account_id: accountId }, body: { item_ids: itemIds } })
+    },
+    actions(accountId: string): Promise<{ actions: PromotionActionLog[] }> {
+      return api('/api/promotions/actions', { query: { account_id: accountId } })
     },
     /** Lê de novo a Central de Promoções no Mercado Livre. Só administradores. */
     sync(accountId: string): Promise<{ queued: boolean }> {

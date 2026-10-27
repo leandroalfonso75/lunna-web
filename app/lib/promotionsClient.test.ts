@@ -22,6 +22,17 @@ describe('createPromotionsClient', () => {
       method: 'PATCH', query: { account_id: 'acc1' }, body: { min_margin_pct: '10', max_margin_pct: '', apply_to_sku: true }
     })
 
+    await client.apply('acc1', 'MLB1')
+    expect(api).toHaveBeenLastCalledWith('/api/promotions/items/MLB1/apply', { method: 'POST', query: { account_id: 'acc1' }, body: {} })
+
+    await client.apply('acc1', 'MLB1', { promotion_id: null, promotion_type: 'PRICE_DISCOUNT', action: 'aderir' })
+    expect(api).toHaveBeenLastCalledWith('/api/promotions/items/MLB1/apply', {
+      method: 'POST', query: { account_id: 'acc1' }, body: { promotion_id: '', promotion_type: 'PRICE_DISCOUNT', action: 'aderir' }
+    })
+
+    await client.applyBest('acc1', ['MLB1', 'MLB2'])
+    expect(api).toHaveBeenLastCalledWith('/api/promotions/apply_best', { method: 'POST', query: { account_id: 'acc1' }, body: { item_ids: ['MLB1', 'MLB2'] } })
+
     await client.export('acc1')
     expect(api).toHaveBeenLastCalledWith('/api/promotions/export', { query: { account_id: 'acc1' }, responseType: 'blob' })
   })

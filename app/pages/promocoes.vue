@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
-import { computed, onBeforeUnmount, onMounted, watchEffect } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
 import PromotionItemPanel from '../components/promocoes/PromotionItemPanel.vue'
@@ -17,7 +17,7 @@ import type { PromotionItemRow, PromotionOfferShort } from '../types/promotions'
  */
 const session = useSessionStore()
 const promos = usePromotions()
-const { filters, tab, response, loading, stale, loadError, syncing, syncMessage, exporting, selected, detail, detailLoading, detailError, saving, saveError } = promos
+const { filters, tab, response, loading, stale, loadError, syncing, syncMessage, exporting, selected, detail, detailLoading, detailError, saving, saveError, acting, actionResult, checked, bulkMessage, history, historyLoading } = promos
 
 const header = usePageHeader()
 watchEffect(() => {
@@ -79,6 +79,23 @@ function toggle(row: PromotionItemRow) {
 }
 
 const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da atual', aderir: 'entrar nesta', manter: '' }
+
+/** Anúncios desta página em que dá para aplicar a melhor oferta (trocar ou entrar). */
+const switchable = computed(() => (response.value?.items ?? []).filter((r) => ['trocar', 'sem_promocao', 'abaixo_minima'].includes(r.status.key) && r.best).map((r) => r.item_id))
+const confirmingBulk = ref(false)
+
+function toggleCheck(id: string) {
+  checked.value = checked.value.includes(id) ? checked.value.filter((x) => x !== id) : [...checked.value, id]
+}
+
+function checkAllSwitchable() {
+  checked.value = [...new Set([...checked.value, ...switchable.value])]
+}
+
+function runBulk() {
+  confirmingBulk.value = false
+  promos.applyBestChecked()
+}
 </script>
 
 <template>
@@ -88,7 +105,7 @@ const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da
 
     <div class="flex flex-wrap items-center gap-3 text-[12px] text-ink-3">
       <span v-if="response?.synced_at">Central de Promoções lida em {{ dateTimeShort(response.synced_at) }} (a cada hora)</span>
-      <span v-if="response">Margem mínima geral: {{ pct(response.rules.min_margin_pct) }} (Configurações)</span>
+      <span v-if="response">Margem geral: mínima {{ pct(response.rules.min_margin_pct) }}<template v-if="response.rules.max_margin_pct !== null">, máxima {{ pct(response.rules.max_margin_pct) }}</template> (Configurações)</span>
       <div class="ml-auto flex gap-3 text-[13px]">
         <button type="button" class="btn-link" :disabled="exporting" @click="promos.exportCsv">{{ exporting ? 'Exportando…' : 'Exportar todas (CSV)' }}</button>
         <button v-if="session.isAdmin" type="button" class="btn-link" :disabled="syncing" @click="promos.syncNow">
@@ -129,6 +146,10 @@ const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da
           :class="tab === 'promocoes' ? 'border-primary font-semibold text-primary' : 'border-transparent text-ink-2 hover:text-ink'" @click="tab = 'promocoes'">
           Promoções do ML <span class="ml-1 text-[12px] text-ink-3">{{ int(response?.promotions.length ?? 0) }}</span>
         </button>
+        <button type="button" role="tab" :aria-selected="tab === 'historico'" class="-mb-px border-b-2 px-4 py-2 text-[14px]"
+          :class="tab === 'historico' ? 'border-primary font-semibold text-primary' : 'border-transparent text-ink-2 hover:text-ink'" @click="tab = 'historico'">
+          Histórico
+        </button>
       </div>
 
       <!-- aba Anúncios -->
@@ -151,6 +172,25 @@ const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da
             </span>
             <button v-if="hasFilters" type="button" class="btn-link ml-2" @click="promos.change({ status: '', promotionId: '', q: '' })">Limpar filtros</button>
           </div>
+          <div v-if="session.isAdmin" class="flex flex-wrap items-center gap-3 text-[13px]">
+            <button v-if="switchable.length" type="button" class="btn-link" @click="checkAllSwitchable">Marcar os {{ switchable.length }} desta página que podem melhorar</button>
+            <template v-if="checked.length">
+              <span class="text-ink-2">{{ checked.length }} {{ checked.length === 1 ? 'marcado' : 'marcados' }}</span>
+              <button type="button" class="btn-primary h-8 px-3 text-[12px]" :disabled="acting" data-test="aplicar-lote" @click="confirmingBulk = true">Aplicar a melhor oferta nos marcados</button>
+              <button type="button" class="btn-link" @click="checked = []">Desmarcar</button>
+            </template>
+          </div>
+          <div v-if="confirmingBulk" class="rounded-card border border-warning bg-warning-soft p-3 text-[13px]" role="alertdialog" aria-label="Confirmar aplicação em lote">
+            <p class="text-ink">
+              O Lunna vai aplicar no Mercado Livre a melhor oferta de {{ checked.length }} {{ checked.length === 1 ? 'anúncio' : 'anúncios' }}, um de cada vez,
+              relendo as ofertas de cada um antes. Os preços mudam na hora; cada resultado fica na aba Histórico.
+            </p>
+            <div class="mt-2 flex gap-2">
+              <button type="button" class="btn-primary h-8 px-3 text-[12px]" :disabled="acting" @click="runBulk">Confirmar</button>
+              <button type="button" class="btn-link" @click="confirmingBulk = false">Cancelar</button>
+            </div>
+          </div>
+          <p v-if="bulkMessage" class="text-[13px] text-ink-2" role="status">{{ bulkMessage }}</p>
         </div>
 
         <div class="card overflow-hidden">
@@ -181,6 +221,15 @@ const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da
                 <tr class="cursor-pointer border-b border-line hover:bg-surface-2" data-test="promo-row" @click="toggle(row)">
                   <td class="px-2 py-2 align-top">
                     <div class="flex items-start gap-2">
+                      <input
+                        v-if="session.isAdmin"
+                        type="checkbox"
+                        class="mt-3 shrink-0"
+                        :checked="checked.includes(row.item_id)"
+                        :disabled="!row.best"
+                        :aria-label="`Marcar ${row.item_id}`"
+                        @click.stop="toggleCheck(row.item_id)"
+                      />
                       <img v-if="row.thumbnail" :src="row.thumbnail" alt="" class="h-9 w-9 shrink-0 rounded object-cover" loading="lazy" />
                       <div class="min-w-0">
                         <p class="truncate font-medium text-ink" :title="row.title">{{ row.title }}</p>
@@ -188,7 +237,7 @@ const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da
                           {{ row.item_id }} · {{ row.sku ?? 'sem SKU' }}<template v-if="row.stock !== null"> · {{ int(row.stock) }} em estoque</template>
                         </p>
                         <p class="text-[11px] text-ink-3">
-                          mín. {{ pct(row.settings.effective_min_pct) }}<template v-if="row.settings.max_margin_pct !== null"> · máx. {{ pct(row.settings.max_margin_pct) }}</template>
+                          mín. {{ pct(row.settings.effective_min_pct) }}<template v-if="row.settings.effective_max_pct !== null"> · máx. {{ pct(row.settings.effective_max_pct) }}</template>
                           <template v-if="row.settings.min_margin_pct === null && row.settings.max_margin_pct === null"> (geral)</template>
                         </p>
                       </div>
@@ -214,7 +263,11 @@ const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da
                 </tr>
                 <tr v-if="selected === row.item_id" class="border-b border-line bg-surface-2">
                   <td :colspan="COLUMNS.length" class="border-l-4 border-l-primary px-4 py-4">
-                    <PromotionItemPanel :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError" @save="promos.saveSettings" />
+                    <PromotionItemPanel
+                      :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
+                      :acting="acting" :action-result="actionResult"
+                      @save="promos.saveSettings" @apply="promos.apply" @leave="promos.leave"
+                    />
                   </td>
                 </tr>
               </template>
@@ -230,6 +283,37 @@ const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da
           </div>
         </div>
       </template>
+
+      <!-- aba Histórico -->
+      <div v-else-if="tab === 'historico'" class="card overflow-x-auto">
+        <table class="w-full border-collapse text-[12px]">
+          <thead>
+            <tr class="border-b border-line text-left text-ink-2">
+              <th scope="col" class="px-3 py-2 font-semibold">Quando</th>
+              <th scope="col" class="px-3 py-2 font-semibold">Anúncio</th>
+              <th scope="col" class="px-3 py-2 font-semibold">O que fez</th>
+              <th scope="col" class="px-3 py-2 font-semibold">De</th>
+              <th scope="col" class="px-3 py-2 font-semibold">Para</th>
+              <th scope="col" class="px-3 py-2 text-right font-semibold">Ganho/un.</th>
+              <th scope="col" class="px-3 py-2 font-semibold">Resultado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="historyLoading && !history.length"><td colspan="7" class="px-3 py-6 text-center text-ink-3">Carregando…</td></tr>
+            <tr v-else-if="!history.length"><td colspan="7" class="px-3 py-10 text-center text-ink-3">Nenhuma ação ainda.</td></tr>
+            <tr v-for="a in history" :key="a.id" class="border-b border-line align-top">
+              <td class="px-3 py-2 text-[11px]">{{ dateTimeShort(a.created_at) }}<span class="block text-ink-3">{{ a.source_label }}<template v-if="a.user"> · {{ a.user }}</template></span></td>
+              <td class="px-3 py-2"><span class="block max-w-[260px] truncate text-ink" :title="a.title ?? ''">{{ a.title ?? a.item_id }}</span><span class="text-[11px] text-ink-3">{{ a.item_id }}</span></td>
+              <td class="px-3 py-2">{{ a.kind_label }}</td>
+              <td class="px-3 py-2">{{ a.from ? `${a.from.name} · ${brl(a.from.price)} · ${pct(a.from.margin_pct)}` : '—' }}</td>
+              <td class="px-3 py-2">{{ a.to ? `${a.to.name} · ${brl(a.to.price)} · ${pct(a.to.margin_pct)}` : '—' }}</td>
+              <td class="px-3 py-2 text-right" data-numeric>{{ a.gain ? brl(a.gain) : '—' }}</td>
+              <td class="px-3 py-2" :class="a.ok ? 'text-success' : 'text-danger'">{{ a.ok ? 'Feito' : 'Falhou' }}<span v-if="a.error" class="block max-w-[280px] truncate text-[11px] text-ink-3" :title="a.error">{{ a.error }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="border-t border-line px-3 py-2 text-right"><button type="button" class="btn-link text-[12px]" @click="promos.loadHistory">Atualizar</button></div>
+      </div>
 
       <!-- aba Promoções do ML -->
       <div v-else class="card overflow-x-auto">

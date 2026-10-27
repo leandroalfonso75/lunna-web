@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { brl, dateTimeShort, pct } from '../../lib/format'
-import type { PromotionItemDetail, PromotionSettingsInput } from '../../types/promotions'
+import type { PromotionItemDetail, PromotionOffer, PromotionSettingsInput, PromotionTarget } from '../../types/promotions'
 
 /**
  * Painel de um anúncio na seção Promoções: todas as ofertas com preço, parte do ML, tarifa e margem
- * (a melhor marcada) e as margens mínima/máxima do anúncio, com a opção de aplicar ao SKU.
+ * (a melhor marcada), as margens mínima/máxima do anúncio (com a opção de aplicar ao SKU) e, para
+ * administradores, aplicar a melhor oferta, entrar numa oferta ou sair da promoção, sempre com confirmação.
  */
 const props = defineProps<{
   detail: PromotionItemDetail | null
@@ -14,8 +15,48 @@ const props = defineProps<{
   isAdmin: boolean
   saving: boolean
   saveError: string
+  acting: boolean
+  actionResult: { ok: boolean; message: string } | null
 }>()
-const emit = defineEmits<{ save: [input: PromotionSettingsInput] }>()
+const emit = defineEmits<{ save: [input: PromotionSettingsInput]; apply: [target?: PromotionTarget]; leave: [] }>()
+
+/** Ação esperando confirmação: o que vai acontecer, em texto, antes de mexer no Mercado Livre. */
+const pending = ref<{ text: string; run: () => void } | null>(null)
+
+const canApplyBest = computed(() => {
+  const d = props.detail
+  return !!d?.best && d.best.action !== 'manter' && (!d.current || (d.gain ?? 0) > 0)
+})
+
+function describe(o: { name: string | null; label: string; price: number | null; margin_pct: number | null }) {
+  return `${o.name || o.label} a ${brl(o.price)} (margem ${pct(o.margin_pct)})`
+}
+
+function askBest() {
+  const d = props.detail
+  if (!d?.best) return
+  const from = d.current ? `Sai de ${describe(d.current)} e entra em ` : 'Entra em '
+  pending.value = { text: `${from}${describe(d.best)}. O preço muda no Mercado Livre na hora.`, run: () => emit('apply') }
+}
+
+function askOffer(o: PromotionOffer) {
+  const target: PromotionTarget = { promotion_id: o.promotion_id, promotion_type: o.type, action: o.action === 'editar_preco' ? 'editar_preco' : 'aderir' }
+  const what = o.action === 'editar_preco' ? `Ajusta o preço em ${describe(o)}` : `${props.detail?.current ? `Sai de ${describe(props.detail.current)} e entra em` : 'Entra em'} ${describe(o)}`
+  pending.value = { text: `${what}. O preço muda no Mercado Livre na hora.`, run: () => emit('apply', target) }
+}
+
+function askLeave() {
+  const c = props.detail?.current
+  if (!c) return
+  pending.value = { text: `Tira o anúncio de ${describe(c)}; ele volta ao preço cheio de ${brl(props.detail?.full_price)}.`, run: () => emit('leave') }
+}
+
+function confirm() {
+  pending.value?.run()
+  pending.value = null
+}
+
+const JOINABLE = ['SELLER_CAMPAIGN', 'DEAL', 'PRICE_DISCOUNT', 'SMART', 'PRICE_MATCHING', 'MARKETPLACE_CAMPAIGN', 'UNHEALTHY_STOCK', 'SMART_LIGHTNING', 'PRE_NEGOTIATED']
 
 const form = reactive<PromotionSettingsInput>({ min_margin_pct: '', max_margin_pct: '', apply_to_sku: false })
 
@@ -44,7 +85,24 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
 
   <div v-else-if="detail" class="grid grid-cols-1 gap-4 text-[13px] xl:grid-cols-4" data-test="promo-detail">
     <div class="card overflow-x-auto p-4 xl:col-span-3">
-      <p class="mb-1 font-semibold text-ink">Ofertas deste anúncio</p>
+      <div class="mb-1 flex flex-wrap items-center gap-2">
+        <p class="font-semibold text-ink">Ofertas deste anúncio</p>
+        <div v-if="isAdmin" class="ml-auto flex gap-2">
+          <button v-if="canApplyBest" type="button" class="btn-primary h-8 px-3 text-[12px]" :disabled="acting" data-test="aplicar-melhor" @click="askBest">
+            Aplicar a melhor oferta
+          </button>
+          <button v-if="detail.current" type="button" class="btn-link text-[12px]" :disabled="acting" @click="askLeave">Sair da promoção</button>
+        </div>
+      </div>
+      <div v-if="pending" class="my-2 rounded-card border border-warning bg-warning-soft p-3 text-[12px]" role="alertdialog" aria-label="Confirmar ação no Mercado Livre">
+        <p class="text-ink">{{ pending.text }}</p>
+        <div class="mt-2 flex gap-2">
+          <button type="button" class="btn-primary h-8 px-3 text-[12px]" :disabled="acting" data-test="confirmar" @click="confirm">Confirmar</button>
+          <button type="button" class="btn-link text-[12px]" @click="pending = null">Cancelar</button>
+        </div>
+      </div>
+      <p v-if="acting" class="my-2 text-[12px] text-ink-2" role="status">Falando com o Mercado Livre…</p>
+      <p v-else-if="actionResult" class="my-2 text-[12px]" :class="actionResult.ok ? 'text-success' : 'text-danger'" role="status">{{ actionResult.message }}</p>
       <p class="mb-3 text-[12px] text-ink-3">
         Preço cheio {{ brl(detail.full_price) }} · custo {{ detail.cost === null ? 'sem custo' : brl(detail.cost) }}
         <template v-if="detail.base"> · sem promoção a margem é {{ pct(detail.base.margin_pct) }} ({{ brl(detail.base.profit) }})</template>
@@ -58,7 +116,8 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
             <th scope="col" class="py-1.5 pr-2 text-right font-semibold">Parte do ML</th>
             <th scope="col" class="py-1.5 pr-2 text-right font-semibold">Tarifa</th>
             <th scope="col" class="py-1.5 pr-2 text-right font-semibold">Margem</th>
-            <th scope="col" class="py-1.5 font-semibold">Até</th>
+            <th scope="col" class="py-1.5 pr-2 font-semibold">Até</th>
+            <th v-if="isAdmin" scope="col" class="py-1.5"><span class="sr-only">Ação</span></th>
           </tr>
         </thead>
         <tbody>
@@ -84,7 +143,16 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
               {{ o.margin_pct === null ? '—' : pct(o.margin_pct) }}
               <span v-if="o.profit !== null" class="block text-[11px] font-normal text-ink-3">{{ brl(o.profit) }}</span>
             </td>
-            <td class="py-1.5 text-[11px]">{{ o.finish_date ? dateTimeShort(o.finish_date) : '' }}</td>
+            <td class="py-1.5 pr-2 text-[11px]">{{ o.finish_date ? dateTimeShort(o.finish_date) : '' }}</td>
+            <td v-if="isAdmin" class="py-1.5 text-right">
+              <button
+                v-if="o.valid && o.action !== 'manter' && JOINABLE.includes(o.type)"
+                type="button"
+                class="btn-link text-[12px]"
+                :disabled="acting"
+                @click="askOffer(o)"
+              >{{ o.action === 'editar_preco' ? 'Ajustar' : 'Entrar' }}</button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -98,7 +166,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
       </label>
       <label class="block">
         <span class="text-[12px] text-ink-2">Margem máxima (%) · opcional</span>
-        <input v-model="form.max_margin_pct" type="number" step="0.1" class="input mt-1 h-9 w-full" placeholder="Sem teto" :disabled="!isAdmin" />
+        <input v-model="form.max_margin_pct" type="number" step="0.1" class="input mt-1 h-9 w-full" :placeholder="detail.settings.effective_max_pct === null ? 'Sem teto' : `Geral: ${detail.settings.effective_max_pct}`" :disabled="!isAdmin" />
         <span class="mt-1 block text-[11px] text-ink-3">Acima dela o Lunna aplica um desconto maior, para o preço não subir demais.</span>
       </label>
       <label v-if="detail.sku_items.length" class="flex items-start gap-2">

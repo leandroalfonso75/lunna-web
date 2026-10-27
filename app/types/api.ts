@@ -19,6 +19,8 @@ export interface Company {
   name: string
   tax_pct: number
   min_margin_pct: number
+  /** Margem máxima geral das promoções (opcional; null = sem teto). */
+  max_margin_pct?: number | null
   abc_cut_a: number
   abc_cut_b: number
   group_up_pct: number

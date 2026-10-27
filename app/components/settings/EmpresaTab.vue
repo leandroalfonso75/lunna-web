@@ -26,6 +26,7 @@ const form = reactive({
   name: '',
   tax_pct: '',
   min_margin_pct: '',
+  max_margin_pct: '',
   abc_cut_a: '',
   abc_cut_b: '',
   group_up_pct: '',
@@ -52,6 +53,7 @@ function fillForm(c: Company) {
   form.name = c.name
   form.tax_pct = String(c.tax_pct)
   form.min_margin_pct = String(c.min_margin_pct)
+  form.max_margin_pct = c.max_margin_pct === null || c.max_margin_pct === undefined ? '' : String(c.max_margin_pct)
   form.abc_cut_a = String(c.abc_cut_a)
   form.abc_cut_b = String(c.abc_cut_b)
   form.group_up_pct = String(c.group_up_pct)
@@ -96,6 +98,7 @@ async function submit() {
       name: form.name,
       tax_pct: parseDecimal(form.tax_pct),
       min_margin_pct: parseDecimal(form.min_margin_pct),
+      max_margin_pct: form.max_margin_pct.trim() ? parseDecimal(form.max_margin_pct) : null,
       abc_cut_a: parseDecimal(form.abc_cut_a),
       abc_cut_b: parseDecimal(form.abc_cut_b),
       group_up_pct: parseDecimal(form.group_up_pct),
@@ -172,7 +175,15 @@ async function removeKey() {
               <input id="min-margin-pct" v-model="form.min_margin_pct" type="text" inputmode="decimal" class="input pr-8" />
               <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-ink-3">%</span>
             </div>
-            <p class="text-[13px] text-ink-3">Anúncios abaixo desta margem aparecem como alerta no painel.</p>
+            <p class="text-[13px] text-ink-3">Anúncios abaixo desta margem aparecem como alerta no painel. Também é o piso das promoções.</p>
+          </div>
+          <div class="space-y-1.5">
+            <label for="max-margin-pct" class="field-label">Margem máxima nas promoções (opcional)</label>
+            <div class="relative">
+              <input id="max-margin-pct" v-model="form.max_margin_pct" type="text" inputmode="decimal" class="input pr-8" placeholder="Sem teto" />
+              <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-ink-3">%</span>
+            </div>
+            <p class="text-[13px] text-ink-3">Acima dela, a seção Promoções aplica um desconto maior para o preço não subir demais. Vale para os anúncios sem margem própria.</p>
           </div>
         </div>
       </div>

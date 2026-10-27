@@ -3,7 +3,7 @@ import { apiErrorMessage } from '../lib/apiErrors'
 import { buildPromotionsQuery, createPromotionsClient } from '../lib/promotionsClient'
 import { withTransientRetry } from '../lib/transientRetry'
 import { useSessionStore } from '../stores/session'
-import type { PromotionItemDetail, PromotionSettingsInput, PromotionsFilters, PromotionsResponse } from '../types/promotions'
+import type { PromotionActionLog, PromotionItemDetail, PromotionSettingsInput, PromotionsFilters, PromotionsResponse, PromotionTarget } from '../types/promotions'
 import { usePolling } from './usePolling'
 
 const DEBOUNCE_MS = 300
@@ -19,7 +19,7 @@ export function usePromotions() {
   const session = useSessionStore()
 
   const filters = reactive<PromotionsFilters>({ status: '', promotionId: '', q: '', sort: 'gain', dir: 'desc', page: 1, perPage: 50 })
-  const tab = ref<'anuncios' | 'promocoes'>('anuncios')
+  const tab = ref<'anuncios' | 'promocoes' | 'historico'>('anuncios')
   const response = ref<PromotionsResponse | null>(null)
   const loading = ref(true)
   const stale = ref(false)
@@ -34,6 +34,12 @@ export function usePromotions() {
   const detailError = ref('')
   const saving = ref(false)
   const saveError = ref('')
+  const acting = ref(false)
+  const actionResult = ref<{ ok: boolean; message: string } | null>(null)
+  const checked = ref<string[]>([])
+  const bulkMessage = ref('')
+  const history = ref<PromotionActionLog[]>([])
+  const historyLoading = ref(false)
 
   let controller: AbortController | null = null
   let timer: ReturnType<typeof setTimeout> | null = null
@@ -96,6 +102,7 @@ export function usePromotions() {
     if (!accountId) return
     selected.value = itemId
     detail.value = null
+    actionResult.value = null
     detailError.value = ''
     saveError.value = ''
     detailLoading.value = true
@@ -108,6 +115,73 @@ export function usePromotions() {
       if (selected.value === itemId) detailLoading.value = false
     }
   }
+
+  /** Aplica no ML a melhor oferta (ou a escolhida) do anúncio aberto; o painel volta já relido. */
+  async function apply(target?: PromotionTarget) {
+    const accountId = session.selectedAccountId
+    if (!accountId || !selected.value || acting.value) return
+    acting.value = true
+    actionResult.value = null
+    try {
+      const res = await client.apply(accountId, selected.value, target)
+      detail.value = res.item
+      actionResult.value = { ok: res.ok, message: res.message }
+      schedule(false)
+    } catch (err) {
+      actionResult.value = { ok: false, message: apiErrorMessage(err, 'Não foi possível falar com o Mercado Livre agora.') }
+    } finally {
+      acting.value = false
+    }
+  }
+
+  async function leave() {
+    const accountId = session.selectedAccountId
+    if (!accountId || !selected.value || acting.value) return
+    acting.value = true
+    actionResult.value = null
+    try {
+      const res = await client.leave(accountId, selected.value)
+      detail.value = res.item
+      actionResult.value = { ok: res.ok, message: res.message }
+      schedule(false)
+    } catch (err) {
+      actionResult.value = { ok: false, message: apiErrorMessage(err, 'Não foi possível falar com o Mercado Livre agora.') }
+    } finally {
+      acting.value = false
+    }
+  }
+
+  async function applyBestChecked() {
+    const accountId = session.selectedAccountId
+    if (!accountId || !checked.value.length || acting.value) return
+    acting.value = true
+    bulkMessage.value = ''
+    try {
+      const { queued } = await client.applyBest(accountId, checked.value)
+      bulkMessage.value = `${queued} ${queued === 1 ? 'anúncio enviado' : 'anúncios enviados'} para receber a melhor oferta, um de cada vez. Acompanhe na aba Histórico.`
+      checked.value = []
+      setTimeout(() => polling.refreshNow(), 30_000)
+    } catch (err) {
+      bulkMessage.value = apiErrorMessage(err, 'Não foi possível enviar os anúncios agora.')
+    } finally {
+      acting.value = false
+    }
+  }
+
+  async function loadHistory() {
+    const accountId = session.selectedAccountId
+    if (!accountId) return
+    historyLoading.value = true
+    try {
+      history.value = (await client.actions(accountId)).actions
+    } catch {
+      history.value = []
+    } finally {
+      historyLoading.value = false
+    }
+  }
+
+  watch(tab, (t) => { if (t === 'historico') loadHistory() })
 
   function close() {
     selected.value = null
@@ -174,7 +248,9 @@ export function usePromotions() {
   return {
     filters, tab, response, loading, stale, loadError, syncing, syncMessage, exporting,
     selected, detail, detailLoading, detailError, saving, saveError,
+    acting, actionResult, checked, bulkMessage, history, historyLoading,
     change, sortBy, setPage, showPromotion, open, close, saveSettings, exportCsv, syncNow,
+    apply, leave, applyBestChecked, loadHistory,
     start: polling.start, stop: polling.stop, refreshNow: polling.refreshNow, refreshing: polling.refreshing
   }
 }
