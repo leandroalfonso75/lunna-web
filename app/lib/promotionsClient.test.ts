@@ -17,9 +17,11 @@ describe('createPromotionsClient', () => {
     await client.detail('acc1', 'MLB1')
     expect(api).toHaveBeenLastCalledWith('/api/promotions/items/MLB1', { query: { account_id: 'acc1' } })
 
-    await client.saveSettings('acc1', 'MLB1', { min_margin_pct: ' 10 ', max_margin_pct: '', apply_to_sku: true })
+    await client.saveSettings('acc1', 'MLB1', { limit_mode: 'price', min_margin_pct: '', max_margin_pct: '', min_price: ' 49.9 ', max_price: '', apply_to_sku: true, apply_to_variations: true })
     expect(api).toHaveBeenLastCalledWith('/api/promotions/items/MLB1/settings', {
-      method: 'PATCH', query: { account_id: 'acc1' }, body: { min_margin_pct: '10', max_margin_pct: '', apply_to_sku: true }
+      method: 'PATCH',
+      query: { account_id: 'acc1' },
+      body: { limit_mode: 'price', min_margin_pct: '', max_margin_pct: '', min_price: '49.9', max_price: '', apply_to_sku: true, apply_to_variations: true }
     })
 
     await client.apply('acc1', 'MLB1')

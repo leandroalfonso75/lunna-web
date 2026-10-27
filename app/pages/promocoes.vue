@@ -44,8 +44,8 @@ const STATUS_TABS = [
 const COLUMNS = [
   { key: 'item', label: 'Anúncio', sort: 'title', width: 'w-[30%]', align: 'left' },
   { key: 'price', label: 'Preço cheio', sort: 'price', width: 'w-[9%]', align: 'right' },
-  { key: 'current', label: 'Promoção atual', sort: 'margin', width: 'w-[20%]', align: 'left' },
-  { key: 'best', label: 'Melhor oferta', sort: 'best_margin', width: 'w-[20%]', align: 'left' },
+  { key: 'current', label: 'Promoção atual (margem real)', sort: 'margin', width: 'w-[20%]', align: 'left' },
+  { key: 'best', label: 'Melhor oferta (margem real)', sort: 'best_margin', width: 'w-[20%]', align: 'left' },
   { key: 'gain', label: 'Ganho/un.', sort: 'gain', width: 'w-[8%]', align: 'right' },
   { key: 'status', label: 'Situação', width: 'w-[13%]', align: 'left' }
 ]
@@ -237,8 +237,14 @@ function runBulk() {
                           {{ row.item_id }} · {{ row.sku ?? 'sem SKU' }}<template v-if="row.stock !== null"> · {{ int(row.stock) }} em estoque</template>
                         </p>
                         <p class="text-[11px] text-ink-3">
-                          mín. {{ pct(row.settings.effective_min_pct) }}<template v-if="row.settings.effective_max_pct !== null"> · máx. {{ pct(row.settings.effective_max_pct) }}</template>
-                          <template v-if="row.settings.min_margin_pct === null && row.settings.max_margin_pct === null"> (geral)</template>
+                          <template v-if="row.settings.limit_mode === 'price'">
+                            valor<template v-if="row.settings.min_price !== null"> mín. {{ brl(row.settings.min_price) }}</template><template v-if="row.settings.max_price !== null"> · máx. {{ brl(row.settings.max_price) }}</template>
+                          </template>
+                          <template v-else>
+                            mín. {{ pct(row.settings.effective_min_pct) }}<template v-if="row.settings.effective_max_pct !== null"> · máx. {{ pct(row.settings.effective_max_pct) }}</template>
+                            <template v-if="row.settings.min_margin_pct === null && row.settings.max_margin_pct === null"> (geral)</template>
+                          </template>
+                          <template v-if="row.ads.unit > 0"> · Ads {{ brl(row.ads.unit) }}/un.</template>
                         </p>
                       </div>
                     </div>

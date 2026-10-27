@@ -20,12 +20,17 @@ export function createPromotionsClient(api: ApiFn) {
     detail(accountId: string, itemId: string): Promise<PromotionItemDetail> {
       return api(`/api/promotions/items/${itemId}`, { query: { account_id: accountId } })
     },
-    /** Margem mínima/máxima do anúncio (vazio = regra geral). Só administradores. */
+    /** Limites do anúncio por margem ou por valor (vazio = regra geral). Só administradores. */
     saveSettings(accountId: string, itemId: string, input: PromotionSettingsInput): Promise<PromotionItemDetail> {
       return api(`/api/promotions/items/${itemId}/settings`, {
         method: 'PATCH',
         query: { account_id: accountId },
-        body: { min_margin_pct: input.min_margin_pct.trim(), max_margin_pct: input.max_margin_pct.trim(), apply_to_sku: input.apply_to_sku }
+        body: {
+          limit_mode: input.limit_mode,
+          min_margin_pct: input.min_margin_pct.trim(), max_margin_pct: input.max_margin_pct.trim(),
+          min_price: input.min_price.trim(), max_price: input.max_price.trim(),
+          apply_to_sku: input.apply_to_sku, apply_to_variations: input.apply_to_variations
+        }
       })
     },
     /** CSV com todas as promoções da Central e os anúncios de cada uma (ativos e candidatos). */

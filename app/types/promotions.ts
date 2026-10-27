@@ -2,7 +2,18 @@
 
 type Tone = 'ok' | 'warn' | 'bad' | 'neutral'
 
-/** Uma oferta avaliada: preço que vale para a margem, lucro por unidade e se serve pela regra de margem. */
+/** Custos por unidade num preço: custo do produto, tarifa, frete, imposto, despesas fixas e Ads (15 dias). */
+export interface PromotionCosts {
+  cost: number
+  fee: number
+  shipping: number
+  tax: number
+  fixed_expenses: number
+  ads: number
+  meli_amount: number
+}
+
+/** Uma oferta avaliada: preço que vale para a margem, lucro por unidade (pós Ads) e se serve pela regra. */
 export interface PromotionOfferShort {
   promotion_id: string | null
   type: string
@@ -18,6 +29,7 @@ export interface PromotionOfferShort {
   valid: boolean
   reason: string | null
   finish_date: string | null
+  costs?: PromotionCosts
   /** manter = como está hoje; editar_preco = mudar o preço da promoção atual; aderir = entrar nesta. */
   action: 'manter' | 'editar_preco' | 'aderir'
 }
@@ -36,9 +48,14 @@ export interface PromotionOffer extends PromotionOfferShort {
 }
 
 export interface PromotionSettings {
+  /** margin = limites por margem (%); price = por valor (R$). Um desabilita o outro. */
+  limit_mode: 'margin' | 'price'
   min_margin_pct: number | null
   max_margin_pct: number | null
+  min_price: number | null
+  max_price: number | null
   apply_to_sku: boolean
+  apply_to_variations: boolean
   automation_enabled: boolean
   /** Margem mínima que vale para o anúncio (a dele ou a geral de Configurações). */
   effective_min_pct: number
@@ -57,7 +74,9 @@ export interface PromotionItemRow {
   stock: number | null
   full_price: number
   cost: number | null
-  base: { price: number; profit: number; margin_pct: number } | null
+  base: { price: number; profit: number; margin_pct: number; costs: PromotionCosts } | null
+  /** Ads dos últimos 15 dias: gasto, unidades vendidas e custo por unidade (zero sem histórico). */
+  ads: { spend: number; units: number; unit: number; days: number }
   current: PromotionOfferShort | null
   best: PromotionOfferShort | null
   /** Lucro a mais por unidade se trocar pela melhor oferta. */
@@ -70,6 +89,8 @@ export interface PromotionItemRow {
 export interface PromotionItemDetail extends PromotionItemRow {
   offers: PromotionOffer[]
   sku_items: { item_id: string; title: string; listing_type: string }[]
+  /** Anúncios das outras variações do mesmo produto (produto pai no Olist). */
+  variation_items: { item_id: string; title: string; sku: string | null }[]
 }
 
 export interface MlPromotionRow {
@@ -149,7 +170,11 @@ export interface PromotionTarget {
 }
 
 export interface PromotionSettingsInput {
+  limit_mode: 'margin' | 'price'
   min_margin_pct: string
   max_margin_pct: string
+  min_price: string
+  max_price: string
   apply_to_sku: boolean
+  apply_to_variations: boolean
 }
