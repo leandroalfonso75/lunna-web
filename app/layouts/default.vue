@@ -11,6 +11,7 @@ import {
   MegaphoneIcon,
   ShoppingBagIcon,
   SignalIcon,
+  TagIcon,
   XMarkIcon
 } from '@heroicons/vue/24/outline'
 import { ref, watch } from 'vue'
@@ -45,6 +46,7 @@ const NAV_SECTIONS = [
       { to: '/anuncios', label: 'Anúncios', icon: ListBulletIcon },
       { to: '/vendas', label: 'Vendas', icon: ShoppingBagIcon },
       { to: '/ads', label: 'Ads', icon: MegaphoneIcon },
+      { to: '/promocoes', label: 'Promoções', icon: TagIcon },
       { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon },
       { to: '/radar-ml', label: 'Radar Mercado Livre', icon: SignalIcon }
     ]
