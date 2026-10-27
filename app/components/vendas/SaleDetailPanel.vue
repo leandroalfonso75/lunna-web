@@ -59,7 +59,7 @@ const money = (v: number | null | undefined) => brl(v)
           </dd>
         </div>
         <p v-for="line in detail.economics.ads_lines" :key="line.item_id" class="mt-1 text-[11px] text-ink-3">
-          Ads de {{ line.item_id }} no dia: {{ money(line.day_cost) }} ÷ {{ line.units_day }} {{ line.units_day === 1 ? 'unidade vendida' : 'unidades vendidas' }}
+          Ads de {{ line.item_id }} no período: {{ money(line.period_cost) }} ÷ {{ line.period_units }} {{ line.period_units === 1 ? 'unidade vendida' : 'unidades vendidas' }}
         </p>
         <p v-if="detail.economics.ads_state === 'pendente'" class="mt-1 text-[11px] text-warning">
           O dia desta venda ainda não fechou na leitura de Ads; o valor é refeito a cada atualização.

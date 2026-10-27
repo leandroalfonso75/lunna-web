@@ -47,11 +47,11 @@ export interface SaleEconomics {
   tax: number
   net_profit: number | null
   net_profit_pct: number | null
-  /** Gasto de Ads rateado para a venda (gasto do anúncio no dia ÷ unidades vendidas dele no dia). */
+  /** Gasto de Ads rateado para a venda (gasto do anúncio no período ÷ unidades vendidas dele no período). */
   ads_cost: number
-  /** apurado = dia fechado na leitura de Ads; pendente = ainda pode mudar; sem_ads = anúncio fora de Ads. */
+  /** apurado = dia da venda fechado na leitura de Ads; pendente = ainda pode mudar; sem_ads = anúncio fora de Ads. */
   ads_state: 'apurado' | 'pendente' | 'sem_ads'
-  ads_lines: { item_id: string; day_cost: number; units_day: number; cost: number }[]
+  ads_lines: { item_id: string; period_cost: number; period_units: number; cost: number }[]
   net_profit_after_ads: number | null
   net_profit_after_ads_pct: number | null
 }
@@ -123,7 +123,11 @@ export interface SalesSummary {
   cost: number
   net_profit: number
   net_profit_pct: number | null
+  /** Custo de Ads do período: o rateado nas vendas + Ads sem venda (igual ao total da seção Ads). */
   ads_cost: number
+  ads_cost_sales: number
+  /** Gasto de anúncios que não venderam no período (null com filtro ou busca na tela). */
+  ads_unsold: number | null
   net_profit_after_ads: number
   net_profit_after_ads_pct: number | null
   orders_ads_pending: number

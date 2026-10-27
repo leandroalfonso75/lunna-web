@@ -37,6 +37,9 @@ describe('createSalesClient', () => {
     await client.detail('acc1', 2000001)
     expect(api).toHaveBeenLastCalledWith('/api/sales/2000001', { query: { account_id: 'acc1' } })
 
+    await client.detail('acc1', 2000001, { period: '7d' })
+    expect(api).toHaveBeenLastCalledWith('/api/sales/2000001', { query: { account_id: 'acc1', period: '7d' } })
+
     await client.sync('acc1')
     expect(api).toHaveBeenLastCalledWith('/api/sales/sync', { method: 'POST', query: { account_id: 'acc1' } })
   })

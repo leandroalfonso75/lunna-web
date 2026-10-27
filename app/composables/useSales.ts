@@ -1,6 +1,6 @@
 import { reactive, ref, watch } from 'vue'
 import { apiErrorMessage } from '../lib/apiErrors'
-import { buildSalesQuery, createSalesClient } from '../lib/salesClient'
+import { buildPeriodQuery, buildSalesQuery, createSalesClient } from '../lib/salesClient'
 import { withTransientRetry } from '../lib/transientRetry'
 import { useSessionStore } from '../stores/session'
 import type { SaleDetail, SalesFilters, SalesResponse } from '../types/sales'
@@ -44,6 +44,10 @@ export function useSales() {
     try {
       const data = await withTransientRetry(() => client.list(buildSalesQuery(accountId, filters), { signal: mine.signal }))
       if (mine.signal.aborted) return
+      if (response.value && (response.value.period.from !== data.period.from || response.value.period.to !== data.period.to)) {
+        // custo de Ads do detalhe é rateado pelo período: outro período, detalhe lido de novo
+        for (const id of Object.keys(details)) delete details[Number(id)]
+      }
       response.value = data
       stale.value = false
       loadError.value = ''
@@ -103,7 +107,7 @@ export function useSales() {
     if (!accountId || details[orderId] === 'loading' || (details[orderId] && details[orderId] !== 'error')) return
     details[orderId] = 'loading'
     try {
-      details[orderId] = await client.detail(accountId, orderId)
+      details[orderId] = await client.detail(accountId, orderId, buildPeriodQuery(filters))
     } catch {
       details[orderId] = 'error'
     }

@@ -72,7 +72,7 @@ const COLUMNS = [
 ]
 
 const ADS_HINT: Record<string, string> = {
-  apurado: 'Gasto de Ads do anúncio no dia da venda, dividido entre as unidades vendidas dele nesse dia',
+  apurado: 'Gasto de Ads do anúncio no período, dividido entre as unidades vendidas dele no período',
   pendente: 'O dia da venda ainda não fechou na leitura de Ads: o valor é refeito a cada atualização até fechar',
   sem_ads: 'Anúncio fora de campanhas de Ads'
 }

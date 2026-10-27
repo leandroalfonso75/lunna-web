@@ -5,6 +5,14 @@ import type { SalesDay, SalesSummary } from '../../types/sales'
 
 const props = defineProps<{ summary: SalesSummary; daily: SalesDay[] }>()
 
+const adsHint = computed(() => {
+  const s = props.summary
+  const split = s.ads_unsold === null
+    ? 'Rateado nas vendas filtradas'
+    : `${brl(s.ads_cost_sales)} nas vendas · ${brl(s.ads_unsold)} Ads sem venda`
+  return s.orders_ads_pending ? `${split} · ${int(s.orders_ads_pending)} pendentes` : split
+})
+
 const cards = computed(() => [
   { key: 'orders', label: 'Vendas', value: int(props.summary.orders), hint: props.summary.cancelled ? `${int(props.summary.cancelled)} canceladas (fora dos totais)` : `${int(props.summary.units)} unidades` },
   { key: 'revenue', label: 'Faturamento', value: brl(props.summary.revenue), hint: `Ticket médio ${brl(props.summary.ticket)}` },
@@ -12,7 +20,7 @@ const cards = computed(() => [
   { key: 'fees', label: 'Tarifas + frete', value: brl(props.summary.fee + props.summary.shipping_cost), hint: `Tarifa ${brl(props.summary.fee)} · frete ${brl(props.summary.shipping_cost)}` },
   { key: 'tax', label: 'Imposto + despesas', value: brl(props.summary.tax + props.summary.fixed_expenses), hint: `Imposto ${brl(props.summary.tax)} · fixas ${brl(props.summary.fixed_expenses)}` },
   { key: 'cost', label: 'Custo dos produtos', value: brl(props.summary.cost), hint: 'Do Olist (PEPS) pelo SKU' },
-  { key: 'ads', label: 'Custo com Ads', value: brl(props.summary.ads_cost), hint: props.summary.orders_ads_pending ? `${int(props.summary.orders_ads_pending)} vendas com Ads ainda pendente` : 'Gasto de Ads dividido entre as vendas' },
+  { key: 'ads', label: 'Custo com Ads', value: brl(props.summary.ads_cost), hint: adsHint.value },
   { key: 'after_ads', label: 'Lucro pós Ads', value: brl(props.summary.net_profit_after_ads), hint: props.summary.net_profit_after_ads_pct === null ? 'Sem custo nos itens' : `${pct(props.summary.net_profit_after_ads_pct)} do faturamento`, tone: props.summary.net_profit_after_ads < 0 ? 'text-danger' : 'text-success' }
 ])
 
