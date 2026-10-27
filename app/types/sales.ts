@@ -68,7 +68,33 @@ export interface SaleRow {
   total_amount: number | null
   paid_amount: number | null
   shipping: SaleShipping
+  /** Cancelamento, reclamação ou devolução da venda (null quando não houve). */
+  issue: SaleIssue | null
   economics: SaleEconomics | null
+}
+
+export interface SaleClaim {
+  id: number
+  type: string
+  /** Reclamação, Cancelamento pelo comprador, Devolução… */
+  label: string
+  /** Motivo escrito pelo comprador no ML (ex.: "Me arrependi da compra"). */
+  reason: string | null
+  opened_by: string | null
+  status: string
+  open: boolean
+  stage: string | null
+  date: string | null
+  resolution: { label: string; benefited: string | null; coverage: boolean; closed_by: string | null; date: string | null } | null
+  return: { status: string; label: string; money: string | null; total: boolean; tracking_number: string | null; date: string | null } | null
+}
+
+export interface SaleIssue {
+  /** Texto curto para a lista: o que aconteceu e o motivo. */
+  label: string
+  tone: Tone
+  cancellation: { code: string | null; label: string; requested_by: string | null; date: string | null } | null
+  claims: SaleClaim[]
 }
 
 export interface SalePayment {

@@ -252,6 +252,7 @@ function onDate(which: 'from' | 'to', event: Event) {
                         <template v-if="row.items.length > 1"> · +{{ row.items.length - 1 }} {{ row.items.length === 2 ? 'item' : 'itens' }}</template>
                         <span v-if="row.status.tone !== 'ok'" class="ml-1" :class="tone(row.status.tone)">{{ row.status.label }}</span>
                       </p>
+                      <p v-if="row.issue" class="truncate text-[11px]" :class="tone(row.issue.tone)" :title="row.issue.label" data-test="sale-issue">{{ row.issue.label }}</p>
                     </div>
                   </div>
                 </td>

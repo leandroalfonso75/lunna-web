@@ -30,6 +30,41 @@ const money = (v: number | null | undefined) => brl(v)
   <p v-else-if="sale === 'error'" class="text-[13px] text-danger" role="alert">Não foi possível carregar os detalhes desta venda.</p>
 
   <div v-else-if="detail" class="grid grid-cols-1 gap-4 text-[13px] md:grid-cols-2 xl:grid-cols-4" data-test="sale-detail">
+    <div v-if="detail.issue" class="card p-4 md:col-span-2 xl:col-span-4" data-test="sale-issue-detail">
+      <p class="mb-2 font-semibold" :class="detail.issue.tone === 'bad' ? 'text-danger' : 'text-warning'">
+        {{ detail.issue.cancellation ? 'Venda cancelada' : 'Reclamação / devolução' }}
+      </p>
+      <dl>
+        <div v-if="detail.issue.cancellation" class="def-row">
+          <dt>Cancelamento</dt>
+          <dd>
+            {{ detail.issue.cancellation.label }}<template v-if="detail.issue.cancellation.requested_by"> (pedido pelo {{ detail.issue.cancellation.requested_by }})</template><template v-if="detail.issue.cancellation.date"> · {{ dateTimeShort(detail.issue.cancellation.date) }}</template>
+          </dd>
+        </div>
+        <template v-for="claim in detail.issue.claims" :key="claim.id">
+          <div class="def-row">
+            <dt>{{ claim.label }}</dt>
+            <dd>
+              {{ claim.reason ?? 'sem motivo informado' }}
+              <span class="text-ink-3"> · {{ claim.open ? `aberta${claim.stage ? `, ${claim.stage}` : ''}` : 'encerrada' }}<template v-if="claim.date"> · aberta em {{ dateTimeShort(claim.date) }}</template></span>
+            </dd>
+          </div>
+          <div v-if="claim.resolution" class="def-row">
+            <dt>Resultado</dt>
+            <dd>
+              {{ claim.resolution.label }}<template v-if="claim.resolution.benefited">, {{ claim.resolution.benefited }}</template><template v-if="claim.resolution.coverage"> (com cobertura do ML)</template>
+            </dd>
+          </div>
+          <div v-if="claim.return" class="def-row">
+            <dt>Devolução {{ claim.return.total ? '' : '(parcial)' }}</dt>
+            <dd>
+              {{ claim.return.label }}<template v-if="claim.return.money"> · {{ claim.return.money }}</template><template v-if="claim.return.tracking_number"> · rastreio {{ claim.return.tracking_number }}</template>
+            </dd>
+          </div>
+        </template>
+      </dl>
+    </div>
+
     <div class="card p-4">
       <p class="mb-2 font-semibold text-ink">Resultado da venda</p>
       <dl v-if="detail.economics">
