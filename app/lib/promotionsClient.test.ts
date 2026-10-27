@@ -24,6 +24,12 @@ describe('createPromotionsClient', () => {
       body: { limit_mode: 'price', min_margin_pct: '', max_margin_pct: '', min_price: '49.9', max_price: '', apply_to_sku: true, apply_to_variations: true }
     })
 
+    // input type="number" com v-model entrega número
+    await client.saveSettings('acc1', 'MLB1', { limit_mode: 'margin', min_margin_pct: 8, max_margin_pct: 12, min_price: '', max_price: '', apply_to_sku: false, apply_to_variations: false })
+    expect(api).toHaveBeenLastCalledWith('/api/promotions/items/MLB1/settings', expect.objectContaining({
+      body: expect.objectContaining({ min_margin_pct: '8', max_margin_pct: '12', min_price: '' })
+    }))
+
     await client.apply('acc1', 'MLB1')
     expect(api).toHaveBeenLastCalledWith('/api/promotions/items/MLB1/apply', { method: 'POST', query: { account_id: 'acc1' }, body: {} })
 

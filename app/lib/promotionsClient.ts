@@ -11,6 +11,9 @@ export function buildPromotionsQuery(accountId: string, f: PromotionsFilters): R
   return query
 }
 
+/** Campo de número do formulário: o `v-model` de `<input type="number">` entrega número, não texto. */
+const field = (v: string | number | null | undefined) => (v === null || v === undefined ? '' : String(v).trim())
+
 /** Leituras e ajustes da seção Promoções (`/api/promotions`). Sem composables do Nuxt, para testar direto. */
 export function createPromotionsClient(api: ApiFn) {
   return {
@@ -27,8 +30,8 @@ export function createPromotionsClient(api: ApiFn) {
         query: { account_id: accountId },
         body: {
           limit_mode: input.limit_mode,
-          min_margin_pct: input.min_margin_pct.trim(), max_margin_pct: input.max_margin_pct.trim(),
-          min_price: input.min_price.trim(), max_price: input.max_price.trim(),
+          min_margin_pct: field(input.min_margin_pct), max_margin_pct: field(input.max_margin_pct),
+          min_price: field(input.min_price), max_price: field(input.max_price),
           apply_to_sku: input.apply_to_sku, apply_to_variations: input.apply_to_variations
         }
       })

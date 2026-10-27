@@ -169,12 +169,13 @@ export interface PromotionTarget {
   action: 'aderir' | 'editar_preco'
 }
 
+/** Campos de número: o formulário pode entregar texto ou número (`v-model` de input type="number"). */
 export interface PromotionSettingsInput {
   limit_mode: 'margin' | 'price'
-  min_margin_pct: string
-  max_margin_pct: string
-  min_price: string
-  max_price: string
+  min_margin_pct: string | number
+  max_margin_pct: string | number
+  min_price: string | number
+  max_price: string | number
   apply_to_sku: boolean
   apply_to_variations: boolean
 }
