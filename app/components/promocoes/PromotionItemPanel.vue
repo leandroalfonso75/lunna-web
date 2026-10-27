@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { brl, dateTimeShort, pct } from '../../lib/format'
-import type { PromotionCosts, PromotionItemDetail, PromotionOffer, PromotionSettingsInput, PromotionTarget } from '../../types/promotions'
+import type { PromotionCosts, PromotionItemDetail, PromotionOffer, PromotionSettingsInput, PromotionSpread, PromotionTarget } from '../../types/promotions'
 
 /**
  * Painel de um anúncio na seção Promoções: os custos por unidade hoje e depois da melhor promoção (lucro e margem
@@ -19,14 +19,16 @@ const props = defineProps<{
   acting: boolean
   actionResult: { ok: boolean; message: string } | null
 }>()
-const emit = defineEmits<{ save: [input: PromotionSettingsInput]; apply: [target?: PromotionTarget]; leave: [] }>()
+const emit = defineEmits<{ save: [input: PromotionSettingsInput]; apply: [target: PromotionTarget | undefined, spread: PromotionSpread]; leave: [] }>()
 
-/** Ação esperando confirmação: o que vai acontecer, em texto, antes de mexer no Mercado Livre. */
-const pending = ref<{ text: string; run: () => void } | null>(null)
+/** Ação esperando confirmação: o que vai acontecer, em texto, antes de mexer no Mercado Livre. `spreadable` = ao entrar
+ * numa promoção, dá para levar a mesma aos outros anúncios do SKU e das variações. */
+const pending = ref<{ text: string; run: () => void; spreadable?: boolean } | null>(null)
+const spread = reactive<PromotionSpread>({ alsoSku: false, alsoVariations: false })
 
 const canApplyBest = computed(() => {
   const d = props.detail
-  return !!d?.best && d.best.action !== 'manter' && (!d.current || (d.gain ?? 0) > 0)
+  return !!d?.best && d.best.action !== 'manter' && (!d.current || !d.current.valid || (d.gain ?? 0) > 0)
 })
 
 function describe(o: { name: string | null; label: string; price: number | null; margin_pct: number | null; profit?: number | null }) {
@@ -38,13 +40,17 @@ function askBest() {
   const d = props.detail
   if (!d?.best) return
   const from = d.current ? `Sai de ${describe(d.current)} e entra em ` : 'Entra em '
-  pending.value = { text: `${from}${describe(d.best)}. O preço muda no Mercado Livre na hora.`, run: () => emit('apply') }
+  spread.alsoSku = false
+  spread.alsoVariations = false
+  pending.value = { text: `${from}${describe(d.best)}. O preço muda no Mercado Livre na hora.`, run: () => emit('apply', undefined, { ...spread }), spreadable: true }
 }
 
 function askOffer(o: PromotionOffer) {
   const target: PromotionTarget = { promotion_id: o.promotion_id, promotion_type: o.type, action: o.action === 'editar_preco' ? 'editar_preco' : 'aderir' }
   const what = o.action === 'editar_preco' ? `Ajusta o preço em ${describe(o)}` : `${props.detail?.current ? `Sai de ${describe(props.detail.current)} e entra em` : 'Entra em'} ${describe(o)}`
-  pending.value = { text: `${what}. O preço muda no Mercado Livre na hora.`, run: () => emit('apply', target) }
+  spread.alsoSku = false
+  spread.alsoVariations = false
+  pending.value = { text: `${what}. O preço muda no Mercado Livre na hora.`, run: () => emit('apply', target, { ...spread }), spreadable: true }
 }
 
 function askLeave() {
@@ -130,6 +136,17 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
       </div>
       <div v-if="pending" class="my-2 rounded-card border border-warning bg-warning-soft p-3 text-[12px]" role="alertdialog" aria-label="Confirmar ação no Mercado Livre">
         <p class="text-ink">{{ pending.text }}</p>
+        <div v-if="pending.spreadable && (detail.sku_items.length || detail.variation_items.length)" class="mt-2 space-y-1 text-ink-2">
+          <label v-if="detail.sku_items.length" class="flex items-start gap-2">
+            <input v-model="spread.alsoSku" type="checkbox" class="mt-0.5" />
+            <span>Aplicar a mesma promoção aos outros {{ detail.sku_items.length }} {{ detail.sku_items.length === 1 ? 'anúncio' : 'anúncios' }} do SKU {{ detail.sku }}</span>
+          </label>
+          <label v-if="detail.variation_items.length" class="flex items-start gap-2">
+            <input v-model="spread.alsoVariations" type="checkbox" class="mt-0.5" />
+            <span>Aplicar a mesma promoção aos {{ detail.variation_items.length }} anúncios das outras variações do produto</span>
+          </label>
+          <p class="text-[11px] text-ink-3">Cada um entra pelo próprio preço de venda e pelos próprios limites; o que não couber fica no Histórico com o motivo.</p>
+        </div>
         <div class="mt-2 flex gap-2">
           <button type="button" class="btn-primary h-8 px-3 text-[12px]" :disabled="acting" data-test="confirmar" @click="confirm">Confirmar</button>
           <button type="button" class="btn-link text-[12px]" @click="pending = null">Cancelar</button>

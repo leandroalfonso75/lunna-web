@@ -37,6 +37,7 @@ const STATUS_TABS = [
   { value: 'trocar', label: 'Trocar por melhor' },
   { value: 'sem_promocao', label: 'Sem promoção' },
   { value: 'abaixo_minima', label: 'Abaixo da mínima' },
+  { value: 'acima_maxima', label: 'Acima da máxima' },
   { value: 'ok', label: 'Na melhor' },
   { value: 'sem_custo', label: 'Sem custo' }
 ]
@@ -81,7 +82,7 @@ function toggle(row: PromotionItemRow) {
 const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da atual', aderir: 'entrar nesta', manter: '' }
 
 /** Anúncios desta página em que dá para aplicar a melhor oferta (trocar ou entrar). */
-const switchable = computed(() => (response.value?.items ?? []).filter((r) => ['trocar', 'sem_promocao', 'abaixo_minima'].includes(r.status.key) && r.best).map((r) => r.item_id))
+const switchable = computed(() => (response.value?.items ?? []).filter((r) => ['trocar', 'sem_promocao', 'acima_maxima'].includes(r.status.key) && r.best).map((r) => r.item_id))
 const confirmingBulk = ref(false)
 
 function toggleCheck(id: string) {

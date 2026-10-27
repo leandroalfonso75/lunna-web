@@ -142,6 +142,8 @@ export interface PromotionsFilters {
 export interface PromotionActionResult {
   ok: boolean
   message: string
+  /** Quantos outros anúncios foram para a fila com a mesma promoção. */
+  queued?: number
   item: PromotionItemDetail
 }
 
@@ -160,6 +162,12 @@ export interface PromotionActionLog {
   gain: number | null
   user: string | null
   created_at: string
+}
+
+/** Levar a mesma promoção aos outros anúncios do SKU e/ou das outras variações do produto (em fila). */
+export interface PromotionSpread {
+  alsoSku: boolean
+  alsoVariations: boolean
 }
 
 /** Oferta escolhida na tela (sem ela, vale a melhor). */

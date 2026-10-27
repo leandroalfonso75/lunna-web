@@ -38,6 +38,11 @@ describe('createPromotionsClient', () => {
       method: 'POST', query: { account_id: 'acc1' }, body: { promotion_id: '', promotion_type: 'PRICE_DISCOUNT', action: 'aderir' }
     })
 
+    await client.apply('acc1', 'MLB1', { promotion_id: 'P-2', promotion_type: 'DEAL', action: 'aderir' }, { alsoSku: true, alsoVariations: false })
+    expect(api).toHaveBeenLastCalledWith('/api/promotions/items/MLB1/apply', {
+      method: 'POST', query: { account_id: 'acc1' }, body: { promotion_id: 'P-2', promotion_type: 'DEAL', action: 'aderir', also_sku: true }
+    })
+
     await client.applyBest('acc1', ['MLB1', 'MLB2'])
     expect(api).toHaveBeenLastCalledWith('/api/promotions/apply_best', { method: 'POST', query: { account_id: 'acc1' }, body: { item_ids: ['MLB1', 'MLB2'] } })
 

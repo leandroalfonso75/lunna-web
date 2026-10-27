@@ -1,4 +1,4 @@
-import type { PromotionActionLog, PromotionActionResult, PromotionItemDetail, PromotionSettingsInput, PromotionsFilters, PromotionsResponse, PromotionTarget } from '../types/promotions'
+import type { PromotionActionLog, PromotionActionResult, PromotionItemDetail, PromotionSettingsInput, PromotionSpread, PromotionsFilters, PromotionsResponse, PromotionTarget } from '../types/promotions'
 
 type ApiFn = (path: string, options?: Record<string, unknown>) => Promise<any>
 
@@ -41,8 +41,10 @@ export function createPromotionsClient(api: ApiFn) {
       return api('/api/promotions/export', { query: { account_id: accountId }, responseType: 'blob' })
     },
     /** Aplica no Mercado Livre a melhor oferta do anúncio, ou a escolhida. Só administradores. */
-    apply(accountId: string, itemId: string, target?: PromotionTarget): Promise<PromotionActionResult> {
-      const body = target ? { promotion_id: target.promotion_id ?? '', promotion_type: target.promotion_type, action: target.action } : {}
+    apply(accountId: string, itemId: string, target?: PromotionTarget, spread?: PromotionSpread): Promise<PromotionActionResult> {
+      const body: Record<string, unknown> = target ? { promotion_id: target.promotion_id ?? '', promotion_type: target.promotion_type, action: target.action } : {}
+      if (spread?.alsoSku) body.also_sku = true
+      if (spread?.alsoVariations) body.also_variations = true
       return api(`/api/promotions/items/${itemId}/apply`, { method: 'POST', query: { account_id: accountId }, body })
     },
     /** Tira o anúncio da promoção de preço atual. Só administradores. */

@@ -3,7 +3,7 @@ import { apiErrorMessage } from '../lib/apiErrors'
 import { buildPromotionsQuery, createPromotionsClient } from '../lib/promotionsClient'
 import { withTransientRetry } from '../lib/transientRetry'
 import { useSessionStore } from '../stores/session'
-import type { PromotionActionLog, PromotionItemDetail, PromotionSettingsInput, PromotionsFilters, PromotionsResponse, PromotionTarget } from '../types/promotions'
+import type { PromotionActionLog, PromotionItemDetail, PromotionSettingsInput, PromotionSpread, PromotionsFilters, PromotionsResponse, PromotionTarget } from '../types/promotions'
 import { usePolling } from './usePolling'
 
 const DEBOUNCE_MS = 300
@@ -117,13 +117,13 @@ export function usePromotions() {
   }
 
   /** Aplica no ML a melhor oferta (ou a escolhida) do anúncio aberto; o painel volta já relido. */
-  async function apply(target?: PromotionTarget) {
+  async function apply(target?: PromotionTarget, spread?: PromotionSpread) {
     const accountId = session.selectedAccountId
     if (!accountId || !selected.value || acting.value) return
     acting.value = true
     actionResult.value = null
     try {
-      const res = await client.apply(accountId, selected.value, target)
+      const res = await client.apply(accountId, selected.value, target, spread)
       detail.value = res.item
       actionResult.value = { ok: res.ok, message: res.message }
       schedule(false)
