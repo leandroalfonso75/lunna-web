@@ -21,12 +21,19 @@ const props = defineProps<{
   /** Painel do produto com variações: só os limites, aplicados a todas as variações e aos anúncios do SKU. */
   groupMode?: boolean
   groupCount?: number
+  /** Há um próximo anúncio na lista (mostra "Próximo" e "Confirmar e ir para o próximo"). */
+  hasNext?: boolean
 }>()
-const emit = defineEmits<{ save: [input: PromotionSettingsInput]; apply: [target: PromotionTarget | undefined, spread: PromotionSpread]; leave: [] }>()
+const emit = defineEmits<{
+  save: [input: PromotionSettingsInput]
+  apply: [target: PromotionTarget | undefined, spread: PromotionSpread, goNext: boolean]
+  leave: [goNext: boolean]
+  next: []
+}>()
 
 /** Ação esperando confirmação: o que vai acontecer, em texto, antes de mexer no Mercado Livre. `spreadable` = ao entrar
  * numa promoção, dá para levar a mesma aos outros anúncios do SKU e das variações. */
-const pending = ref<{ text: string; run: () => void; spreadable?: boolean } | null>(null)
+const pending = ref<{ text: string; run: (goNext: boolean) => void; spreadable?: boolean } | null>(null)
 const spread = reactive<PromotionSpread>({ alsoSku: false, alsoVariations: false })
 
 const canApplyBest = computed(() => {
@@ -45,7 +52,7 @@ function askBest() {
   const from = d.current ? `Sai de ${describe(d.current)} e entra em ` : 'Entra em '
   spread.alsoSku = false
   spread.alsoVariations = false
-  pending.value = { text: `${from}${describe(d.best)}. O preço muda no Mercado Livre na hora.`, run: () => emit('apply', undefined, { ...spread }), spreadable: true }
+  pending.value = { text: `${from}${describe(d.best)}. O preço muda no Mercado Livre na hora.`, run: (goNext) => emit('apply', undefined, { ...spread }, goNext), spreadable: true }
 }
 
 function askOffer(o: PromotionOffer) {
@@ -53,13 +60,13 @@ function askOffer(o: PromotionOffer) {
   const what = o.action === 'editar_preco' ? `Ajusta o preço em ${describe(o)}` : `${props.detail?.current ? `Sai de ${describe(props.detail.current)} e entra em` : 'Entra em'} ${describe(o)}`
   spread.alsoSku = false
   spread.alsoVariations = false
-  pending.value = { text: `${what}. O preço muda no Mercado Livre na hora.`, run: () => emit('apply', target, { ...spread }), spreadable: true }
+  pending.value = { text: `${what}. O preço muda no Mercado Livre na hora.`, run: (goNext) => emit('apply', target, { ...spread }, goNext), spreadable: true }
 }
 
 function askLeave() {
   const c = props.detail?.current
   if (!c) return
-  pending.value = { text: `Tira o anúncio de ${describe(c)}; ele volta ao preço cheio de ${brl(props.detail?.full_price)}.`, run: () => emit('leave') }
+  pending.value = { text: `Tira o anúncio de ${describe(c)}; ele volta ao preço cheio de ${brl(props.detail?.full_price)}.`, run: (goNext) => emit('leave', goNext) }
 }
 
 /** Preenche o campo de limite com o valor sugerido (o operador confere e salva). */
@@ -70,8 +77,8 @@ function useSuggestion() {
   form[s.field] = String(s.value)
 }
 
-function confirm() {
-  pending.value?.run()
+function confirm(goNext = false) {
+  pending.value?.run(goNext)
   pending.value = null
 }
 
@@ -157,6 +164,9 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
             Aplicar a melhor oferta
           </button>
           <button v-if="detail.current" type="button" class="btn-link text-[12px]" :disabled="acting" @click="askLeave">Sair da promoção</button>
+          <button v-if="hasNext" type="button" class="btn-link text-[12px]" :disabled="acting" data-test="proximo" title="Abre o próximo anúncio da lista sem mudar nada neste" @click="emit('next')">
+            Próximo anúncio →
+          </button>
         </div>
       </div>
       <div v-if="pending" class="my-2 rounded-card border border-warning bg-warning-soft p-3 text-[12px]" role="alertdialog" aria-label="Confirmar ação no Mercado Livre">
@@ -173,7 +183,10 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
           <p class="text-[11px] text-ink-3">Cada um entra pelo próprio preço de venda e pelos próprios limites; o que não couber fica no Histórico com o motivo.</p>
         </div>
         <div class="mt-2 flex gap-2">
-          <button type="button" class="btn-primary h-8 px-3 text-[12px]" :disabled="acting" data-test="confirmar" @click="confirm">Confirmar</button>
+          <button type="button" class="btn-primary h-8 px-3 text-[12px]" :disabled="acting" data-test="confirmar" @click="confirm(false)">Confirmar</button>
+          <button v-if="hasNext" type="button" class="btn-primary h-8 px-3 text-[12px]" :disabled="acting" data-test="confirmar-proximo" @click="confirm(true)">
+            Confirmar e ir para o próximo
+          </button>
           <button type="button" class="btn-link text-[12px]" @click="pending = null">Cancelar</button>
         </div>
       </div>

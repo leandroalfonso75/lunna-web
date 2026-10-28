@@ -117,9 +117,10 @@ export function usePromotions() {
   }
 
   /** Aplica no ML a melhor oferta (ou a escolhida) do anúncio aberto; o painel volta já relido. */
-  async function apply(target?: PromotionTarget, spread?: PromotionSpread) {
+  /** => true quando o Mercado Livre aceitou (usado para ir ao próximo anúncio só se deu certo). */
+  async function apply(target?: PromotionTarget, spread?: PromotionSpread): Promise<boolean> {
     const accountId = session.selectedAccountId
-    if (!accountId || !selected.value || acting.value) return
+    if (!accountId || !selected.value || acting.value) return false
     acting.value = true
     actionResult.value = null
     try {
@@ -127,16 +128,18 @@ export function usePromotions() {
       detail.value = res.item
       actionResult.value = { ok: res.ok, message: res.message }
       schedule(false)
+      return res.ok
     } catch (err) {
       actionResult.value = { ok: false, message: apiErrorMessage(err, 'Não foi possível falar com o Mercado Livre agora.') }
+      return false
     } finally {
       acting.value = false
     }
   }
 
-  async function leave() {
+  async function leave(): Promise<boolean> {
     const accountId = session.selectedAccountId
-    if (!accountId || !selected.value || acting.value) return
+    if (!accountId || !selected.value || acting.value) return false
     acting.value = true
     actionResult.value = null
     try {
@@ -144,8 +147,10 @@ export function usePromotions() {
       detail.value = res.item
       actionResult.value = { ok: res.ok, message: res.message }
       schedule(false)
+      return res.ok
     } catch (err) {
       actionResult.value = { ok: false, message: apiErrorMessage(err, 'Não foi possível falar com o Mercado Livre agora.') }
+      return false
     } finally {
       acting.value = false
     }

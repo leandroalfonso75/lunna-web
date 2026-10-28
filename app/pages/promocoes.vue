@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
-import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
 import PromotionItemPanel from '../components/promocoes/PromotionItemPanel.vue'
@@ -9,7 +9,7 @@ import { usePageHeader } from '../composables/usePageHeader'
 import { usePromotions } from '../composables/usePromotions'
 import { brl, dateTimeShort, int, pct } from '../lib/format'
 import { useSessionStore } from '../stores/session'
-import type { PromotionGroupRow, PromotionItemRow } from '../types/promotions'
+import type { PromotionGroupRow, PromotionItemRow, PromotionSpread, PromotionTarget } from '../types/promotions'
 
 /**
  * `/promocoes`: promoções da Central de Promoções do Mercado Livre por anúncio — a promoção atual, a melhor
@@ -70,6 +70,47 @@ function openGroupPanel(g: PromotionGroupRow) {
   }
   groupPanel.value = g.key
   promos.open(g.item_id)
+}
+
+/** Ordem em que o operador percorre os anúncios: a da lista, com os anúncios de cada produto no lugar do produto. */
+type WalkStop = { id: string; group: string | null }
+const walkOrder = computed<WalkStop[]>(() =>
+  (response.value?.items ?? []).flatMap((r): WalkStop[] => ('group' in r ? r.children.map((c) => ({ id: c.item_id, group: r.key })) : [{ id: r.item_id, group: null }]))
+)
+
+function nextAfter(id: string | null): WalkStop | null {
+  const list = walkOrder.value
+  const i = list.findIndex((x) => x.id === id)
+  return (i >= 0 ? list[i + 1] : undefined) ?? null
+}
+const hasNext = computed(() => !!nextAfter(selected.value))
+
+/** Abre o próximo anúncio da lista (abrindo o produto, se ele estiver dentro de um) e rola a tela até ele. */
+async function goTo(target: WalkStop | null) {
+  if (!target) return
+  groupPanel.value = null
+  if (target.group && !expanded.value.has(target.group)) expanded.value = new Set([...expanded.value, target.group])
+  promos.open(target.id)
+  await nextTick()
+  document.querySelector(`[data-item="${target.id}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+}
+
+function goNext() {
+  goTo(nextAfter(selected.value))
+}
+
+/** Aplica; com "ir para o próximo", abre o próximo só se o Mercado Livre aceitou (o próximo é guardado antes, porque a
+ * lista pode mudar depois da troca). */
+async function onApply(target: PromotionTarget | undefined, spread: PromotionSpread, next: boolean) {
+  const following = next ? nextAfter(selected.value) : null
+  const ok = await promos.apply(target, spread)
+  if (ok && following) goTo(following)
+}
+
+async function onLeave(next: boolean) {
+  const following = next ? nextAfter(selected.value) : null
+  const ok = await promos.leave()
+  if (ok && following) goTo(following)
 }
 
 /** Todos os anúncios da página, soltos e dentro dos produtos. */
@@ -225,11 +266,11 @@ function runBulk() {
           <p v-if="bulkMessage" class="text-[13px] text-ink-2" role="status">{{ bulkMessage }}</p>
         </div>
 
-        <div class="card overflow-hidden">
+        <div class="card overflow-clip">
           <table class="w-full table-fixed border-collapse text-[12px]">
             <thead>
               <tr class="border-b border-line">
-                <th v-for="c in COLUMNS" :key="c.key" scope="col" class="px-2 py-2 font-semibold text-ink-2" :class="[c.width, c.align === 'right' ? 'text-right' : 'text-left']"
+                <th v-for="c in COLUMNS" :key="c.key" scope="col" class="sticky top-0 z-10 border-b border-line bg-surface px-2 py-2 font-semibold text-ink-2" :class="[c.width, c.align === 'right' ? 'text-right' : 'text-left']"
                   :aria-sort="c.sort && response?.sort === c.sort ? (response?.dir === 'asc' ? 'ascending' : 'descending') : undefined">
                   <button v-if="c.sort" type="button" class="inline-flex items-center gap-1 hover:text-ink" :class="response?.sort === c.sort ? 'text-ink' : ''" @click="promos.sortBy(c.sort)">
                     {{ c.label }}
@@ -290,7 +331,7 @@ function runBulk() {
                       <PromotionItemPanel
                         :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
                         :acting="acting" :action-result="actionResult" group-mode :group-count="row.count"
-                        @save="promos.saveSettings" @apply="promos.apply" @leave="promos.leave"
+                        @save="promos.saveSettings" @apply="(t, sp) => promos.apply(t, sp)" @leave="() => promos.leave()"
                       />
                     </td>
                   </tr>
@@ -302,8 +343,8 @@ function runBulk() {
                         <td :colspan="COLUMNS.length" class="border-l-4 border-l-primary px-4 py-4">
                           <PromotionItemPanel
                             :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
-                            :acting="acting" :action-result="actionResult"
-                            @save="promos.saveSettings" @apply="promos.apply" @leave="promos.leave"
+                            :acting="acting" :action-result="actionResult" :has-next="hasNext"
+                            @save="promos.saveSettings" @apply="onApply" @leave="onLeave" @next="goNext"
                           />
                         </td>
                       </tr>
@@ -319,8 +360,8 @@ function runBulk() {
                     <td :colspan="COLUMNS.length" class="border-l-4 border-l-primary px-4 py-4">
                       <PromotionItemPanel
                         :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
-                        :acting="acting" :action-result="actionResult"
-                        @save="promos.saveSettings" @apply="promos.apply" @leave="promos.leave"
+                        :acting="acting" :action-result="actionResult" :has-next="hasNext"
+                        @save="promos.saveSettings" @apply="onApply" @leave="onLeave" @next="goNext"
                       />
                     </td>
                   </tr>

@@ -27,7 +27,7 @@ function offerLine(o: PromotionOfferShort | null) {
 </script>
 
 <template>
-  <tr class="cursor-pointer border-b border-line hover:bg-surface-2" :class="[nested ? 'bg-surface-2/40' : '', selected ? 'bg-surface-2' : '']" data-test="promo-row" @click="emit('toggle')">
+  <tr class="scroll-mt-12 cursor-pointer border-b border-line hover:bg-surface-2" :class="[nested ? 'bg-surface-2/40' : '', selected ? 'bg-surface-2' : '']" data-test="promo-row" :data-item="row.item_id" @click="emit('toggle')">
     <td class="px-2 py-2 align-top" :class="nested ? 'pl-9' : ''">
       <div class="flex items-start gap-2">
         <input
