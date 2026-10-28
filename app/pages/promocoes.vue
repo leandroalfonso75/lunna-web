@@ -412,7 +412,7 @@ function runBulk() {
               <td class="px-3 py-2">{{ a.from ? `${a.from.name} · ${brl(a.from.price)} · ${pct(a.from.margin_pct)}` : '—' }}</td>
               <td class="px-3 py-2">{{ a.to ? `${a.to.name} · ${brl(a.to.price)} · ${pct(a.to.margin_pct)}` : '—' }}</td>
               <td class="px-3 py-2 text-right" data-numeric>{{ a.gain ? brl(a.gain) : '—' }}</td>
-              <td class="px-3 py-2" :class="a.ok ? 'text-success' : 'text-danger'">{{ a.ok ? 'Feito' : 'Falhou' }}<span v-if="a.error" class="block max-w-[280px] truncate text-[11px] text-ink-3" :title="a.error">{{ a.error }}</span></td>
+              <td class="px-3 py-2" :class="a.ok ? 'text-success' : 'text-danger'">{{ a.ok ? 'Feito' : 'Falhou' }}<span v-if="a.forced_reason" class="block text-[11px] text-warning" :title="`Aplicado mesmo assim, ferindo a regra: ${a.forced_reason}`">mesmo assim: {{ a.forced_reason }}</span><span v-if="a.error" class="block max-w-[280px] truncate text-[11px] text-ink-3" :title="a.error">{{ a.error }}</span></td>
             </tr>
           </tbody>
         </table>

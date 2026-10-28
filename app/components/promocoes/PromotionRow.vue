@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { brl, int, pct } from '../../lib/format'
+import { promotionValidity } from '../../lib/promotionValidity'
 import type { PromotionItemRow, PromotionOfferShort } from '../../types/promotions'
 
 /**
@@ -22,7 +23,7 @@ const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da
 
 function offerLine(o: PromotionOfferShort | null) {
   if (!o) return null
-  return { title: o.name || o.label, price: o.price, margin: o.margin_pct, profit: o.profit, valid: o.valid, action: o.action }
+  return { title: o.name || o.label, price: o.price, margin: o.margin_pct, profit: o.profit, valid: o.valid, action: o.action, validity: promotionValidity(o, true) }
 }
 </script>
 
@@ -69,6 +70,7 @@ function offerLine(o: PromotionOfferShort | null) {
           · <span :class="offerLine(row[key])!.valid ? 'text-ink' : 'text-danger'">{{ pct(offerLine(row[key])!.margin) }}</span>
           <span class="text-ink-3"> ({{ brl(offerLine(row[key])!.profit) }})</span>
         </p>
+        <p v-if="offerLine(row[key])!.validity" class="text-[11px] text-ink-3">{{ offerLine(row[key])!.validity }}</p>
         <p v-if="key === 'best' && ACTION_HINT[offerLine(row[key])!.action] && row.gain" class="text-[11px] text-ink-3">{{ ACTION_HINT[offerLine(row[key])!.action] }}</p>
       </template>
       <template v-else-if="key === 'best' && row.review?.blocked_best">
@@ -76,6 +78,7 @@ function offerLine(o: PromotionOfferShort | null) {
         <p class="text-[11px] text-danger" data-numeric :title="row.review.blocked_best.shortfall">
           {{ brl(row.review.blocked_best.price) }} · {{ pct(row.review.blocked_best.margin_pct) }} · barrada
         </p>
+        <p class="text-[11px] text-ink-3">{{ promotionValidity(row.review.blocked_best, true) }}</p>
       </template>
       <span v-else class="text-ink-3">—</span>
     </td>

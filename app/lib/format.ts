@@ -53,6 +53,11 @@ export function dateTimeShort(iso: string | null | undefined): string {
   return parts.replace(',', '')
 }
 
+/** "DD/MM" no fuso America/Sao_Paulo. */
+export function dateShort(iso: string | null | undefined): string {
+  return formatInTimeZone(iso, { day: '2-digit', month: '2-digit' })
+}
+
 /** "HH:MM" no fuso America/Sao_Paulo. */
 export function timeShort(iso: string | null | undefined): string {
   return formatInTimeZone(iso, { hour: '2-digit', minute: '2-digit', hour12: false })

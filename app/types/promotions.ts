@@ -28,6 +28,7 @@ export interface PromotionOfferShort {
   meli_amount: number
   valid: boolean
   reason: string | null
+  start_date: string | null
   finish_date: string | null
   costs?: PromotionCosts
   /** manter = como está hoje; editar_preco = mudar o preço da promoção atual; aderir = entrar nesta. */
@@ -44,7 +45,6 @@ export interface PromotionOffer extends PromotionOfferShort {
   fixed_amount: number | null
   fee: number | null
   flexible: boolean
-  start_date: string | null
   /** Relâmpago/oferta do dia: unidades que o ML sugere reservar (o Lunna reserva isso ao entrar). */
   stock_reserved: number | null
 }
@@ -203,6 +203,8 @@ export interface PromotionActionLog {
   source_label: string
   ok: boolean
   error: string | null
+  /** Aplicado mesmo assim: a regra do Lunna que a oferta feria. */
+  forced_reason: string | null
   from: { name: string; price: number | null; margin_pct: number | null } | null
   to: { name: string; price: number | null; margin_pct: number | null } | null
   gain: number | null
@@ -268,6 +270,10 @@ export interface PromotionTarget {
   promotion_id: string | null
   promotion_type: string
   action: 'aderir' | 'editar_preco'
+  /** Outro preço final (só ofertas de faixa, dentro da faixa do ML). */
+  price?: number
+  /** "Aplicar mesmo assim": aplica ferindo as regras do Lunna (fica no Histórico a regra ferida). */
+  force?: boolean
 }
 
 /** Campos de número: o formulário pode entregar texto ou número (`v-model` de input type="number"). */

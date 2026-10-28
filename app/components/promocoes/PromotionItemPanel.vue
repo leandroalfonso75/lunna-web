@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { brl, dateTimeShort, pct } from '../../lib/format'
+import { brl, pct } from '../../lib/format'
+import { promotionValidity } from '../../lib/promotionValidity'
 import type { PromotionCosts, PromotionItemDetail, PromotionOffer, PromotionSettingsInput, PromotionSpread, PromotionTarget } from '../../types/promotions'
 
 /**
@@ -131,20 +132,93 @@ const COST_ROWS: { key: keyof PromotionCosts; label: string }[] = [
 const today = computed(() => {
   const d = props.detail
   if (!d) return null
-  if (d.current?.costs) return { title: 'Hoje', sub: d.current.name || d.current.label, price: d.current.price, profit: d.current.profit, margin: d.current.margin_pct, costs: d.current.costs }
-  if (d.base) return { title: 'Hoje', sub: 'sem promoção', price: d.base.price, profit: d.base.profit, margin: d.base.margin_pct, costs: d.base.costs }
+  if (d.current?.costs) return { title: 'Hoje', sub: d.current.name || d.current.label, validity: promotionValidity(d.current), price: d.current.price, profit: d.current.profit, margin: d.current.margin_pct, costs: d.current.costs }
+  if (d.base) return { title: 'Hoje', sub: 'sem promoção', validity: '', price: d.base.price, profit: d.base.profit, margin: d.base.margin_pct, costs: d.base.costs }
   return null
 })
 
 const after = computed(() => {
   const d = props.detail
   const b = d?.best
-  if (b?.costs && b.action !== 'manter') return { title: 'Depois da melhor oferta', sub: b.name || b.label, price: b.price, profit: b.profit, margin: b.margin_pct, costs: b.costs, blocked: false }
+  if (b?.costs && b.action !== 'manter') return { title: 'Depois da melhor oferta', sub: b.name || b.label, validity: promotionValidity(b), price: b.price, profit: b.profit, margin: b.margin_pct, costs: b.costs, blocked: false }
   // Para revisar: a melhor oferta barrada, com a regra que a barrou
   const x = d?.review?.blocked_best
-  if (x?.costs) return { title: 'Melhor oferta barrada', sub: `${x.name || x.label} · ${x.reason}`, price: x.price, profit: x.profit, margin: x.margin_pct, costs: x.costs, blocked: true }
+  if (x?.costs) return { title: 'Melhor oferta barrada', sub: `${x.name || x.label} · ${x.reason}`, validity: promotionValidity(x), price: x.price, profit: x.profit, margin: x.margin_pct, costs: x.costs, blocked: true }
   return null
 })
+
+/** Regras que nem "aplicar mesmo assim" passa (o Mercado Livre recusaria); iguais às da API. */
+const HARD_REASONS = ['não muda o preço', 'encerrada', 'sem preço permitido', 'acima do preço cheio do anúncio', 'sem estoque sugerido', 'estoque insuficiente']
+
+/** Para revisar: a melhor oferta barrada, que o administrador pode aplicar mesmo assim (ou em outro valor). */
+const blocked = computed(() => {
+  const d = props.detail
+  const x = d?.review?.blocked_best
+  if (!d || !x || x.action === 'manter' || !JOINABLE.includes(x.type)) return null
+  const offer = d.offers.find((o) => o.promotion_id === x.promotion_id && o.type === x.type && o.action === x.action) ?? null
+  const hard = HARD_REASONS.some((r) => (x.reason ?? '').startsWith(r))
+  const target: PromotionTarget = { promotion_id: x.promotion_id, promotion_type: x.type, action: x.action === 'editar_preco' ? 'editar_preco' : 'aderir' }
+  return { short: x, offer, hard, target }
+})
+
+/** "Outro valor": preço final em R$ ou % de desconto sobre o preço cheio. */
+const custom = reactive<{ mode: 'price' | 'pct'; value: string | number }>({ mode: 'price', value: '' })
+watch(() => props.detail?.item_id, () => { custom.value = '' })
+
+const customPrice = computed(() => {
+  const v = Number(String(custom.value).replace(',', '.'))
+  const full = props.detail?.full_price ?? 0
+  if (!v || v <= 0) return null
+  return Math.round((custom.mode === 'pct' ? full * (1 - v / 100) : v) * 100) / 100
+})
+
+const customRange = computed(() => {
+  const o = blocked.value?.offer
+  if (!o?.flexible || !props.detail) return null
+  return { min: o.min_price ?? 0, max: Math.min(o.max_price ?? Infinity, props.detail.full_price) }
+})
+
+const customError = computed(() => {
+  const p = customPrice.value
+  const r = customRange.value
+  if (p === null || !r) return ''
+  if (p > r.max + 0.005) return `O Mercado Livre só aceita até ${brl(r.max)} nesta oferta.`
+  if (r.min && p < r.min - 0.005) return `O Mercado Livre só aceita a partir de ${brl(r.min)} nesta oferta.`
+  return ''
+})
+
+/** Margem e lucro aproximados no valor digitado (tarifa, imposto e despesas acompanham o preço; a conta exata é da API). */
+const customPreview = computed(() => {
+  const p = customPrice.value
+  const x = blocked.value?.short
+  if (p === null || !x?.costs || !x.price) return null
+  const c = x.costs
+  const k = p / x.price
+  const profit = p + c.meli_amount - c.cost - c.fee * k - c.shipping - c.tax * k - c.fixed_expenses * k - c.ads
+  const full = props.detail?.full_price ?? 0
+  return { profit, margin: (profit / p) * 100, discount: full ? (1 - p / full) * 100 : 0 }
+})
+
+function askForce() {
+  const b = blocked.value
+  if (!b) return
+  pending.value = {
+    text: `Aplica ${describe(b.short)} mesmo ferindo a regra: ${b.short.reason}. Fica registrado no Histórico. O preço muda no Mercado Livre na hora.`,
+    run: (goNext) => emit('apply', { ...b.target, force: true }, { alsoSku: false, alsoVariations: false }, goNext)
+  }
+}
+
+function askCustom() {
+  const b = blocked.value
+  const p = customPrice.value
+  const v = customPreview.value
+  if (!b || p === null || !v || customError.value) return
+  pending.value = {
+    text: `Aplica ${b.short.name || b.short.label} a ${brl(p)} (${pct(v.discount)} de desconto sobre o preço cheio; margem real aprox. ${pct(v.margin)}, lucro aprox. ${brl(v.profit)}), `
+      + 'mesmo que fira as regras do anúncio. Fica registrado no Histórico. O preço muda no Mercado Livre na hora.',
+    run: (goNext) => emit('apply', { ...b.target, price: p, force: true }, { alsoSku: false, alsoVariations: false }, goNext)
+  }
+}
 
 const ACTION: Record<string, string> = { manter: 'Como está hoje', editar_preco: 'Ajustar o preço', aderir: 'Entrar' }
 
@@ -219,8 +293,13 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
           <thead>
             <tr class="border-b border-line text-ink-2">
               <th scope="col" class="px-3 py-1.5 text-left font-semibold">Por unidade</th>
-              <th scope="col" class="px-3 py-1.5 text-right font-semibold">{{ today.title }}<span class="block text-[11px] font-normal text-ink-3">{{ today.sub }}</span></th>
-              <th v-if="after" scope="col" class="px-3 py-1.5 text-right font-semibold" :class="after.blocked ? 'text-danger' : ''">{{ after.title }}<span class="block text-[11px] font-normal" :class="after.blocked ? 'text-danger' : 'text-ink-3'">{{ after.sub }}</span></th>
+              <th scope="col" class="px-3 py-1.5 text-right font-semibold">
+                {{ today.title }}<span class="block text-[11px] font-normal text-ink-3">{{ today.sub }}</span>
+                <span v-if="today.validity" class="block text-[11px] font-normal text-ink-3" data-test="validade-hoje">Validade: {{ today.validity }}</span>
+              </th>
+              <th v-if="after" scope="col" class="px-3 py-1.5 text-right font-semibold" :class="after.blocked ? 'text-danger' : ''">{{ after.title }}<span class="block text-[11px] font-normal" :class="after.blocked ? 'text-danger' : 'text-ink-3'">{{ after.sub }}</span>
+                <span v-if="after.validity" class="block text-[11px] font-normal text-ink-3" data-test="validade-melhor">Validade: {{ after.validity }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -247,6 +326,52 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
           </tbody>
         </table>
       </div>
+      <div v-if="isAdmin && blocked" class="mb-4 rounded-card border border-danger p-3 text-[12px]" data-test="forcar">
+        <p class="font-semibold text-ink">Aplicar fora das regras</p>
+        <p class="mt-0.5 text-ink-2">
+          A melhor oferta está barrada por: <span class="text-danger">{{ blocked.short.reason }}</span>. Você pode aplicá-la mesmo assim ou escolher outro valor;
+          o Lunna registra no Histórico a regra que foi ferida.
+        </p>
+        <p v-if="blocked.hard" class="mt-1 text-danger">Esta não dá para aplicar: o Mercado Livre recusaria ({{ blocked.short.reason }}).</p>
+        <div v-else class="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2">
+          <button type="button" class="btn-primary h-8 px-3 text-[12px]" :disabled="acting" data-test="aplicar-mesmo-assim" @click="askForce">
+            Aplicar mesmo assim ({{ brl(blocked.short.price) }})
+          </button>
+          <template v-if="customRange">
+            <div class="flex items-end gap-2">
+              <label class="block">
+                <span class="block text-[11px] text-ink-3">Outro valor</span>
+                <select v-model="custom.mode" class="input h-8 w-[170px] text-[12px]" aria-label="Tipo de valor">
+                  <option value="price">Preço final (R$)</option>
+                  <option value="pct">Desconto (%) sobre o cheio</option>
+                </select>
+              </label>
+              <input
+                v-model="custom.value"
+                type="number"
+                step="0.01"
+                min="0"
+                class="input h-8 w-[110px] text-[12px]"
+                :placeholder="custom.mode === 'price' ? 'ex.: 89,90' : 'ex.: 15'"
+                :aria-label="custom.mode === 'price' ? 'Preço final em reais' : 'Desconto em porcentagem'"
+                data-test="outro-valor"
+              />
+              <button type="button" class="btn-secondary h-8 px-3 text-[12px]" :disabled="acting || !customPreview || !!customError" data-test="aplicar-outro-valor" @click="askCustom">
+                Aplicar este valor
+              </button>
+            </div>
+            <p class="w-full text-[11px] text-ink-3">
+              Faixa aceita pelo Mercado Livre: {{ brl(customRange.min) }} a {{ brl(customRange.max) }}.
+              <template v-if="customPreview && !customError">
+                Fica {{ brl(customPrice) }} ({{ pct(customPreview.discount) }} de desconto) · margem real aprox.
+                <span :class="customPreview.profit < 0 ? 'text-danger' : 'text-ink'">{{ pct(customPreview.margin) }}</span>, lucro aprox. {{ brl(customPreview.profit) }}.
+              </template>
+              <span v-if="customError" class="text-danger">{{ customError }}</span>
+            </p>
+          </template>
+          <p v-else class="text-[11px] text-ink-3">Esta oferta tem preço fixo dado pelo Mercado Livre: não dá para escolher outro valor.</p>
+        </div>
+      </div>
       <table class="w-full border-collapse text-[12px]">
         <thead>
           <tr class="border-b border-line text-left text-ink-2">
@@ -256,7 +381,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
             <th scope="col" class="py-1.5 pr-2 text-right font-semibold">Parte do ML</th>
             <th scope="col" class="py-1.5 pr-2 text-right font-semibold">Tarifa</th>
             <th scope="col" class="py-1.5 pr-2 text-right font-semibold">Margem real<span class="block text-[10px] font-normal text-ink-3">pós Ads, e lucro</span></th>
-            <th scope="col" class="py-1.5 pr-2 font-semibold">Até</th>
+            <th scope="col" class="py-1.5 pr-2 font-semibold">Validade</th>
             <th v-if="isAdmin" scope="col" class="py-1.5"><span class="sr-only">Ação</span></th>
           </tr>
         </thead>
@@ -283,7 +408,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
               {{ o.margin_pct === null ? '—' : pct(o.margin_pct) }}
               <span v-if="o.profit !== null" class="block text-[11px] font-normal text-ink-3">{{ brl(o.profit) }}</span>
             </td>
-            <td class="py-1.5 pr-2 text-[11px]">{{ o.finish_date ? dateTimeShort(o.finish_date) : '' }}</td>
+            <td class="py-1.5 pr-2 text-[11px]">{{ promotionValidity(o, true) }}</td>
             <td v-if="isAdmin" class="py-1.5 text-right">
               <button
                 v-if="o.valid && o.action !== 'manter' && JOINABLE.includes(o.type)"

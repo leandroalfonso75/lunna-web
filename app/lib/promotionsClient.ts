@@ -55,6 +55,8 @@ export function createPromotionsClient(api: ApiFn) {
     /** Aplica no Mercado Livre a melhor oferta do anúncio, ou a escolhida. Só administradores. */
     apply(accountId: string, itemId: string, target?: PromotionTarget, spread?: PromotionSpread): Promise<PromotionActionResult> {
       const body: Record<string, unknown> = target ? { promotion_id: target.promotion_id ?? '', promotion_type: target.promotion_type, action: target.action } : {}
+      if (target?.price !== undefined) body.price = target.price
+      if (target?.force) body.force = true
       if (spread?.alsoSku) body.also_sku = true
       if (spread?.alsoVariations) body.also_variations = true
       return api(`/api/promotions/items/${itemId}/apply`, { method: 'POST', query: { account_id: accountId }, body })
