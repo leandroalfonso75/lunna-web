@@ -1,4 +1,7 @@
-import type { PromotionActionLog, PromotionActionResult, PromotionItemDetail, PromotionSettingsInput, PromotionSpread, PromotionsFilters, PromotionsResponse, PromotionTarget } from '../types/promotions'
+import type {
+  PromotionActionLog, PromotionActionResult, PromotionItemDetail, PromotionRunDetail, PromotionRunsResponse, PromotionSettingsInput,
+  PromotionSpread, PromotionsFilters, PromotionsResponse, PromotionTarget
+} from '../types/promotions'
 
 type ApiFn = (path: string, options?: Record<string, unknown>) => Promise<any>
 
@@ -58,6 +61,20 @@ export function createPromotionsClient(api: ApiFn) {
     },
     actions(accountId: string): Promise<{ actions: PromotionActionLog[] }> {
       return api('/api/promotions/actions', { query: { account_id: accountId } })
+    },
+    /** Rotina das 03:00: se está ligada, em que modo, e as execuções. */
+    runs(accountId: string): Promise<PromotionRunsResponse> {
+      return api('/api/promotions/runs', { query: { account_id: accountId } })
+    },
+    run(accountId: string, id: number): Promise<PromotionRunDetail> {
+      return api(`/api/promotions/runs/${id}`, { query: { account_id: accountId } })
+    },
+    runExport(accountId: string, id: number): Promise<Blob> {
+      return api(`/api/promotions/runs/${id}/export`, { query: { account_id: accountId }, responseType: 'blob' })
+    },
+    /** "Simular agora": roda a rotina em simulação (nada muda no ML). Só administradores. */
+    simulate(accountId: string): Promise<{ queued: boolean }> {
+      return api('/api/promotions/runs', { method: 'POST', query: { account_id: accountId } })
     },
     /** Lê de novo a Central de Promoções no Mercado Livre. Só administradores. */
     sync(accountId: string): Promise<{ queued: boolean }> {

@@ -21,6 +21,9 @@ export interface Company {
   min_margin_pct: number
   /** Margem máxima geral das promoções (opcional; null = sem teto). */
   max_margin_pct?: number | null
+  /** Rotina das 03:00 da seção Promoções: ligada e em que modo (simulation = só registra; apply = aplica no ML). */
+  promo_routine_enabled?: boolean
+  promo_routine_mode?: 'simulation' | 'apply'
   abc_cut_a: number
   abc_cut_b: number
   group_up_pct: number

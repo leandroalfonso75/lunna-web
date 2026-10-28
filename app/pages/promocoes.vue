@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
 import PromotionItemPanel from '../components/promocoes/PromotionItemPanel.vue'
+import PromotionRoutinePanel from '../components/promocoes/PromotionRoutinePanel.vue'
 import PromotionRow from '../components/promocoes/PromotionRow.vue'
 import { usePageHeader } from '../composables/usePageHeader'
 import { usePromotions } from '../composables/usePromotions'
@@ -219,6 +220,10 @@ function runBulk() {
           :class="tab === 'promocoes' ? 'border-primary font-semibold text-primary' : 'border-transparent text-ink-2 hover:text-ink'" @click="tab = 'promocoes'">
           Promoções do ML <span class="ml-1 text-[12px] text-ink-3">{{ int(response?.promotions.length ?? 0) }}</span>
         </button>
+        <button type="button" role="tab" :aria-selected="tab === 'rotina'" class="-mb-px border-b-2 px-4 py-2 text-[14px]"
+          :class="tab === 'rotina' ? 'border-primary font-semibold text-primary' : 'border-transparent text-ink-2 hover:text-ink'" data-test="aba-rotina" @click="tab = 'rotina'">
+          Rotina das 03:00
+        </button>
         <button type="button" role="tab" :aria-selected="tab === 'historico'" class="-mb-px border-b-2 px-4 py-2 text-[14px]"
           :class="tab === 'historico' ? 'border-primary font-semibold text-primary' : 'border-transparent text-ink-2 hover:text-ink'" @click="tab = 'historico'">
           Histórico
@@ -381,6 +386,8 @@ function runBulk() {
       </template>
 
       <!-- aba Histórico -->
+      <PromotionRoutinePanel v-else-if="tab === 'rotina' && session.selectedAccountId" :client="promos.client" :account-id="session.selectedAccountId" :is-admin="session.isAdmin" />
+
       <div v-else-if="tab === 'historico'" class="card overflow-x-auto">
         <table class="w-full border-collapse text-[12px]">
           <thead>

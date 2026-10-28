@@ -27,6 +27,8 @@ const form = reactive({
   tax_pct: '',
   min_margin_pct: '',
   max_margin_pct: '',
+  promo_routine_enabled: false,
+  promo_routine_mode: 'simulation' as 'simulation' | 'apply',
   abc_cut_a: '',
   abc_cut_b: '',
   group_up_pct: '',
@@ -54,6 +56,8 @@ function fillForm(c: Company) {
   form.tax_pct = String(c.tax_pct)
   form.min_margin_pct = String(c.min_margin_pct)
   form.max_margin_pct = c.max_margin_pct === null || c.max_margin_pct === undefined ? '' : String(c.max_margin_pct)
+  form.promo_routine_enabled = c.promo_routine_enabled ?? false
+  form.promo_routine_mode = c.promo_routine_mode ?? 'simulation'
   form.abc_cut_a = String(c.abc_cut_a)
   form.abc_cut_b = String(c.abc_cut_b)
   form.group_up_pct = String(c.group_up_pct)
@@ -99,6 +103,8 @@ async function submit() {
       tax_pct: parseDecimal(form.tax_pct),
       min_margin_pct: parseDecimal(form.min_margin_pct),
       max_margin_pct: form.max_margin_pct.trim() ? parseDecimal(form.max_margin_pct) : null,
+      promo_routine_enabled: form.promo_routine_enabled,
+      promo_routine_mode: form.promo_routine_mode,
       abc_cut_a: parseDecimal(form.abc_cut_a),
       abc_cut_b: parseDecimal(form.abc_cut_b),
       group_up_pct: parseDecimal(form.group_up_pct),
@@ -185,6 +191,27 @@ async function removeKey() {
             </div>
             <p class="text-[13px] text-ink-3">Acima dela, a seção Promoções aplica um desconto maior para o preço não subir demais. Vale para os anúncios sem margem própria.</p>
           </div>
+        </div>
+      </div>
+
+      <div class="space-y-4 border-t border-line pt-6" data-test="rotina-promocoes">
+        <div>
+          <h3 class="section-title">Rotina das 03:00 (Promoções)</h3>
+          <p class="page-subtitle text-[13px]">Toda madrugada, às 03:00, a seção Promoções relê a Central do Mercado Livre e escolhe a melhor oferta de cada anúncio, com as mesmas regras da tela.</p>
+        </div>
+        <label class="flex items-center gap-2 text-[14px]">
+          <input v-model="form.promo_routine_enabled" type="checkbox" />
+          <span>Ligar a rotina</span>
+        </label>
+        <div class="space-y-2" :class="form.promo_routine_enabled ? '' : 'opacity-50'">
+          <label class="flex items-start gap-2 text-[14px]">
+            <input v-model="form.promo_routine_mode" type="radio" value="simulation" :disabled="!form.promo_routine_enabled" class="mt-1" />
+            <span>Simulação <span class="block text-[13px] text-ink-3">Só registra o que faria; nada muda no Mercado Livre. O relatório fica em Promoções → Rotina das 03:00.</span></span>
+          </label>
+          <label class="flex items-start gap-2 text-[14px]">
+            <input v-model="form.promo_routine_mode" type="radio" value="apply" :disabled="!form.promo_routine_enabled" class="mt-1" />
+            <span class="text-danger">Aplicação real <span class="block text-[13px] text-ink-3">Aplica no Mercado Livre a melhor oferta de cada anúncio, sem confirmação. Use depois de conferir as simulações.</span></span>
+          </label>
         </div>
       </div>
 

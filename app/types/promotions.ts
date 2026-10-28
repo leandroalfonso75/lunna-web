@@ -206,6 +206,53 @@ export interface PromotionActionLog {
   created_at: string
 }
 
+/** Uma execução da rotina das 03:00 (agendada ou "Simular agora"). */
+export interface PromotionRun {
+  id: number
+  mode: 'simulation' | 'apply'
+  mode_label: string
+  trigger: string
+  trigger_label: string
+  status: 'running' | 'done' | 'failed'
+  started_at: string
+  finished_at: string | null
+  error: string | null
+  /** simulado | aplicado | erro | revisar | sem_mudanca | regra_propria | automacao_desligada | anuncios */
+  totals: Record<string, number>
+}
+
+export interface PromotionRunRow {
+  item_id: string
+  title: string | null
+  sku: string | null
+  thumbnail: string | null
+  kind: string
+  kind_label: string
+  /** true = a rotina mudaria/mudou a promoção; false = não mexeu (revisar, regra própria…). */
+  changes: boolean
+  ok: boolean
+  reason: string | null
+  before: { name: string; price: number | null; margin_pct: number | null; profit: number | null } | null
+  after: { name: string; price: number | null; margin_pct: number | null; profit: number | null } | null
+  price_change_pct: number | null
+  gain: number | null
+}
+
+export interface PromotionRunDetail extends PromotionRun {
+  gain_total: number
+  price_up: number
+  price_down: number
+  gain_up: number
+  gain_down: number
+  rows: PromotionRunRow[]
+}
+
+export interface PromotionRunsResponse {
+  routine: { enabled: boolean; mode: 'simulation' | 'apply' }
+  running: boolean
+  runs: PromotionRun[]
+}
+
 /** Levar a mesma promoção aos outros anúncios do SKU e/ou das outras variações do produto (em fila). */
 export interface PromotionSpread {
   alsoSku: boolean

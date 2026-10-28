@@ -46,6 +46,12 @@ describe('createPromotionsClient', () => {
     await client.applyBest('acc1', ['MLB1', 'MLB2'])
     expect(api).toHaveBeenLastCalledWith('/api/promotions/apply_best', { method: 'POST', query: { account_id: 'acc1' }, body: { item_ids: ['MLB1', 'MLB2'] } })
 
+    await client.simulate('acc1')
+    expect(api).toHaveBeenLastCalledWith('/api/promotions/runs', { method: 'POST', query: { account_id: 'acc1' } })
+
+    await client.run('acc1', 7)
+    expect(api).toHaveBeenLastCalledWith('/api/promotions/runs/7', { query: { account_id: 'acc1' } })
+
     await client.export('acc1')
     expect(api).toHaveBeenLastCalledWith('/api/promotions/export', { query: { account_id: 'acc1' }, responseType: 'blob' })
   })

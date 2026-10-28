@@ -19,7 +19,7 @@ export function usePromotions() {
   const session = useSessionStore()
 
   const filters = reactive<PromotionsFilters>({ status: '', promotionId: '', q: '', sort: 'gain', dir: 'desc', page: 1, perPage: 50 })
-  const tab = ref<'anuncios' | 'promocoes' | 'historico'>('anuncios')
+  const tab = ref<'anuncios' | 'promocoes' | 'historico' | 'rotina'>('anuncios')
   const response = ref<PromotionsResponse | null>(null)
   const loading = ref(true)
   const stale = ref(false)
@@ -251,7 +251,7 @@ export function usePromotions() {
   })
 
   return {
-    filters, tab, response, loading, stale, loadError, syncing, syncMessage, exporting,
+    client, filters, tab, response, loading, stale, loadError, syncing, syncMessage, exporting,
     selected, detail, detailLoading, detailError, saving, saveError,
     acting, actionResult, checked, bulkMessage, history, historyLoading,
     change, sortBy, setPage, showPromotion, open, close, saveSettings, exportCsv, syncNow,
