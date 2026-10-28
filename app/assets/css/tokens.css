@@ -212,8 +212,17 @@ a {
     @apply m-0 text-right font-medium text-ink;
   }
 
+  /* Margens laterais 25% menores que as do layout antigo (largura máxima de 1440px + 40px de respiro):
+     a margem de cada lado é 0,75 × (o que sobrava fora dos 1440px + 40px), sem largura máxima fixa. */
   .page {
-    @apply w-full px-3 py-4 md:px-4 md:py-5 lg:px-5;
+    @apply w-full py-6 md:py-8;
+    padding-inline: 12px;
+  }
+  @media (min-width: 768px) {
+    .page { padding-inline: 24px; }
+  }
+  @media (min-width: 1024px) {
+    .page { padding-inline: calc(0.75 * (max(0px, (100% - 1440px) / 2) + 40px)); }
   }
   .page-title {
     @apply text-[22px] text-ink;
