@@ -18,6 +18,9 @@ const props = defineProps<{
   saveError: string
   acting: boolean
   actionResult: { ok: boolean; message: string } | null
+  /** Painel do produto com variações: só os limites, aplicados a todas as variações e aos anúncios do SKU. */
+  groupMode?: boolean
+  groupCount?: number
 }>()
 const emit = defineEmits<{ save: [input: PromotionSettingsInput]; apply: [target: PromotionTarget | undefined, spread: PromotionSpread]; leave: [] }>()
 
@@ -67,7 +70,7 @@ function confirm() {
 const JOINABLE = ['SELLER_CAMPAIGN', 'DEAL', 'PRICE_DISCOUNT', 'SMART', 'PRICE_MATCHING', 'MARKETPLACE_CAMPAIGN', 'UNHEALTHY_STOCK', 'SMART_LIGHTNING', 'PRE_NEGOTIATED']
 
 const form = reactive<PromotionSettingsInput>({
-  limit_mode: 'margin', min_margin_pct: '', max_margin_pct: '', min_price: '', max_price: '', apply_to_sku: false, apply_to_variations: false
+  limit_mode: 'margin', min_margin_pct: '', max_margin_pct: '', min_price: '', max_price: '', apply_to_sku: false, apply_to_variations: false, rules_note: ''
 })
 
 const str = (v: number | null) => (v === null ? '' : String(v))
@@ -80,7 +83,9 @@ watch(() => props.detail, (d) => {
   form.min_price = str(d.settings.min_price)
   form.max_price = str(d.settings.max_price)
   form.apply_to_sku = d.settings.apply_to_sku
-  form.apply_to_variations = d.settings.apply_to_variations
+  form.apply_to_variations = props.groupMode ? true : d.settings.apply_to_variations
+  if (props.groupMode) form.apply_to_sku = true
+  form.rules_note = d.settings.rules_note ?? ''
 }, { immediate: true })
 
 /** Linhas do quadro de custos: hoje (promoção atual ou preço cheio) e depois da melhor oferta. */
@@ -123,8 +128,16 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
   <p v-if="loading" class="text-[13px] text-ink-3">Carregando ofertas…</p>
   <p v-else-if="error" class="text-[13px] text-danger" role="alert">{{ error }}</p>
 
-  <div v-else-if="detail" class="grid grid-cols-1 gap-4 text-[13px] xl:grid-cols-4" data-test="promo-detail">
-    <div class="card overflow-x-auto p-4 xl:col-span-3">
+  <div v-else-if="detail" class="grid grid-cols-1 gap-4 text-[13px]" :class="groupMode ? 'xl:grid-cols-2' : 'xl:grid-cols-4'" data-test="promo-detail">
+    <div v-if="groupMode" class="card p-4 text-[12px] text-ink-2">
+      <p class="font-semibold text-ink">Limites do produto</p>
+      <p class="mt-1">
+        O que você salvar aqui vale para todos os {{ groupCount ?? detail.variation_items.length + 1 }} anúncios deste produto (todas as variações e os
+        anúncios do mesmo SKU). Para ver as ofertas e aplicar uma promoção, abra cada anúncio na lista.
+      </p>
+      <p v-if="detail.review" class="mt-2 text-danger">Este produto tem anúncios para revisar: {{ detail.review.label }}.</p>
+    </div>
+    <div v-else class="card overflow-x-auto p-4 xl:col-span-3">
       <div class="mb-1 flex flex-wrap items-center gap-2">
         <p class="font-semibold text-ink">Ofertas deste anúncio</p>
         <div v-if="isAdmin" class="ml-auto flex gap-2">
@@ -246,7 +259,10 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
     </div>
 
     <form class="card space-y-3 p-4" @submit.prevent="emit('save', { ...form })">
-      <p class="font-semibold text-ink">Limites deste anúncio</p>
+      <p class="font-semibold text-ink">{{ groupMode ? 'Limites do produto (todas as variações)' : 'Limites deste anúncio' }}</p>
+      <p v-if="detail.review && !groupMode" class="rounded-card border border-danger bg-danger-soft px-2 py-1.5 text-[12px] text-danger" data-test="review-reason">
+        Para revisar: {{ detail.review.label }}<template v-if="detail.review.reasons.length"> · ofertas barradas por: {{ detail.review.reasons.map((r) => `${r.reason} (${r.offers})`).join('; ') }}</template>
+      </p>
       <div class="flex rounded-md border border-line p-0.5 text-[12px]" role="radiogroup" aria-label="Limitar a promoção por">
         <button type="button" role="radio" :aria-checked="form.limit_mode === 'margin'" class="flex-1 rounded px-2 py-1"
           :class="form.limit_mode === 'margin' ? 'bg-primary-soft font-semibold text-primary' : 'text-ink-2'" :disabled="!isAdmin" @click="form.limit_mode = 'margin'">Por margem (%)</button>
@@ -275,15 +291,21 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
         <template v-if="form.limit_mode === 'margin'">Margem real, pós Ads. Acima da máxima o Lunna aplica um desconto maior, para o preço não subir demais.</template>
         <template v-else>Preço da promoção. Oferta abaixo do valor mínimo não entra; nas de faixa, o preço fica até o valor máximo.</template>
       </p>
+      <label class="block">
+        <span class="text-[12px] text-ink-2">Regras específicas deste anúncio{{ groupMode ? ' (todas as variações)' : '' }} · texto livre</span>
+        <textarea v-model="form.rules_note" rows="3" class="input mt-1 w-full py-1.5 text-[12px]" maxlength="2000" :disabled="!isAdmin"
+          placeholder="Ex.: nunca entrar em oferta relâmpago; manter abaixo de R$ 199,90 na Black Friday" />
+        <span class="mt-1 block text-[11px] text-ink-3">Fica guardado com o anúncio e aparece na lista; a rotina das 03:00 vai respeitar o que estiver aqui.</span>
+      </label>
       <label v-if="detail.sku_items.length" class="flex items-start gap-2">
-        <input v-model="form.apply_to_sku" type="checkbox" class="mt-0.5" :disabled="!isAdmin" />
+        <input v-model="form.apply_to_sku" type="checkbox" class="mt-0.5" :disabled="!isAdmin || groupMode" />
         <span class="text-[12px] text-ink-2">
           Aplicar aos outros {{ detail.sku_items.length }} {{ detail.sku_items.length === 1 ? 'anúncio' : 'anúncios' }} do SKU {{ detail.sku }}
           <span class="block text-[11px] text-ink-3">{{ detail.sku_items.map((s) => s.item_id).join(', ') }}</span>
         </span>
       </label>
       <label v-if="detail.variation_items.length" class="flex items-start gap-2">
-        <input v-model="form.apply_to_variations" type="checkbox" class="mt-0.5" :disabled="!isAdmin" />
+        <input v-model="form.apply_to_variations" type="checkbox" class="mt-0.5" :disabled="!isAdmin || groupMode" />
         <span class="text-[12px] text-ink-2">
           Aplicar às outras variações do produto ({{ detail.variation_items.length }} {{ detail.variation_items.length === 1 ? 'anúncio' : 'anúncios' }})
           <span class="block text-[11px] text-ink-3">{{ [...new Set(detail.variation_items.map((v) => v.sku))].slice(0, 6).join(', ') }}<template v-if="new Set(detail.variation_items.map((v) => v.sku)).size > 6">…</template></span>

@@ -56,6 +56,8 @@ export interface PromotionSettings {
   max_price: number | null
   apply_to_sku: boolean
   apply_to_variations: boolean
+  /** Regras específicas do anúncio, em texto livre. */
+  rules_note: string | null
   automation_enabled: boolean
   /** Margem mínima que vale para o anúncio (a dele ou a geral de Configurações). */
   effective_min_pct: number
@@ -84,7 +86,36 @@ export interface PromotionItemRow {
   offers_count: number
   settings: PromotionSettings
   status: { key: string; label: string; tone: Tone }
+  /** Em "Para revisar": a regra que barrou a promoção atual e as que barraram as ofertas. */
+  review: { current_reason: string | null; reasons: { reason: string; offers: number }[]; label: string } | null
+  notes: string | null
 }
+
+/** Produto com variações: uma linha para o produto pai (Olist) e os anúncios de todas as variações dentro. */
+export interface PromotionGroupRow {
+  group: true
+  key: string
+  parent_olist_id: number
+  title: string
+  sku: string | null
+  thumbnail: string | null
+  /** Anúncio que representa o grupo nos limites (aplicados a todas as variações). */
+  item_id: string
+  count: number
+  variations: number
+  /** Quantos anúncios do grupo passaram no filtro (só com filtro ativo). */
+  matched?: number
+  price_min: number
+  price_max: number
+  gain: number | null
+  current_margin: number | null
+  best_margin: number | null
+  status: { key: string; label: string; tone: Tone }
+  statuses: Record<string, number>
+  children: PromotionItemRow[]
+}
+
+export type PromotionListRow = PromotionItemRow | PromotionGroupRow
 
 export interface PromotionItemDetail extends PromotionItemRow {
   offers: PromotionOffer[]
@@ -114,10 +145,11 @@ export interface PromotionsResponse {
     to_switch: number
     switch_gain: number
     below_min: number
+    to_review: number
     without_cost: number
   }
   counts: Record<string, number>
-  items: PromotionItemRow[]
+  items: PromotionListRow[]
   total: number
   page: number
   per_page: number
@@ -186,4 +218,5 @@ export interface PromotionSettingsInput {
   max_price: string | number
   apply_to_sku: boolean
   apply_to_variations: boolean
+  rules_note: string
 }

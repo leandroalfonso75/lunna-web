@@ -32,7 +32,8 @@ export function createPromotionsClient(api: ApiFn) {
           limit_mode: input.limit_mode,
           min_margin_pct: field(input.min_margin_pct), max_margin_pct: field(input.max_margin_pct),
           min_price: field(input.min_price), max_price: field(input.max_price),
-          apply_to_sku: input.apply_to_sku, apply_to_variations: input.apply_to_variations
+          apply_to_sku: input.apply_to_sku, apply_to_variations: input.apply_to_variations,
+          rules_note: input.rules_note.trim()
         }
       })
     },

@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
 import PromotionItemPanel from '../components/promocoes/PromotionItemPanel.vue'
+import PromotionRow from '../components/promocoes/PromotionRow.vue'
 import { usePageHeader } from '../composables/usePageHeader'
 import { usePromotions } from '../composables/usePromotions'
 import { brl, dateTimeShort, int, pct } from '../lib/format'
 import { useSessionStore } from '../stores/session'
-import type { PromotionItemRow, PromotionOfferShort } from '../types/promotions'
+import type { PromotionGroupRow, PromotionItemRow } from '../types/promotions'
 
 /**
  * `/promocoes`: promoções da Central de Promoções do Mercado Livre por anúncio — a promoção atual, a melhor
@@ -39,8 +40,40 @@ const STATUS_TABS = [
   { value: 'abaixo_minima', label: 'Abaixo da mínima' },
   { value: 'acima_maxima', label: 'Acima da máxima' },
   { value: 'ok', label: 'Na melhor' },
-  { value: 'sem_custo', label: 'Sem custo' }
+  { value: 'sem_custo', label: 'Sem custo' },
+  { value: 'para_revisar', label: 'Para revisar', tone: 'text-danger' }
 ]
+
+/** Contagem de anúncios de cada guia; "Todos" soma todas. */
+function tabCount(value: string): number {
+  const c = response.value?.counts ?? {}
+  return value ? (c[value] ?? 0) : Object.values(c).reduce((a, b) => a + b, 0)
+}
+
+/** Produtos com variações abertos na lista (chave do grupo). Com filtro ativo, todos começam abertos. */
+const expanded = ref<Set<string>>(new Set())
+function toggleGroup(g: PromotionGroupRow) {
+  const next = new Set(expanded.value)
+  if (next.has(g.key)) next.delete(g.key)
+  else next.add(g.key)
+  expanded.value = next
+}
+const isOpen = (g: PromotionGroupRow) => expanded.value.has(g.key) || (hasFilters.value && g.matched !== undefined)
+
+/** Painel de limites do produto (grupo aberto): a chave do grupo, ou null. */
+const groupPanel = ref<string | null>(null)
+function openGroupPanel(g: PromotionGroupRow) {
+  if (groupPanel.value === g.key) {
+    groupPanel.value = null
+    promos.close()
+    return
+  }
+  groupPanel.value = g.key
+  promos.open(g.item_id)
+}
+
+/** Todos os anúncios da página, soltos e dentro dos produtos. */
+const allItems = computed<PromotionItemRow[]>(() => (response.value?.items ?? []).flatMap((r) => ('group' in r ? r.children : [r])))
 
 const COLUMNS = [
   { key: 'item', label: 'Anúncio', sort: 'title', width: 'w-[30%]', align: 'left' },
@@ -52,6 +85,10 @@ const COLUMNS = [
 ]
 
 const TONE: Record<string, string> = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger', neutral: 'text-ink-3' }
+const STATUS_SHORT: Record<string, string> = {
+  trocar: 'trocar', acima_maxima: 'acima da máx.', sem_promocao: 'sem promoção', ok: 'na melhor', abaixo_minima: 'abaixo da mín.',
+  sem_custo: 'sem custo', para_revisar: 'para revisar'
+}
 const tone = (t: string) => TONE[t] ?? 'text-ink-2'
 
 const pages = computed(() => (response.value ? Math.max(1, Math.ceil(response.value.total / response.value.per_page)) : 1))
@@ -65,24 +102,18 @@ const cards = computed(() => {
     { key: 'with', label: 'Em promoção', value: int(s.with_promotion), hint: `de ${int(s.items)} anúncios ativos` },
     { key: 'without', label: 'Sem promoção', value: int(s.without_promotion), hint: 'podem entrar numa oferta', tone: s.without_promotion ? 'text-warning' : '' },
     { key: 'switch', label: 'Trocas que rendem mais', value: int(s.to_switch), hint: `+${brl(s.switch_gain)} por unidade somando todas`, tone: s.to_switch ? 'text-warning' : '' },
-    { key: 'below', label: 'Abaixo da margem mínima', value: int(s.below_min), hint: `${int(s.without_cost)} anúncios sem custo ficam de fora`, tone: s.below_min ? 'text-danger' : '' }
+    { key: 'review', label: 'Para revisar', value: int(s.to_review), hint: 'nenhuma oferta cabe nas regras; nada foi aplicado', tone: s.to_review ? 'text-danger' : '' }
   ]
 })
 
-function offerLine(o: PromotionOfferShort | null) {
-  if (!o) return null
-  return { title: o.name || o.label, sub: o.label, price: o.price, margin: o.margin_pct, profit: o.profit, valid: o.valid, action: o.action }
-}
-
 function toggle(row: PromotionItemRow) {
+  groupPanel.value = null
   if (selected.value === row.item_id) promos.close()
   else promos.open(row.item_id)
 }
 
-const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da atual', aderir: 'entrar nesta', manter: '' }
-
 /** Anúncios desta página em que dá para aplicar a melhor oferta (trocar ou entrar). */
-const switchable = computed(() => (response.value?.items ?? []).filter((r) => ['trocar', 'sem_promocao', 'acima_maxima'].includes(r.status.key) && r.best).map((r) => r.item_id))
+const switchable = computed(() => allItems.value.filter((r) => ['trocar', 'sem_promocao', 'acima_maxima'].includes(r.status.key) && r.best).map((r) => r.item_id))
 const confirmingBulk = ref(false)
 
 function toggleCheck(id: string) {
@@ -165,7 +196,7 @@ function runBulk() {
             <button v-for="t in STATUS_TABS" :key="t.label" type="button" class="rounded-md px-2.5 py-1"
               :class="filters.status === t.value ? 'bg-primary-soft font-semibold text-primary' : 'text-ink-2 hover:bg-surface-2'"
               @click="promos.change({ status: t.value })">
-              {{ t.label }}<template v-if="t.value && response"> {{ int(response.counts[t.value] ?? 0) }}</template>
+              <span :class="t.tone && filters.status !== t.value ? t.tone : ''">{{ t.label }}</span><template v-if="response"> ({{ int(tabCount(t.value)) }})</template>
             </button>
             <span v-if="filters.promotionId" class="ml-2 rounded-md bg-primary-soft px-2.5 py-1 text-primary">
               Promoção: {{ promotionName }}
@@ -218,71 +249,88 @@ function runBulk() {
               <tr v-else-if="!response?.items.length">
                 <td :colspan="COLUMNS.length" class="px-3 py-10 text-center text-ink-3">Nenhum anúncio encontrado com esses filtros.</td>
               </tr>
-              <template v-for="row in response?.items ?? []" v-else :key="row.item_id">
-                <tr class="cursor-pointer border-b border-line hover:bg-surface-2" data-test="promo-row" @click="toggle(row)">
-                  <td class="px-2 py-2 align-top">
-                    <div class="flex items-start gap-2">
-                      <input
-                        v-if="session.isAdmin"
-                        type="checkbox"
-                        class="mt-3 shrink-0"
-                        :checked="checked.includes(row.item_id)"
-                        :disabled="!row.best"
-                        :aria-label="`Marcar ${row.item_id}`"
-                        @click.stop="toggleCheck(row.item_id)"
-                      />
-                      <img v-if="row.thumbnail" :src="row.thumbnail" alt="" class="h-9 w-9 shrink-0 rounded object-cover" loading="lazy" />
-                      <div class="min-w-0">
-                        <p class="truncate font-medium text-ink" :title="row.title">{{ row.title }}</p>
-                        <p class="truncate text-[11px] text-ink-3">
-                          {{ row.item_id }} · {{ row.sku ?? 'sem SKU' }}<template v-if="row.stock !== null"> · {{ int(row.stock) }} em estoque</template>
-                        </p>
-                        <p class="text-[11px] text-ink-3">
-                          <template v-if="row.settings.limit_mode === 'price'">
-                            valor<template v-if="row.settings.min_price !== null"> mín. {{ brl(row.settings.min_price) }}</template><template v-if="row.settings.max_price !== null"> · máx. {{ brl(row.settings.max_price) }}</template>
-                          </template>
-                          <template v-else>
-                            mín. {{ pct(row.settings.effective_min_pct) }}<template v-if="row.settings.effective_max_pct !== null"> · máx. {{ pct(row.settings.effective_max_pct) }}</template>
-                            <template v-if="row.settings.min_margin_pct === null && row.settings.max_margin_pct === null"> (geral)</template>
-                          </template>
-                          <template v-if="row.ads.unit > 0"> · Ads {{ brl(row.ads.unit) }}/un.</template>
-                        </p>
+              <template v-for="row in response?.items ?? []" v-else :key="'group' in row ? row.key : row.item_id">
+                <!-- produto com variações -->
+                <template v-if="'group' in row">
+                  <tr class="cursor-pointer border-b border-line bg-surface hover:bg-surface-2" data-test="promo-group" @click="toggleGroup(row)">
+                    <td class="px-2 py-2 align-top">
+                      <div class="flex items-start gap-2">
+                        <button type="button" class="mt-2 shrink-0 text-ink-3" :aria-expanded="isOpen(row)" :aria-label="isOpen(row) ? 'Recolher variações' : 'Ver variações'">
+                          <ChevronDownIcon v-if="isOpen(row)" class="h-4 w-4" aria-hidden="true" />
+                          <ChevronRightIcon v-else class="h-4 w-4" aria-hidden="true" />
+                        </button>
+                        <img v-if="row.thumbnail" :src="row.thumbnail" alt="" class="h-9 w-9 shrink-0 rounded object-cover" loading="lazy" />
+                        <div class="min-w-0">
+                          <p class="truncate font-semibold text-ink" :title="row.title">{{ row.title }}</p>
+                          <p class="truncate text-[11px] text-ink-3">
+                            {{ row.sku ?? 'produto' }} · {{ int(row.variations) }} {{ row.variations === 1 ? 'variação' : 'variações' }} · {{ int(row.count) }} anúncios
+                            <template v-if="row.matched !== undefined && row.matched < row.count"> ({{ int(row.matched) }} no filtro)</template>
+                          </p>
+                          <button v-if="session.isAdmin" type="button" class="btn-link text-[11px]" @click.stop="openGroupPanel(row)">
+                            {{ groupPanel === row.key ? 'Fechar limites do produto' : 'Limites do produto (todas as variações)' }}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td class="px-2 py-2 text-right align-top" data-numeric>{{ brl(row.full_price) }}</td>
-                  <td v-for="key in (['current', 'best'] as const)" :key="key" class="px-2 py-2 align-top">
-                    <template v-if="offerLine(row[key])">
-                      <p class="truncate font-medium text-ink" :title="offerLine(row[key])!.title">{{ offerLine(row[key])!.title }}</p>
-                      <p class="text-[11px]" data-numeric>
-                        <span class="text-ink-2">{{ brl(offerLine(row[key])!.price) }}</span>
-                        · <span :class="offerLine(row[key])!.valid ? 'text-ink' : 'text-danger'">{{ pct(offerLine(row[key])!.margin) }}</span>
-                        <span class="text-ink-3"> ({{ brl(offerLine(row[key])!.profit) }})</span>
-                      </p>
-                      <p v-if="key === 'best' && ACTION_HINT[offerLine(row[key])!.action] && row.gain" class="text-[11px] text-ink-3">{{ ACTION_HINT[offerLine(row[key])!.action] }}</p>
+                    </td>
+                    <td class="px-2 py-2 text-right align-top" data-numeric>
+                      {{ brl(row.price_min) }}<template v-if="row.price_max > row.price_min"> a {{ brl(row.price_max) }}</template>
+                    </td>
+                    <td class="px-2 py-2 align-top text-[11px] text-ink-2" data-numeric>{{ row.current_margin === null ? '—' : `margem mín. ${pct(row.current_margin)}` }}</td>
+                    <td class="px-2 py-2 align-top text-[11px] text-ink-2" data-numeric>{{ row.best_margin === null ? '—' : `até ${pct(row.best_margin)}` }}</td>
+                    <td class="px-2 py-2 text-right align-top font-medium" data-numeric :class="row.gain && row.gain > 0 ? 'text-success' : 'text-ink-3'">
+                      {{ row.gain ? `+${brl(row.gain)}` : '—' }}
+                    </td>
+                    <td class="px-2 py-2 align-top">
+                      <span :class="tone(row.status.tone)">{{ row.status.label }}</span>
+                      <span class="block text-[11px] text-ink-3">{{ Object.entries(row.statuses).map(([k, n]) => `${n} ${STATUS_SHORT[k] ?? k}`).join(' · ') }}</span>
+                    </td>
+                  </tr>
+                  <tr v-if="groupPanel === row.key" class="border-b border-line bg-surface-2">
+                    <td :colspan="COLUMNS.length" class="border-l-4 border-l-primary px-4 py-4">
+                      <PromotionItemPanel
+                        :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
+                        :acting="acting" :action-result="actionResult" group-mode :group-count="row.count"
+                        @save="promos.saveSettings" @apply="promos.apply" @leave="promos.leave"
+                      />
+                    </td>
+                  </tr>
+                  <template v-if="isOpen(row)">
+                    <template v-for="child in row.children" :key="child.item_id">
+                      <PromotionRow :row="child" :is-admin="session.isAdmin" :checked="checked.includes(child.item_id)" :selected="selected === child.item_id" nested
+                        @toggle="toggle(child)" @check="toggleCheck(child.item_id)" />
+                      <tr v-if="selected === child.item_id && groupPanel !== row.key" class="border-b border-line bg-surface-2">
+                        <td :colspan="COLUMNS.length" class="border-l-4 border-l-primary px-4 py-4">
+                          <PromotionItemPanel
+                            :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
+                            :acting="acting" :action-result="actionResult"
+                            @save="promos.saveSettings" @apply="promos.apply" @leave="promos.leave"
+                          />
+                        </td>
+                      </tr>
                     </template>
-                    <span v-else class="text-ink-3">—</span>
-                  </td>
-                  <td class="px-2 py-2 text-right align-top font-medium" data-numeric :class="row.gain && row.gain > 0 ? 'text-success' : 'text-ink-3'">
-                    {{ row.gain ? `+${brl(row.gain)}` : '—' }}
-                  </td>
-                  <td class="px-2 py-2 align-top"><span :class="tone(row.status.tone)">{{ row.status.label }}</span></td>
-                </tr>
-                <tr v-if="selected === row.item_id" class="border-b border-line bg-surface-2">
-                  <td :colspan="COLUMNS.length" class="border-l-4 border-l-primary px-4 py-4">
-                    <PromotionItemPanel
-                      :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
-                      :acting="acting" :action-result="actionResult"
-                      @save="promos.saveSettings" @apply="promos.apply" @leave="promos.leave"
-                    />
-                  </td>
-                </tr>
+                  </template>
+                </template>
+
+                <!-- anúncio solto -->
+                <template v-else>
+                  <PromotionRow :row="row" :is-admin="session.isAdmin" :checked="checked.includes(row.item_id)" :selected="selected === row.item_id"
+                    @toggle="toggle(row)" @check="toggleCheck(row.item_id)" />
+                  <tr v-if="selected === row.item_id" class="border-b border-line bg-surface-2">
+                    <td :colspan="COLUMNS.length" class="border-l-4 border-l-primary px-4 py-4">
+                      <PromotionItemPanel
+                        :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
+                        :acting="acting" :action-result="actionResult"
+                        @save="promos.saveSettings" @apply="promos.apply" @leave="promos.leave"
+                      />
+                    </td>
+                  </tr>
+                </template>
               </template>
             </tbody>
           </table>
 
           <div v-if="response && response.total > 0" class="flex flex-wrap items-center justify-between gap-2 border-t border-line px-3 py-2 text-[12px] text-ink-2">
-            <span>{{ int(response.total) }} anúncios · página {{ response.page }} de {{ pages }}</span>
+            <span>{{ int(response.total) }} {{ response.total === 1 ? 'linha' : 'linhas' }} (produtos e anúncios) · página {{ response.page }} de {{ pages }}</span>
             <div class="flex gap-2">
               <button type="button" class="btn-link" :disabled="response.page <= 1" @click="promos.setPage(response.page - 1)">Anterior</button>
               <button type="button" class="btn-link" :disabled="response.page >= pages" @click="promos.setPage(response.page + 1)">Próxima</button>
