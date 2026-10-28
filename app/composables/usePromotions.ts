@@ -193,6 +193,29 @@ export function usePromotions() {
     detail.value = null
   }
 
+  /** Marca/desmarca "não automatizar promoções neste anúncio" (e no SKU/variações, se pedido). */
+  async function setAutomation(enabled: boolean, spread: { sku: boolean; variations: boolean }) {
+    const accountId = session.selectedAccountId
+    if (!accountId || !selected.value || saving.value) return
+    saving.value = true
+    saveError.value = ''
+    try {
+      const res = await client.setAutomation(accountId, selected.value, enabled, spread)
+      detail.value = res
+      actionResult.value = {
+        ok: true,
+        message: enabled
+          ? `Promoções voltam a ser automáticas em ${res.updated} ${res.updated === 1 ? 'anúncio' : 'anúncios'}.`
+          : `${res.updated} ${res.updated === 1 ? 'anúncio marcado' : 'anúncios marcados'} para não automatizar: a rotina e o lote não mexem mais neles.`
+      }
+      schedule(false)
+    } catch (err) {
+      saveError.value = apiErrorMessage(err, 'Não foi possível mudar a automação agora.')
+    } finally {
+      saving.value = false
+    }
+  }
+
   async function saveSettings(input: PromotionSettingsInput) {
     const accountId = session.selectedAccountId
     if (!accountId || !selected.value || saving.value) return
@@ -255,7 +278,7 @@ export function usePromotions() {
     selected, detail, detailLoading, detailError, saving, saveError,
     acting, actionResult, checked, bulkMessage, history, historyLoading,
     change, sortBy, setPage, showPromotion, open, close, saveSettings, exportCsv, syncNow,
-    apply, leave, applyBestChecked, loadHistory,
+    apply, leave, applyBestChecked, loadHistory, setAutomation,
     start: polling.start, stop: polling.stop, refreshNow: polling.refreshNow, refreshing: polling.refreshing
   }
 }

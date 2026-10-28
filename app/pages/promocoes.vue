@@ -42,13 +42,14 @@ const STATUS_TABS = [
   { value: 'acima_maxima', label: 'Acima da máxima' },
   { value: 'ok', label: 'Na melhor' },
   { value: 'sem_custo', label: 'Sem custo' },
-  { value: 'para_revisar', label: 'Para revisar', tone: 'text-danger' }
+  { value: 'para_revisar', label: 'Para revisar', tone: 'text-danger' },
+  { value: 'nao_automatizados', label: 'Não automatizados', tone: 'text-warning' }
 ]
 
 /** Contagem de anúncios de cada guia; "Todos" soma todas. */
 function tabCount(value: string): number {
   const c = response.value?.counts ?? {}
-  return value ? (c[value] ?? 0) : Object.values(c).reduce((a, b) => a + b, 0)
+  return value ? (c[value] ?? 0) : Object.entries(c).reduce((a, [k, n]) => (k === 'nao_automatizados' ? a : a + n), 0)
 }
 
 /** Produtos com variações abertos na lista (chave do grupo). Com filtro ativo, todos começam abertos. */
@@ -155,7 +156,7 @@ function toggle(row: PromotionItemRow) {
 }
 
 /** Anúncios desta página em que dá para aplicar a melhor oferta (trocar ou entrar). */
-const switchable = computed(() => allItems.value.filter((r) => ['trocar', 'sem_promocao', 'acima_maxima'].includes(r.status.key) && r.best).map((r) => r.item_id))
+const switchable = computed(() => allItems.value.filter((r) => !r.manual && ['trocar', 'sem_promocao', 'acima_maxima'].includes(r.status.key) && r.best).map((r) => r.item_id))
 const confirmingBulk = ref(false)
 
 function toggleCheck(id: string) {
@@ -336,7 +337,7 @@ function runBulk() {
                       <PromotionItemPanel
                         :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
                         :acting="acting" :action-result="actionResult" group-mode :group-count="row.count"
-                        @save="promos.saveSettings" @apply="(t, sp) => promos.apply(t, sp)" @leave="() => promos.leave()"
+                        @save="promos.saveSettings" @apply="(t, sp) => promos.apply(t, sp)" @leave="() => promos.leave()" @automation="promos.setAutomation"
                       />
                     </td>
                   </tr>
@@ -349,7 +350,7 @@ function runBulk() {
                           <PromotionItemPanel
                             :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
                             :acting="acting" :action-result="actionResult" :has-next="hasNext"
-                            @save="promos.saveSettings" @apply="onApply" @leave="onLeave" @next="goNext"
+                            @save="promos.saveSettings" @apply="onApply" @leave="onLeave" @next="goNext" @automation="promos.setAutomation"
                           />
                         </td>
                       </tr>
@@ -366,7 +367,7 @@ function runBulk() {
                       <PromotionItemPanel
                         :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
                         :acting="acting" :action-result="actionResult" :has-next="hasNext"
-                        @save="promos.saveSettings" @apply="onApply" @leave="onLeave" @next="goNext"
+                        @save="promos.saveSettings" @apply="onApply" @leave="onLeave" @next="goNext" @automation="promos.setAutomation"
                       />
                     </td>
                   </tr>

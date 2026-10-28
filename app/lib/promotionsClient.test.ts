@@ -46,6 +46,11 @@ describe('createPromotionsClient', () => {
     await client.applyBest('acc1', ['MLB1', 'MLB2'])
     expect(api).toHaveBeenLastCalledWith('/api/promotions/apply_best', { method: 'POST', query: { account_id: 'acc1' }, body: { item_ids: ['MLB1', 'MLB2'] } })
 
+    await client.setAutomation('acc1', 'MLB1', false, { sku: true, variations: false })
+    expect(api).toHaveBeenLastCalledWith('/api/promotions/items/MLB1/automation', {
+      method: 'PATCH', query: { account_id: 'acc1' }, body: { enabled: false, apply_to_sku: true, apply_to_variations: false }
+    })
+
     await client.simulate('acc1')
     expect(api).toHaveBeenLastCalledWith('/api/promotions/runs', { method: 'POST', query: { account_id: 'acc1' } })
 

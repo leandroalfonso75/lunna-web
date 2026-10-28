@@ -45,6 +45,8 @@ export interface PromotionOffer extends PromotionOfferShort {
   fee: number | null
   flexible: boolean
   start_date: string | null
+  /** Relâmpago/oferta do dia: unidades que o ML sugere reservar (o Lunna reserva isso ao entrar). */
+  stock_reserved: number | null
 }
 
 export interface PromotionSettings {
@@ -99,6 +101,8 @@ export interface PromotionItemRow {
     suggested: { field: 'min_margin_pct' | 'max_margin_pct' | 'min_price' | 'max_price'; value: number } | null
   } | null
   notes: string | null
+  /** "Não automatizar promoções neste anúncio": a rotina e o lote não mexem; a melhor oferta segue sugerida. */
+  manual: boolean
 }
 
 /** Produto com variações: uma linha para o produto pai (Olist) e os anúncios de todas as variações dentro. */

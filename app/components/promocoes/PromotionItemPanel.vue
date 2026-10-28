@@ -29,6 +29,7 @@ const emit = defineEmits<{
   apply: [target: PromotionTarget | undefined, spread: PromotionSpread, goNext: boolean]
   leave: [goNext: boolean]
   next: []
+  automation: [enabled: boolean, spread: { sku: boolean; variations: boolean }]
 }>()
 
 /** Ação esperando confirmação: o que vai acontecer, em texto, antes de mexer no Mercado Livre. `spreadable` = ao entrar
@@ -82,7 +83,21 @@ function confirm(goNext = false) {
   pending.value = null
 }
 
-const JOINABLE = ['SELLER_CAMPAIGN', 'DEAL', 'PRICE_DISCOUNT', 'SMART', 'PRICE_MATCHING', 'MARKETPLACE_CAMPAIGN', 'UNHEALTHY_STOCK', 'SMART_LIGHTNING', 'PRE_NEGOTIATED']
+const JOINABLE = ['SELLER_CAMPAIGN', 'DEAL', 'PRICE_DISCOUNT', 'SMART', 'PRICE_MATCHING', 'MARKETPLACE_CAMPAIGN', 'UNHEALTHY_STOCK', 'SMART_LIGHTNING', 'PRE_NEGOTIATED', 'LIGHTNING', 'DOD']
+
+/** "Não automatizar promoções neste anúncio": ao marcar, abre as opções de levar ao SKU e às variações. */
+const manual = reactive({ on: false, sku: false, variations: false, dirty: false })
+watch(() => props.detail, (d) => {
+  if (!d) return
+  manual.on = d.manual
+  manual.sku = false
+  manual.variations = !!props.groupMode
+  manual.dirty = false
+}, { immediate: true })
+function saveManual() {
+  emit('automation', !manual.on, { sku: manual.sku, variations: manual.variations })
+  manual.dirty = false
+}
 
 const form = reactive<PromotionSettingsInput>({
   limit_mode: 'margin', min_margin_pct: '', max_margin_pct: '', min_price: '', max_price: '', apply_to_sku: false, apply_to_variations: false, rules_note: ''
@@ -254,7 +269,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
           >
             <td class="py-1.5 pr-2">
               <span class="font-medium" :class="o.valid ? 'text-ink' : ''">{{ o.name || o.label }}</span>
-              <span class="block text-[11px] text-ink-3">{{ o.label }}<template v-if="o.flexible"> · faixa {{ range(o) }}</template></span>
+              <span class="block text-[11px] text-ink-3">{{ o.label }}<template v-if="o.flexible"> · faixa {{ range(o) }}</template><template v-if="o.stock_reserved"> · reserva {{ o.stock_reserved }} un.</template></span>
               <span v-if="isBest(o)" class="mt-0.5 inline-block rounded bg-success px-1.5 text-[10px] font-semibold text-white">Melhor margem</span>
             </td>
             <td class="py-1.5 pr-2">
@@ -283,6 +298,29 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
       </table>
     </div>
 
+    <div class="space-y-4">
+    <div class="card space-y-2 p-4" :class="manual.on ? 'border-warning' : ''" data-test="nao-automatizar">
+      <label class="flex items-start gap-2 text-[13px]">
+        <input v-model="manual.on" type="checkbox" class="mt-0.5" :disabled="!isAdmin" @change="manual.dirty = true" />
+        <span>
+          <span class="font-semibold text-ink">Não automatizar promoções {{ groupMode ? 'neste produto' : 'neste anúncio' }}</span>
+          <span class="block text-[11px] text-ink-3">A rotina das 03:00 e o lote não mexem; só muda pela tela. A melhor oferta continua sugerida.</span>
+        </span>
+      </label>
+      <template v-if="manual.dirty || manual.on !== detail.manual">
+        <label v-if="detail.variation_items.length && !groupMode" class="ml-6 flex items-start gap-2 text-[12px] text-ink-2">
+          <input v-model="manual.variations" type="checkbox" class="mt-0.5" :disabled="!isAdmin" />
+          <span>Aplicar também às outras variações do produto ({{ detail.variation_items.length }} anúncios)</span>
+        </label>
+        <label v-if="detail.sku_items.length" class="ml-6 flex items-start gap-2 text-[12px] text-ink-2">
+          <input v-model="manual.sku" type="checkbox" class="mt-0.5" :disabled="!isAdmin" />
+          <span>Aplicar também aos outros {{ detail.sku_items.length }} anúncios do mesmo SKU</span>
+        </label>
+        <button v-if="isAdmin" type="button" class="btn-primary h-8 w-full text-[12px]" :disabled="saving" @click="saveManual">
+          {{ manual.on ? 'Marcar como não automatizado' : 'Voltar a automatizar' }}
+        </button>
+      </template>
+    </div>
     <form class="card space-y-3 p-4" @submit.prevent="emit('save', { ...form })">
       <p class="font-semibold text-ink">{{ groupMode ? 'Limites do produto (todas as variações)' : 'Limites deste anúncio' }}</p>
       <div v-if="detail.review && !groupMode" class="space-y-1 rounded-card border border-danger bg-danger-soft px-2 py-1.5 text-[12px] text-danger" data-test="review-reason">
@@ -347,5 +385,6 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
       <p v-else class="text-[11px] text-ink-3">Só administradores mudam os limites.</p>
       <a v-if="detail.permalink" :href="detail.permalink" target="_blank" rel="noopener" class="btn-link block text-[12px]">Abrir o anúncio no Mercado Livre</a>
     </form>
+    </div>
   </div>
 </template>

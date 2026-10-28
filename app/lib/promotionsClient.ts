@@ -40,6 +40,14 @@ export function createPromotionsClient(api: ApiFn) {
         }
       })
     },
+    /** "Não automatizar promoções neste anúncio" (enabled = false) ou volta a automatizar; leva ao SKU e às variações se pedido. */
+    setAutomation(accountId: string, itemId: string, enabled: boolean, spread: { sku: boolean; variations: boolean }): Promise<PromotionItemDetail & { updated: number }> {
+      return api(`/api/promotions/items/${itemId}/automation`, {
+        method: 'PATCH',
+        query: { account_id: accountId },
+        body: { enabled, apply_to_sku: spread.sku, apply_to_variations: spread.variations }
+      })
+    },
     /** CSV com todas as promoções da Central e os anúncios de cada uma (ativos e candidatos). */
     export(accountId: string): Promise<Blob> {
       return api('/api/promotions/export', { query: { account_id: accountId }, responseType: 'blob' })

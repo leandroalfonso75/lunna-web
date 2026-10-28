@@ -55,6 +55,7 @@ function offerLine(o: PromotionOfferShort | null) {
             </template>
             <template v-if="row.ads.unit > 0"> · Ads {{ brl(row.ads.unit) }}/un.</template>
             <template v-if="row.notes"> · <span class="text-primary" :title="row.notes">com regra própria</span></template>
+            <template v-if="row.manual"> · <span class="font-semibold text-warning" title="Não automatizar promoções: a rotina e o lote não mexem">não automatizado</span></template>
           </p>
         </div>
       </div>
