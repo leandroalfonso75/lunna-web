@@ -87,7 +87,17 @@ export interface PromotionItemRow {
   settings: PromotionSettings
   status: { key: string; label: string; tone: Tone }
   /** Em "Para revisar": a regra que barrou a promoção atual e as que barraram as ofertas. */
-  review: { current_reason: string | null; reasons: { reason: string; offers: number }[]; label: string } | null
+  review: {
+    current_reason: string | null
+    reasons: { reason: string; offers: number }[]
+    label: string
+    /** A melhor oferta entre as barradas (maior margem), com o que faltou para caber. */
+    blocked_best: (PromotionOfferShort & { shortfall: string }) | null
+    /** O que mudar nos limites para a melhor barrada caber (null quando não há saída). */
+    suggestion: string | null
+    /** Campo e valor dos limites que fariam a melhor barrada caber (botão "Usar a sugestão"). */
+    suggested: { field: 'min_margin_pct' | 'max_margin_pct' | 'min_price' | 'max_price'; value: number } | null
+  } | null
   notes: string | null
 }
 

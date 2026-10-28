@@ -62,6 +62,14 @@ function askLeave() {
   pending.value = { text: `Tira o anúncio de ${describe(c)}; ele volta ao preço cheio de ${brl(props.detail?.full_price)}.`, run: () => emit('leave') }
 }
 
+/** Preenche o campo de limite com o valor sugerido (o operador confere e salva). */
+function useSuggestion() {
+  const s = props.detail?.review?.suggested
+  if (!s) return
+  form.limit_mode = s.field.endsWith('_price') ? 'price' : 'margin'
+  form[s.field] = String(s.value)
+}
+
 function confirm() {
   pending.value?.run()
   pending.value = null
@@ -107,9 +115,13 @@ const today = computed(() => {
 })
 
 const after = computed(() => {
-  const b = props.detail?.best
-  if (!b?.costs || b.action === 'manter') return null
-  return { title: 'Depois da melhor oferta', sub: b.name || b.label, price: b.price, profit: b.profit, margin: b.margin_pct, costs: b.costs }
+  const d = props.detail
+  const b = d?.best
+  if (b?.costs && b.action !== 'manter') return { title: 'Depois da melhor oferta', sub: b.name || b.label, price: b.price, profit: b.profit, margin: b.margin_pct, costs: b.costs, blocked: false }
+  // Para revisar: a melhor oferta barrada, com a regra que a barrou
+  const x = d?.review?.blocked_best
+  if (x?.costs) return { title: 'Melhor oferta barrada', sub: `${x.name || x.label} · ${x.reason}`, price: x.price, profit: x.profit, margin: x.margin_pct, costs: x.costs, blocked: true }
+  return null
 })
 
 const ACTION: Record<string, string> = { manter: 'Como está hoje', editar_preco: 'Ajustar o preço', aderir: 'Entrar' }
@@ -180,7 +192,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
             <tr class="border-b border-line text-ink-2">
               <th scope="col" class="px-3 py-1.5 text-left font-semibold">Por unidade</th>
               <th scope="col" class="px-3 py-1.5 text-right font-semibold">{{ today.title }}<span class="block text-[11px] font-normal text-ink-3">{{ today.sub }}</span></th>
-              <th v-if="after" scope="col" class="px-3 py-1.5 text-right font-semibold">{{ after.title }}<span class="block text-[11px] font-normal text-ink-3">{{ after.sub }}</span></th>
+              <th v-if="after" scope="col" class="px-3 py-1.5 text-right font-semibold" :class="after.blocked ? 'text-danger' : ''">{{ after.title }}<span class="block text-[11px] font-normal" :class="after.blocked ? 'text-danger' : 'text-ink-3'">{{ after.sub }}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -260,9 +272,15 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
 
     <form class="card space-y-3 p-4" @submit.prevent="emit('save', { ...form })">
       <p class="font-semibold text-ink">{{ groupMode ? 'Limites do produto (todas as variações)' : 'Limites deste anúncio' }}</p>
-      <p v-if="detail.review && !groupMode" class="rounded-card border border-danger bg-danger-soft px-2 py-1.5 text-[12px] text-danger" data-test="review-reason">
-        Para revisar: {{ detail.review.label }}<template v-if="detail.review.reasons.length"> · ofertas barradas por: {{ detail.review.reasons.map((r) => `${r.reason} (${r.offers})`).join('; ') }}</template>
-      </p>
+      <div v-if="detail.review && !groupMode" class="space-y-1 rounded-card border border-danger bg-danger-soft px-2 py-1.5 text-[12px] text-danger" data-test="review-reason">
+        <p><span class="font-semibold">Para revisar:</span> {{ detail.review.label }}</p>
+        <p v-if="detail.review.blocked_best">Melhor oferta barrada: {{ detail.review.blocked_best.name || detail.review.blocked_best.label }} a {{ brl(detail.review.blocked_best.price) }} · {{ detail.review.blocked_best.shortfall }}</p>
+        <p v-if="detail.review.suggestion" class="text-ink">
+          <span class="font-semibold">Para caber:</span> {{ detail.review.suggestion }}
+          <button v-if="isAdmin && detail.review.suggested" type="button" class="btn-link ml-1 text-[12px]" data-test="usar-sugestao" @click="useSuggestion">Usar a sugestão</button>
+        </p>
+        <p v-if="detail.review.reasons.length > 1" class="text-ink-3">Outras regras: {{ detail.review.reasons.slice(1).map((r) => `${r.reason} (${r.offers})`).join('; ') }}</p>
+      </div>
       <div class="flex rounded-md border border-line p-0.5 text-[12px]" role="radiogroup" aria-label="Limitar a promoção por">
         <button type="button" role="radio" :aria-checked="form.limit_mode === 'margin'" class="flex-1 rounded px-2 py-1"
           :class="form.limit_mode === 'margin' ? 'bg-primary-soft font-semibold text-primary' : 'text-ink-2'" :disabled="!isAdmin" @click="form.limit_mode = 'margin'">Por margem (%)</button>

@@ -70,6 +70,12 @@ function offerLine(o: PromotionOfferShort | null) {
         </p>
         <p v-if="key === 'best' && ACTION_HINT[offerLine(row[key])!.action] && row.gain" class="text-[11px] text-ink-3">{{ ACTION_HINT[offerLine(row[key])!.action] }}</p>
       </template>
+      <template v-else-if="key === 'best' && row.review?.blocked_best">
+        <p class="truncate text-ink-3 line-through" :title="row.review.blocked_best.name || row.review.blocked_best.label">{{ row.review.blocked_best.name || row.review.blocked_best.label }}</p>
+        <p class="text-[11px] text-danger" data-numeric :title="row.review.blocked_best.shortfall">
+          {{ brl(row.review.blocked_best.price) }} · {{ pct(row.review.blocked_best.margin_pct) }} · barrada
+        </p>
+      </template>
       <span v-else class="text-ink-3">—</span>
     </td>
     <td class="px-2 py-2 text-right align-top font-medium" data-numeric :class="row.gain && row.gain > 0 ? 'text-success' : 'text-ink-3'">
@@ -77,7 +83,7 @@ function offerLine(o: PromotionOfferShort | null) {
     </td>
     <td class="px-2 py-2 align-top">
       <span :class="tone(row.status.tone)">{{ row.status.label }}</span>
-      <span v-if="row.review" class="block text-[11px] text-ink-3" :title="row.review.reasons.map((r) => `${r.reason} (${r.offers})`).join(' · ')">
+      <span v-if="row.review" class="block text-[11px] text-ink-3" :title="row.review.suggestion ?? row.review.reasons.map((r) => `${r.reason} (${r.offers})`).join(' · ')">
         {{ row.review.label }}
       </span>
     </td>
