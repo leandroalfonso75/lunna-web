@@ -106,6 +106,24 @@ const form = reactive<PromotionSettingsInput>({
 
 const str = (v: number | null) => (v === null ? '' : String(v))
 
+/** "Limites salvos": aparece quando a gravação termina sem erro e some ao mexer no formulário ou trocar de anúncio. */
+const savedNote = ref('')
+let limitsSubmitted = false
+function submitLimits() {
+  savedNote.value = ''
+  limitsSubmitted = true
+  emit('save', { ...form })
+}
+watch(() => props.saving, (now, before) => {
+  if (before && !now && limitsSubmitted) limitsSubmitted = false
+  else return
+  if (!props.saveError) {
+    const others = (form.apply_to_sku ? props.detail?.sku_items.length ?? 0 : 0) + (form.apply_to_variations ? props.detail?.variation_items.length ?? 0 : 0)
+    savedNote.value = others ? `Limites salvos neste anúncio e em mais ${others}.` : 'Limites salvos.'
+  }
+})
+watch(() => props.detail?.item_id, () => { savedNote.value = '' })
+
 watch(() => props.detail, (d) => {
   if (!d) return
   form.limit_mode = d.settings.limit_mode
@@ -446,11 +464,11 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
         </button>
       </template>
     </div>
-    <form class="card space-y-3 p-4" @submit.prevent="emit('save', { ...form })">
+    <form class="card space-y-3 p-4" @submit.prevent="submitLimits">
       <p class="font-semibold text-ink">{{ groupMode ? 'Limites do produto (todas as variações)' : 'Limites deste anúncio' }}</p>
       <div v-if="detail.review && !groupMode" class="space-y-1 rounded-card border border-danger bg-danger-soft px-2 py-1.5 text-[12px] text-danger" data-test="review-reason">
         <p><span class="font-semibold">Para revisar:</span> {{ detail.review.label }}</p>
-        <p v-if="detail.review.blocked_best">Melhor oferta barrada: {{ detail.review.blocked_best.name || detail.review.blocked_best.label }} a {{ brl(detail.review.blocked_best.price) }} · {{ detail.review.blocked_best.shortfall }}</p>
+        <p v-if="detail.review.blocked_best">Melhor oferta barrada: {{ detail.review.blocked_best.label }}<template v-if="detail.review.blocked_best.name"> “{{ detail.review.blocked_best.name }}”</template> a {{ brl(detail.review.blocked_best.price) }} · {{ detail.review.blocked_best.shortfall }}</p>
         <p v-if="detail.review.suggestion" class="text-ink">
           <span class="font-semibold">Para caber:</span> {{ detail.review.suggestion }}
           <button v-if="isAdmin && detail.review.suggested" type="button" class="btn-link ml-1 text-[12px]" data-test="usar-sugestao" @click="useSuggestion">Usar a sugestão</button>
@@ -506,6 +524,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
         </span>
       </label>
       <p v-if="saveError" class="text-[12px] text-danger" role="alert">{{ saveError }}</p>
+      <p v-else-if="savedNote" class="text-[12px] text-success" role="status" data-test="limites-salvos">{{ savedNote }}</p>
       <button v-if="isAdmin" type="submit" class="btn-primary w-full" :disabled="saving">{{ saving ? 'Salvando…' : 'Salvar limites' }}</button>
       <p v-else class="text-[11px] text-ink-3">Só administradores mudam os limites.</p>
       <a v-if="detail.permalink" :href="detail.permalink" target="_blank" rel="noopener" class="btn-link block text-[12px]">Abrir o anúncio no Mercado Livre</a>
