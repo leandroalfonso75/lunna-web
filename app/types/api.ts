@@ -24,6 +24,11 @@ export interface Company {
   /** Rotina das 03:00 da seção Promoções: ligada e em que modo (simulation = só registra; apply = aplica no ML). */
   promo_routine_enabled?: boolean
   promo_routine_mode?: 'simulation' | 'apply'
+  /** Promoções: permitir reduzir a margem ao buscar a mínima, até a tolerância (pontos percentuais). */
+  promo_allow_margin_drop?: boolean
+  promo_margin_drop_tolerance?: number | null
+  /** Promoções: anúncios de catálogo entram na automação (com conferência de 1 em 1 hora). */
+  promo_include_catalog?: boolean
   abc_cut_a: number
   abc_cut_b: number
   group_up_pct: number

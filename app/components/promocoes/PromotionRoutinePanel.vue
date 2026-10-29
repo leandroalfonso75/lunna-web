@@ -72,7 +72,7 @@ const rows = computed(() => {
 
 const TOTAL_LABELS: Record<string, string> = {
   simulado: 'mudariam', aplicado: 'aplicados', erro: 'com erro', revisar: 'para revisar', sem_mudanca: 'sem mudança',
-  regra_propria: 'com regra própria (não mexe)', automacao_desligada: 'com automação desligada'
+  regra_propria: 'com regra própria (não mexe)', automacao_desligada: 'com automação desligada', catalogo_fora: 'de catálogo fora da automação'
 }
 
 onMounted(load)

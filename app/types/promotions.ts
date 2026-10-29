@@ -76,6 +76,13 @@ export interface PromotionItemRow {
   listing_type: string | null
   logistic_type: string | null
   stock: number | null
+  /** Anúncio de catálogo: sincronizado com um tradicional ou não; null = tradicional. */
+  catalog: 'sincronizado' | 'sem_sincronizacao' | null
+  /** Tradicional sincronizado com um anúncio de catálogo. */
+  synced_with_catalog: boolean
+  /** Vendas: total do anúncio (ML) e unidades nos últimos 30 dias. */
+  sold_total: number | null
+  sold_30d: number
   full_price: number
   cost: number | null
   base: { price: number; profit: number; margin_pct: number; costs: PromotionCosts } | null
@@ -151,6 +158,24 @@ export interface MlPromotionRow {
   candidate_items: number
 }
 
+/** Regras da automação (rotina e lote), por empresa. */
+export interface PromotionAutomation {
+  allow_margin_drop: boolean
+  /** Pontos percentuais que a margem pode cair (com allow_margin_drop). */
+  margin_drop_tolerance: number | null
+  include_catalog: boolean
+}
+
+/** Anúncio de catálogo que seguiu sem ganhar depois de voltar ao preço anterior. */
+export interface CatalogAlert {
+  id: number
+  item_id: string
+  title: string | null
+  ml_status: string | null
+  message: string | null
+  checked_at: string | null
+}
+
 export interface PromotionsResponse {
   summary: {
     items: number
@@ -171,6 +196,8 @@ export interface PromotionsResponse {
   dir: 'asc' | 'desc'
   promotions: MlPromotionRow[]
   rules: { min_margin_pct: number; max_margin_pct: number | null }
+  automation: PromotionAutomation
+  catalog_alerts: CatalogAlert[]
   synced_at: string | null
 }
 

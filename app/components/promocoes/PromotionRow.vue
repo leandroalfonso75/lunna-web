@@ -19,6 +19,7 @@ const emit = defineEmits<{ toggle: []; check: [] }>()
 
 const TONE: Record<string, string> = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger', neutral: 'text-ink-3' }
 const tone = (t: string) => TONE[t] ?? 'text-ink-2'
+const LISTING: Record<string, string> = { gold_special: 'Clássico', gold_pro: 'Premium', free: 'Grátis' }
 const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da atual', aderir: 'entrar nesta', manter: '' }
 
 function offerLine(o: PromotionOfferShort | null) {
@@ -44,7 +45,12 @@ function offerLine(o: PromotionOfferShort | null) {
         <div class="min-w-0">
           <p class="truncate font-medium text-ink" :title="row.title">{{ row.title }}</p>
           <p class="truncate text-[11px] text-ink-3">
-            {{ row.item_id }} · {{ row.sku ?? 'sem SKU' }}<template v-if="row.stock !== null"> · {{ int(row.stock) }} em estoque</template>
+            {{ row.item_id }} · {{ row.sku ?? 'sem SKU' }}<template v-if="row.stock !== null"> · {{ int(row.stock) }} em estoque</template><template v-if="row.listing_type && LISTING[row.listing_type]"> · {{ LISTING[row.listing_type] }}</template>
+            · {{ int(row.sold_30d) }} {{ row.sold_30d === 1 ? 'venda' : 'vendas' }} em 30 dias<template v-if="row.sold_total !== null"> ({{ int(row.sold_total) }} no total)</template>
+          </p>
+          <p v-if="row.catalog || row.synced_with_catalog" class="text-[11px] font-semibold text-success" data-test="catalogo">
+            <template v-if="row.catalog">Catálogo · {{ row.catalog === 'sincronizado' ? 'com sincronização' : 'sem sincronização' }}</template>
+            <template v-else>Sincronizado com catálogo</template>
           </p>
           <p class="text-[11px] text-ink-3">
             <template v-if="row.settings.limit_mode === 'price'">
@@ -82,8 +88,8 @@ function offerLine(o: PromotionOfferShort | null) {
       </template>
       <span v-else class="text-ink-3">—</span>
     </td>
-    <td class="px-2 py-2 text-right align-top font-medium" data-numeric :class="row.gain && row.gain > 0 ? 'text-success' : 'text-ink-3'">
-      {{ row.gain ? `+${brl(row.gain)}` : '—' }}
+    <td class="px-2 py-2 text-right align-top font-medium" data-numeric :class="row.gain && row.gain > 0 ? 'text-success' : row.gain && row.gain < 0 ? 'text-danger' : 'text-ink-3'">
+      {{ row.gain ? `${row.gain > 0 ? '+' : ''}${brl(row.gain)}` : '—' }}
     </td>
     <td class="px-2 py-2 align-top">
       <span :class="tone(row.status.tone)">{{ row.status.label }}</span>

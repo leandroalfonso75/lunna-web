@@ -3,7 +3,7 @@ import { apiErrorMessage } from '../lib/apiErrors'
 import { buildPromotionsQuery, createPromotionsClient } from '../lib/promotionsClient'
 import { withTransientRetry } from '../lib/transientRetry'
 import { useSessionStore } from '../stores/session'
-import type { PromotionActionLog, PromotionItemDetail, PromotionSettingsInput, PromotionSpread, PromotionsFilters, PromotionsResponse, PromotionTarget } from '../types/promotions'
+import type { PromotionActionLog, PromotionAutomation, PromotionItemDetail, PromotionSettingsInput, PromotionSpread, PromotionsFilters, PromotionsResponse, PromotionTarget } from '../types/promotions'
 import { usePolling } from './usePolling'
 
 const DEBOUNCE_MS = 300
@@ -216,6 +216,32 @@ export function usePromotions() {
     }
   }
 
+  /** Regras da automação (abaixo dos cards); a lista é recalculada com elas. */
+  async function saveAutomation(patch: Partial<PromotionAutomation>) {
+    if (saving.value) return
+    saving.value = true
+    syncMessage.value = ''
+    try {
+      await client.saveAutomation(patch)
+      schedule(false)
+    } catch (err) {
+      syncMessage.value = apiErrorMessage(err, 'Não foi possível salvar as regras da automação.')
+    } finally {
+      saving.value = false
+    }
+  }
+
+  async function dismissCatalogAlert(id: number) {
+    const accountId = session.selectedAccountId
+    if (!accountId) return
+    try {
+      await client.dismissCatalogAlert(accountId, id)
+      schedule(false)
+    } catch (err) {
+      syncMessage.value = apiErrorMessage(err, 'Não foi possível marcar o aviso como visto.')
+    }
+  }
+
   async function saveSettings(input: PromotionSettingsInput) {
     const accountId = session.selectedAccountId
     if (!accountId || !selected.value || saving.value) return
@@ -278,7 +304,7 @@ export function usePromotions() {
     selected, detail, detailLoading, detailError, saving, saveError,
     acting, actionResult, checked, bulkMessage, history, historyLoading,
     change, sortBy, setPage, showPromotion, open, close, saveSettings, exportCsv, syncNow,
-    apply, leave, applyBestChecked, loadHistory, setAutomation,
+    apply, leave, applyBestChecked, loadHistory, setAutomation, saveAutomation, dismissCatalogAlert,
     start: polling.start, stop: polling.stop, refreshNow: polling.refreshNow, refreshing: polling.refreshing
   }
 }

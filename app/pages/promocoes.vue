@@ -3,6 +3,7 @@ import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, MagnifyingGlassIcon }
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
+import PromotionAutomationCard from '../components/promocoes/PromotionAutomationCard.vue'
 import PromotionItemPanel from '../components/promocoes/PromotionItemPanel.vue'
 import PromotionRoutinePanel from '../components/promocoes/PromotionRoutinePanel.vue'
 import PromotionRow from '../components/promocoes/PromotionRow.vue'
@@ -88,6 +89,12 @@ function nextAfter(id: string | null): WalkStop | null {
 const hasNext = computed(() => !!nextAfter(selected.value))
 
 /** Abre o próximo anúncio da lista (abrindo o produto, se ele estiver dentro de um) e rola a tela até ele. */
+/** Aviso de catálogo: filtra a lista pelo anúncio e abre o painel dele. */
+function openAlert(itemId: string) {
+  promos.change({ q: itemId, status: '', promotionId: '' })
+  promos.open(itemId)
+}
+
 async function goTo(target: WalkStop | null) {
   if (!target) return
   groupPanel.value = null
@@ -208,6 +215,20 @@ function runBulk() {
       </div>
       <div v-else class="h-24 animate-pulse rounded-card bg-surface-2" />
 
+      <PromotionAutomationCard v-if="response?.automation" :automation="response.automation" :is-admin="session.isAdmin" :saving="saving" @save="promos.saveAutomation" />
+
+      <div v-if="response?.catalog_alerts?.length" class="card border-danger p-4 text-[13px]" role="alert" data-test="avisos-catalogo">
+        <p class="font-semibold text-danger">Catálogo para análise manual ({{ response.catalog_alerts.length }})</p>
+        <p class="text-[12px] text-ink-3">Mesmo depois de voltar ao preço anterior, estes anúncios de catálogo não estão ganhando.</p>
+        <ul class="mt-2 space-y-1">
+          <li v-for="a in response.catalog_alerts" :key="a.id" class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn-link text-[12px]" @click="openAlert(a.item_id)">{{ a.title || a.item_id }}</button>
+            <span class="text-[11px] text-ink-3">{{ a.item_id }} · {{ a.message }}<template v-if="a.checked_at"> · {{ dateTimeShort(a.checked_at) }}</template></span>
+            <button v-if="session.isAdmin" type="button" class="btn-link ml-auto text-[11px]" @click="promos.dismissCatalogAlert(a.id)">Marcar como visto</button>
+          </li>
+        </ul>
+      </div>
+
       <p v-if="response && !response.synced_at" class="card p-6 text-center text-ink-2">
         A Central de Promoções ainda não foi lida para esta conta. {{ session.isAdmin ? 'Use "Atualizar do Mercado Livre agora".' : 'Peça a um administrador para atualizar.' }}
       </p>
@@ -324,8 +345,8 @@ function runBulk() {
                     </td>
                     <td class="px-2 py-2 align-top text-[11px] text-ink-2" data-numeric>{{ row.current_margin === null ? '—' : `margem mín. ${pct(row.current_margin)}` }}</td>
                     <td class="px-2 py-2 align-top text-[11px] text-ink-2" data-numeric>{{ row.best_margin === null ? '—' : `até ${pct(row.best_margin)}` }}</td>
-                    <td class="px-2 py-2 text-right align-top font-medium" data-numeric :class="row.gain && row.gain > 0 ? 'text-success' : 'text-ink-3'">
-                      {{ row.gain ? `+${brl(row.gain)}` : '—' }}
+                    <td class="px-2 py-2 text-right align-top font-medium" data-numeric :class="row.gain && row.gain > 0 ? 'text-success' : row.gain && row.gain < 0 ? 'text-danger' : 'text-ink-3'">
+                      {{ row.gain ? `${row.gain > 0 ? '+' : ''}${brl(row.gain)}` : '—' }}
                     </td>
                     <td class="px-2 py-2 align-top">
                       <span :class="tone(row.status.tone)">{{ row.status.label }}</span>

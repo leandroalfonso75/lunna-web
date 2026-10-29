@@ -1,5 +1,5 @@
 import type {
-  PromotionActionLog, PromotionActionResult, PromotionItemDetail, PromotionRunDetail, PromotionRunsResponse, PromotionSettingsInput,
+  PromotionActionLog, PromotionActionResult, PromotionAutomation, PromotionItemDetail, PromotionRunDetail, PromotionRunsResponse, PromotionSettingsInput,
   PromotionSpread, PromotionsFilters, PromotionsResponse, PromotionTarget
 } from '../types/promotions'
 
@@ -85,6 +85,18 @@ export function createPromotionsClient(api: ApiFn) {
     /** "Simular agora": roda a rotina em simulação (nada muda no ML). Só administradores. */
     simulate(accountId: string): Promise<{ queued: boolean }> {
       return api('/api/promotions/runs', { method: 'POST', query: { account_id: accountId } })
+    },
+    /** Regras da automação (empresa): reduzir margem com tolerância e incluir catálogo. Só administradores. */
+    saveAutomation(patch: Partial<PromotionAutomation>): Promise<unknown> {
+      const body: Record<string, unknown> = {}
+      if (patch.allow_margin_drop !== undefined) body.promo_allow_margin_drop = patch.allow_margin_drop
+      if (patch.margin_drop_tolerance !== undefined) body.promo_margin_drop_tolerance = patch.margin_drop_tolerance
+      if (patch.include_catalog !== undefined) body.promo_include_catalog = patch.include_catalog
+      return api('/api/company', { method: 'PATCH', body })
+    },
+    /** Aviso de catálogo para análise manual: marcar como visto. Só administradores. */
+    dismissCatalogAlert(accountId: string, id: number): Promise<unknown> {
+      return api(`/api/promotions/catalog_checks/${id}/dismiss`, { method: 'POST', query: { account_id: accountId } })
     },
     /** Lê de novo a Central de Promoções no Mercado Livre. Só administradores. */
     sync(accountId: string): Promise<{ queued: boolean }> {
