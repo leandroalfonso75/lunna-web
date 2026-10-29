@@ -83,6 +83,8 @@ export interface PromotionItemRow {
   /** Vendas: total do anúncio (ML) e unidades nos últimos 30 dias. */
   sold_total: number | null
   sold_30d: number
+  /** Anúncio de catálogo: ganhando ou perdendo a vitrine e, perdendo, o preço para ganhar e a oferta que chega nele. */
+  catalog_info: CatalogInfo | null
   full_price: number
   cost: number | null
   base: { price: number; profit: number; margin_pct: number; costs: PromotionCosts } | null
@@ -156,6 +158,20 @@ export interface MlPromotionRow {
   deadline_date: string | null
   active_items: number
   candidate_items: number
+}
+
+export interface CatalogInfo {
+  state: 'ganhando' | 'compartilhando' | 'perdendo' | 'sem_dados'
+  ml_status: string | null
+  checked_at: string | null
+  /** Preço que o comprador paga hoje (com a promoção atual). */
+  price_today: number
+  price_to_win: number | null
+  winner_price: number | null
+  reduce_by?: number
+  reduce_pct?: number | null
+  suggestion?: PromotionOfferShort | null
+  message?: string
 }
 
 /** Regras da automação (rotina e lote), por empresa. */

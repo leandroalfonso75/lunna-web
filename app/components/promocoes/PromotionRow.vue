@@ -19,6 +19,10 @@ const emit = defineEmits<{ toggle: []; check: [] }>()
 
 const TONE: Record<string, string> = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger', neutral: 'text-ink-3' }
 const tone = (t: string) => TONE[t] ?? 'text-ink-2'
+const CATALOG_LABEL: Record<string, string> = { ganhando: 'Ganhando', compartilhando: 'Dividindo o 1º lugar', perdendo: 'Perdendo', sem_dados: 'Sem leitura' }
+const CATALOG_TONE: Record<string, string> = {
+  ganhando: 'bg-success-soft text-success', compartilhando: 'bg-warning-soft text-warning', perdendo: 'bg-danger-soft text-danger', sem_dados: 'bg-surface-2 text-ink-3'
+}
 const LISTING: Record<string, string> = { gold_special: 'Clássico', gold_pro: 'Premium', free: 'Grátis' }
 const ACTION_HINT: Record<string, string> = { editar_preco: 'ajustar o preço da atual', aderir: 'entrar nesta', manter: '' }
 
@@ -51,6 +55,19 @@ function offerLine(o: PromotionOfferShort | null) {
           <p v-if="row.catalog || row.synced_with_catalog" class="text-[11px] font-semibold text-success" data-test="catalogo">
             <template v-if="row.catalog">Catálogo · {{ row.catalog === 'sincronizado' ? 'com sincronização' : 'sem sincronização' }}</template>
             <template v-else>Sincronizado com catálogo</template>
+            <span v-if="row.catalog_info" class="ml-1 rounded-full px-1.5" :class="CATALOG_TONE[row.catalog_info.state]" data-test="catalogo-estado">
+              {{ CATALOG_LABEL[row.catalog_info.state] }}
+            </span>
+          </p>
+          <p v-if="row.catalog_info?.state === 'perdendo' && row.catalog_info.price_to_win !== null" class="text-[11px] text-ink-2" data-test="catalogo-meta">
+            Para ganhar: <strong class="text-danger" data-numeric>{{ brl(row.catalog_info.price_to_win) }}</strong>
+            <template v-if="row.catalog_info.reduce_pct"> (−{{ pct(row.catalog_info.reduce_pct) }} sobre {{ brl(row.catalog_info.price_today) }})</template>
+            <template v-if="row.catalog_info.suggestion">
+              · sugestão: {{ row.catalog_info.suggestion.name || row.catalog_info.suggestion.label }} a {{ brl(row.catalog_info.suggestion.price) }},
+              margem <span :class="row.catalog_info.suggestion.valid ? 'text-success' : 'text-danger'">{{ pct(row.catalog_info.suggestion.margin_pct) }}</span>
+              <template v-if="!row.catalog_info.suggestion.valid"> ({{ row.catalog_info.suggestion.reason }})</template>
+            </template>
+            <template v-else> · {{ row.catalog_info.message }}</template>
           </p>
           <p class="text-[11px] text-ink-3">
             <template v-if="row.settings.limit_mode === 'price'">

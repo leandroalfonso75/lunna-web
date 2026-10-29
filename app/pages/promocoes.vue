@@ -44,13 +44,16 @@ const STATUS_TABS = [
   { value: 'ok', label: 'Na melhor' },
   { value: 'sem_custo', label: 'Sem custo' },
   { value: 'para_revisar', label: 'Para revisar', tone: 'text-danger' },
-  { value: 'nao_automatizados', label: 'Não automatizados', tone: 'text-warning' }
+  { value: 'nao_automatizados', label: 'Não automatizados', tone: 'text-warning' },
+  { value: 'catalogo', label: 'Catálogo', tone: 'text-success' }
 ]
+/** Guias que são recortes (um anúncio também está na guia da sua situação): fora da soma de "Todos". */
+const SLICE_TABS = ['nao_automatizados', 'catalogo', 'catalogo_perdendo']
 
 /** Contagem de anúncios de cada guia; "Todos" soma todas. */
 function tabCount(value: string): number {
   const c = response.value?.counts ?? {}
-  return value ? (c[value] ?? 0) : Object.entries(c).reduce((a, [k, n]) => (k === 'nao_automatizados' ? a : a + n), 0)
+  return value ? (c[value] ?? 0) : Object.entries(c).reduce((a, [k, n]) => (SLICE_TABS.includes(k) ? a : a + n), 0)
 }
 
 /** Produtos com variações abertos na lista (chave do grupo). Com filtro ativo, todos começam abertos. */
@@ -260,12 +263,17 @@ function runBulk() {
             <input :value="filters.q" type="search" class="input h-10 w-full pl-9" placeholder="Buscar por anúncio, título ou SKU" aria-label="Buscar anúncios"
               @input="promos.change({ q: ($event.target as HTMLInputElement).value }, true)" />
           </div>
-          <div class="flex flex-wrap items-center gap-1 text-[13px]" role="group" aria-label="Situação">
-            <button v-for="t in STATUS_TABS" :key="t.label" type="button" class="rounded-md px-2.5 py-1"
-              :class="filters.status === t.value ? 'bg-primary-soft font-semibold text-primary' : 'text-ink-2 hover:bg-surface-2'"
-              @click="promos.change({ status: t.value })">
-              <span :class="t.tone && filters.status !== t.value ? t.tone : ''">{{ t.label }}</span><template v-if="response"> ({{ int(tabCount(t.value)) }})</template>
-            </button>
+          <div class="flex flex-wrap items-center gap-2 text-[13px]">
+            <div class="status-tabs" role="tablist" aria-label="Situação">
+              <button v-for="t in STATUS_TABS" :key="t.label" type="button" role="tab" class="status-tab" :aria-selected="filters.status === t.value"
+                :data-active="filters.status === t.value" @click="promos.change({ status: t.value })">
+                <span :class="t.tone && filters.status !== t.value ? t.tone : ''">{{ t.label }}</span>
+                <span v-if="response" class="status-tab-count" data-numeric>{{ int(tabCount(t.value)) }}</span>
+                <span v-if="t.value === 'catalogo' && response?.counts.catalogo_perdendo" class="status-tab-alert" :title="`${response.counts.catalogo_perdendo} perdendo o catálogo`">
+                  {{ response.counts.catalogo_perdendo }} perdendo
+                </span>
+              </button>
+            </div>
             <span v-if="filters.promotionId" class="ml-2 rounded-md bg-primary-soft px-2.5 py-1 text-primary">
               Promoção: {{ promotionName }}
               <button type="button" class="ml-1 font-semibold" aria-label="Tirar filtro de promoção" @click="promos.change({ promotionId: '' })">×</button>
@@ -473,3 +481,34 @@ function runBulk() {
     </template>
   </div>
 </template>
+
+<style scoped>
+/* Guias de situação: trilho discreto, abas sem borda, cantos arredondados; destaque ao passar o mouse e na aberta. */
+.status-tabs {
+  @apply inline-flex flex-wrap items-center gap-1 rounded-2xl p-1;
+  background: color-mix(in srgb, var(--surface-2) 75%, transparent);
+}
+.status-tab {
+  @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-ink-2 transition-all duration-200 ease-out;
+}
+.status-tab:hover {
+  @apply -translate-y-px bg-surface text-ink shadow-sm;
+}
+.status-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 40%, transparent);
+}
+.status-tab[data-active='true'] {
+  @apply scale-[1.04] bg-surface font-semibold text-primary;
+  box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--primary) 22%, transparent), 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.status-tab-count {
+  @apply rounded-full bg-surface-2 px-1.5 text-[11px] font-medium leading-5 text-ink-3 transition-colors duration-200;
+}
+.status-tab[data-active='true'] .status-tab-count {
+  @apply bg-primary-soft text-primary;
+}
+.status-tab-alert {
+  @apply rounded-full bg-danger-soft px-1.5 text-[10px] font-semibold leading-5 text-danger;
+}
+</style>
