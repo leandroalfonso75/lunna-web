@@ -126,7 +126,7 @@ watch(() => props.saving, (now, before) => {
   if (before && !now && limitsSubmitted) limitsSubmitted = false
   else return
   if (!props.saveError) {
-    const others = (form.apply_to_sku ? props.detail?.sku_items.length ?? 0 : 0) + (form.apply_to_variations ? props.detail?.variation_items.length ?? 0 : 0)
+    const others = (form.apply_to_sku ? props.detail?.sku_items.length ?? 0 : 0) + (form.apply_to_variations ? props.detail?.variation_total ?? 0 : 0)
     savedNote.value = others ? `Limites salvos neste anúncio e em mais ${others}.` : 'Limites salvos.'
   }
 })
@@ -305,7 +305,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
     <div v-if="groupMode" class="card p-4 text-[12px] text-ink-2">
       <p class="font-semibold text-ink">Limites do produto</p>
       <p class="mt-1">
-        O que você salvar aqui vale para todos os {{ groupCount ?? detail.variation_items.length + 1 }} anúncios deste produto (todas as variações e os
+        O que você salvar aqui vale para todos os {{ groupCount ?? detail.variation_total + 1 }} anúncios deste produto (todas as variações e os
         anúncios do mesmo SKU). Para ver as ofertas e aplicar uma promoção, abra cada anúncio na lista.
       </p>
       <p v-if="detail.review" class="mt-2 text-danger">Este produto tem anúncios para revisar: {{ detail.review.label }}.</p>
@@ -326,13 +326,16 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
       <div v-if="pending" ref="dialogEl" class="my-2 rounded-card border border-warning bg-warning-soft p-3 text-[12px]" role="alertdialog" aria-label="Confirmar ação no Mercado Livre">
         <p class="text-ink">{{ pending.text }}</p>
         <div v-if="pending.spreadable && (detail.sku_items.length || detail.variation_items.length)" class="mt-2 space-y-1 text-ink-2">
-          <label v-if="detail.sku_items.length" class="flex items-start gap-2">
-            <input v-model="spread.alsoSku" type="checkbox" class="mt-0.5" />
-            <span>Aplicar a mesma promoção aos outros {{ detail.sku_items.length }} {{ detail.sku_items.length === 1 ? 'anúncio' : 'anúncios' }} do SKU {{ detail.sku }}</span>
-          </label>
           <label v-if="detail.variation_items.length" class="flex items-start gap-2">
-            <input v-model="spread.alsoVariations" type="checkbox" class="mt-0.5" />
-            <span>Aplicar a mesma promoção aos {{ detail.variation_items.length }} anúncios das outras variações do produto</span>
+            <input v-model="spread.alsoVariations" type="checkbox" class="mt-0.5" data-test="tambem-variacoes" />
+            <span>
+              Aplicar a mesma promoção às outras {{ detail.variation_items.length }} {{ detail.variation_items.length === 1 ? 'variação' : 'variações' }} do produto
+              <span class="block text-[11px] text-ink-3">O anúncio equivalente a este em cada variação<template v-if="detail.sku_items.length">; com o SKU marcado abaixo, todos os {{ detail.variation_total }} anúncios das variações</template>.</span>
+            </span>
+          </label>
+          <label v-if="detail.sku_items.length" class="flex items-start gap-2">
+            <input v-model="spread.alsoSku" type="checkbox" class="mt-0.5" data-test="tambem-sku" />
+            <span>Aplicar a mesma promoção aos outros {{ detail.sku_items.length }} {{ detail.sku_items.length === 1 ? 'anúncio' : 'anúncios' }} do SKU {{ detail.sku }}</span>
           </label>
           <p class="text-[11px] text-ink-3">Cada um entra pelo próprio preço de venda e pelos próprios limites; o que não couber fica no Histórico com o motivo.</p>
         </div>
@@ -512,7 +515,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
       <template v-if="manual.dirty || manual.on !== detail.manual">
         <label v-if="detail.variation_items.length && !groupMode" class="ml-6 flex items-start gap-2 text-[12px] text-ink-2">
           <input v-model="manual.variations" type="checkbox" class="mt-0.5" :disabled="!isAdmin" />
-          <span>Aplicar também às outras variações do produto ({{ detail.variation_items.length }} anúncios)</span>
+          <span>Aplicar também às outras variações do produto ({{ detail.variation_total }} anúncios)</span>
         </label>
         <label v-if="detail.sku_items.length" class="ml-6 flex items-start gap-2 text-[12px] text-ink-2">
           <input v-model="manual.sku" type="checkbox" class="mt-0.5" :disabled="!isAdmin" />
@@ -578,7 +581,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
       <label v-if="detail.variation_items.length" class="flex items-start gap-2">
         <input v-model="form.apply_to_variations" type="checkbox" class="mt-0.5" :disabled="!isAdmin || groupMode" />
         <span class="text-[12px] text-ink-2">
-          Aplicar às outras variações do produto ({{ detail.variation_items.length }} {{ detail.variation_items.length === 1 ? 'anúncio' : 'anúncios' }})
+          Aplicar às outras variações do produto ({{ detail.variation_total }} {{ detail.variation_total === 1 ? 'anúncio' : 'anúncios' }})
           <span class="block text-[11px] text-ink-3">{{ [...new Set(detail.variation_items.map((v) => v.sku))].slice(0, 6).join(', ') }}<template v-if="new Set(detail.variation_items.map((v) => v.sku)).size > 6">…</template></span>
         </span>
       </label>

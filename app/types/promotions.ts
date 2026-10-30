@@ -148,8 +148,10 @@ export type PromotionListRow = PromotionItemRow | PromotionGroupRow
 export interface PromotionItemDetail extends PromotionItemRow {
   offers: PromotionOffer[]
   sku_items: { item_id: string; title: string; listing_type: string }[]
-  /** Anúncios das outras variações do mesmo produto (produto pai no Olist). */
+  /** O anúncio equivalente em cada outra variação do produto (produto pai no Olist): alvo de "aplicar às variações". */
   variation_items: { item_id: string; title: string; sku: string | null }[]
+  /** Todos os anúncios das outras variações (os limites e "não automatizar" valem para todos). */
+  variation_total: number
 }
 
 export interface MlPromotionRow {
