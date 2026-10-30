@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { brl, pct } from '../../lib/format'
 import { promotionValidity } from '../../lib/promotionValidity'
 import type { PromotionCosts, PromotionItemDetail, PromotionOffer, PromotionSettingsInput, PromotionSpread, PromotionTarget } from '../../types/promotions'
@@ -37,6 +37,14 @@ const emit = defineEmits<{
  * numa promoção, dá para levar a mesma aos outros anúncios do SKU e das variações. */
 const pending = ref<{ text: string; run: (goNext: boolean) => void; spreadable?: boolean } | null>(null)
 const spread = reactive<PromotionSpread>({ alsoSku: false, alsoVariations: false })
+/** A caixa de confirmação fica no alto do card; quando o botão clicado está lá embaixo, rola até ela. */
+const dialogEl = ref<HTMLElement | null>(null)
+watch(pending, async (p) => {
+  if (!p) return
+  await nextTick()
+  dialogEl.value?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  dialogEl.value?.querySelector<HTMLElement>('[data-test=confirmar]')?.focus()
+})
 
 const canApplyBest = computed(() => {
   const d = props.detail
@@ -310,7 +318,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
           </button>
         </div>
       </div>
-      <div v-if="pending" class="my-2 rounded-card border border-warning bg-warning-soft p-3 text-[12px]" role="alertdialog" aria-label="Confirmar ação no Mercado Livre">
+      <div v-if="pending" ref="dialogEl" class="my-2 rounded-card border border-warning bg-warning-soft p-3 text-[12px]" role="alertdialog" aria-label="Confirmar ação no Mercado Livre">
         <p class="text-ink">{{ pending.text }}</p>
         <div v-if="pending.spreadable && (detail.sku_items.length || detail.variation_items.length)" class="mt-2 space-y-1 text-ink-2">
           <label v-if="detail.sku_items.length" class="flex items-start gap-2">
