@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, Cog6ToothIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
@@ -192,13 +192,19 @@ function runBulk() {
 <template>
   <EmptyAccountState v-if="!session.selectedAccount" />
   <div v-else class="page space-y-5">
-    <PageHeader />
+    <PageHeader>
+      <template #actions>
+        <NuxtLink v-if="session.isAdmin" to="/configuracoes?aba=promocoes" class="btn-primary h-10 shrink-0 px-4 text-[14px]" data-test="configurar-promocoes">
+          <Cog6ToothIcon class="h-5 w-5" aria-hidden="true" />
+          Configurar promoções
+        </NuxtLink>
+      </template>
+    </PageHeader>
 
     <div class="flex flex-wrap items-center gap-3 text-[12px] text-ink-3">
       <span v-if="response?.synced_at">Central de Promoções lida em {{ dateTimeShort(response.synced_at) }} (a cada hora)</span>
       <span v-if="response">Margem geral: mínima {{ pct(response.rules.min_margin_pct) }}<template v-if="response.rules.max_margin_pct !== null">, máxima {{ pct(response.rules.max_margin_pct) }}</template> (Configurações)</span>
       <div class="ml-auto flex gap-3 text-[13px]">
-        <NuxtLink v-if="session.isAdmin" to="/configuracoes?aba=promocoes" class="btn-link" data-test="configurar-promocoes">Configurar promoções</NuxtLink>
         <button type="button" class="btn-link" :disabled="exporting" @click="promos.exportCsv">{{ exporting ? 'Exportando…' : 'Exportar todas (CSV)' }}</button>
         <button v-if="session.isAdmin" type="button" class="btn-link" :disabled="syncing" @click="promos.syncNow">
           {{ syncing ? 'Pedindo…' : 'Atualizar do Mercado Livre agora' }}

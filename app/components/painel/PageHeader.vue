@@ -53,6 +53,9 @@ const header = usePageHeader()
       </p>
     </div>
 
+    <div class="flex shrink-0 flex-wrap items-center gap-2">
+    <!-- ações extras da página (ex.: "Configurar promoções"), ao lado de "Atualizar agora" -->
+    <slot name="actions" />
     <button
       type="button"
       data-test="atualizar-agora"
@@ -63,5 +66,6 @@ const header = usePageHeader()
       <ArrowPathIcon class="h-4 w-4" :class="{ 'animate-spin': header.state.refreshing }" aria-hidden="true" />
       Atualizar agora
     </button>
+    </div>
   </header>
 </template>
