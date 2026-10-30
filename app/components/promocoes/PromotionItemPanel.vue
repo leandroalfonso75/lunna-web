@@ -190,7 +190,6 @@ const cols = computed<CostColumn[]>(() => {
   }
   return out
 })
-const after = computed(() => cols.value[0] ?? null)
 const COL_TONE: Record<CostColumn['tone'], string> = { ok: '', blocked: 'text-danger', fit: 'text-success' }
 
 /** Aplica a oferta cabível (pode ferir a trava de lucro ou a regra de aumento: fica no Histórico). */
