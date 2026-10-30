@@ -200,9 +200,11 @@ function askFitting() {
   const offer = props.detail?.offers.find((o) => o.promotion_id === f.promotion_id && o.type === f.type)
   if (offer?.flexible && f.price !== null) target.price = f.price
   const why = f.soft_reason ? ` Fere a regra: ${f.soft_reason}. Fica registrado no Histórico.` : ''
+  spread.alsoSku = false
+  spread.alsoVariations = false
   pending.value = {
     text: `${props.detail?.current ? `Sai de ${describe(props.detail.current)} e entra em` : 'Entra em'} ${describe(f)}.${why} O preço muda no Mercado Livre na hora.`,
-    run: (goNext) => emit('apply', target, { alsoSku: false, alsoVariations: false }, goNext)
+    run: (goNext) => emit('apply', target, { ...spread }, goNext), spreadable: true
   }
 }
 
@@ -261,9 +263,11 @@ const customPreview = computed(() => {
 function askForce() {
   const b = blocked.value
   if (!b) return
+  spread.alsoSku = false
+  spread.alsoVariations = false
   pending.value = {
     text: `Aplica ${describe(b.short)} mesmo ferindo a regra: ${b.short.reason}. Fica registrado no Histórico. O preço muda no Mercado Livre na hora.`,
-    run: (goNext) => emit('apply', { ...b.target, force: true }, { alsoSku: false, alsoVariations: false }, goNext)
+    run: (goNext) => emit('apply', { ...b.target, force: true }, { ...spread }, goNext), spreadable: true
   }
 }
 
@@ -272,10 +276,12 @@ function askCustom() {
   const p = customPrice.value
   const v = customPreview.value
   if (!b || p === null || !v || customError.value) return
+  spread.alsoSku = false
+  spread.alsoVariations = false
   pending.value = {
     text: `Aplica ${b.short.name || b.short.label} a ${brl(p)} (${pct(v.discount)} de desconto sobre o preço cheio; margem real aprox. ${pct(v.margin)}, lucro aprox. ${brl(v.profit)}), `
       + 'mesmo que fira as regras do anúncio. Fica registrado no Histórico. O preço muda no Mercado Livre na hora.',
-    run: (goNext) => emit('apply', { ...b.target, price: p, force: true }, { alsoSku: false, alsoVariations: false }, goNext)
+    run: (goNext) => emit('apply', { ...b.target, price: p, force: true }, { ...spread }, goNext), spreadable: true
   }
 }
 
