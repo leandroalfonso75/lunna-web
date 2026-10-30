@@ -76,6 +76,8 @@ export interface OlistProduct {
   gtin: string | null
   price: Decimal
   promo_price: Decimal
+  /** Foto do anúncio do Mercado Livre com o mesmo SKU (null sem anúncio). */
+  thumbnail?: string | null
   cost_price: Decimal
   avg_cost_price: Decimal
   cost: OlistCost

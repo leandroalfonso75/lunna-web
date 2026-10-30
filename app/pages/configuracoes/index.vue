@@ -2,6 +2,7 @@
 import { computed, ref, watchEffect } from 'vue'
 import ContasTab from '../../components/settings/ContasTab.vue'
 import EmpresaTab from '../../components/settings/EmpresaTab.vue'
+import PromocoesTab from '../../components/settings/PromocoesTab.vue'
 import UsuariosTab from '../../components/settings/UsuariosTab.vue'
 import { usePageHeader } from '../../composables/usePageHeader'
 import { resolveSettingsTab, settingsTabPath, visibleSettingsTabs, type SettingsTab, type SettingsTabDef } from '../../lib/settingsTabs'
@@ -83,6 +84,7 @@ watchEffect(() => {
     </nav>
 
     <EmpresaTab v-if="currentTab === 'empresa'" :settings-api="settingsApi" />
+    <PromocoesTab v-else-if="currentTab === 'promocoes'" :settings-api="settingsApi" />
     <UsuariosTab v-else-if="currentTab === 'usuarios'" :settings-api="settingsApi" @loaded="usersCount = $event" />
     <ContasTab v-else-if="currentTab === 'contas'" :settings-api="settingsApi" :is-admin="session.isAdmin" @loaded="accountsCount = $event" />
   </div>

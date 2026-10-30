@@ -88,7 +88,7 @@ onMounted(load)
             Ligada, em <span class="font-semibold" :class="data.routine.mode === 'apply' ? 'text-danger' : 'text-ink'">{{ data.routine.mode === 'apply' ? 'aplicação real' : 'simulação' }}</span>:
             {{ data.routine.mode === 'apply' ? 'no horário escolhido, aplica no Mercado Livre o que a regra manda.' : 'no horário escolhido, registra o que faria, sem mudar nada no Mercado Livre.' }}
           </template>
-          <template v-else>Desligada: não roda sozinha. Ligue na parte de cima da tela, abaixo dos cards.</template>
+          <template v-else>Desligada: não roda sozinha. Ligue em Configurações → Promoções.</template>
         </p>
         <p class="text-[11px] text-ink-3">Só entra numa promoção se o anúncio ficou sem nenhuma, e troca quando surge uma campanha do Mercado Livre mais atraente. Anúncio com regra própria em texto não é mexido.</p>
       </div>

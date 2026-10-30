@@ -131,10 +131,10 @@ function flagCount(key?: string): string {
           <tr v-for="item in response?.items ?? []" :key="item.item_id" class="border-b border-line hover:bg-surface-2" data-test="ad-row">
             <td class="px-2 py-2 align-top">
               <div class="flex items-start gap-2">
-                <img v-if="item.thumbnail" :src="item.thumbnail" alt="" class="h-9 w-9 shrink-0 rounded object-cover" loading="lazy" />
+                <img v-if="item.thumbnail" :src="item.thumbnail" alt="" class="h-12 w-12 shrink-0 rounded object-cover" loading="lazy" />
                 <div class="min-w-0">
-                  <a :href="item.permalink ?? '#'" target="_blank" rel="noopener" class="block truncate font-medium text-ink hover:underline" :title="item.title ?? ''">{{ item.title }}</a>
-                  <p class="truncate text-[11px] text-ink-3">
+                  <a :href="item.permalink ?? '#'" target="_blank" rel="noopener" class="block truncate text-[13px] font-medium text-ink hover:underline" :title="item.title ?? ''">{{ item.title }}</a>
+                  <p class="truncate text-[12px] text-ink-3">
                     {{ item.item_id }} · {{ brl(item.price) }} · {{ item.campaign.name }}
                     <span v-if="item.status !== 'active'" class="ml-1 pill-warning">{{ item.status_label }}</span>
                   </p>

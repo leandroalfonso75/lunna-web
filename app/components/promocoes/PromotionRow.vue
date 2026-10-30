@@ -45,14 +45,14 @@ function offerLine(o: PromotionOfferShort | null) {
           :aria-label="`Marcar ${row.item_id}`"
           @click.stop="emit('check')"
         />
-        <img v-if="row.thumbnail && !nested" :src="row.thumbnail" alt="" class="h-9 w-9 shrink-0 rounded object-cover" loading="lazy" />
+        <img v-if="row.thumbnail && !nested" :src="row.thumbnail" alt="" class="h-12 w-12 shrink-0 rounded object-cover" loading="lazy" />
         <div class="min-w-0">
-          <p class="truncate font-medium text-ink" :title="row.title">{{ row.title }}</p>
-          <p class="truncate text-[11px] text-ink-3">
+          <p class="truncate text-[13px] font-medium text-ink" :title="row.title">{{ row.title }}</p>
+          <p class="truncate text-[12px] text-ink-3">
             {{ row.item_id }} · {{ row.sku ?? 'sem SKU' }}<template v-if="row.stock !== null"> · {{ int(row.stock) }} em estoque</template><template v-if="row.listing_type && LISTING[row.listing_type]"> · {{ LISTING[row.listing_type] }}</template>
             · {{ int(row.sold_30d) }} {{ row.sold_30d === 1 ? 'venda' : 'vendas' }} em 30 dias<template v-if="row.sold_total !== null"> ({{ int(row.sold_total) }} no total)</template>
           </p>
-          <p v-if="row.catalog || row.synced_with_catalog" class="text-[11px] font-semibold text-success" data-test="catalogo">
+          <p v-if="row.catalog || row.synced_with_catalog" class="text-[12px] font-semibold text-success" data-test="catalogo">
             <template v-if="row.catalog">Catálogo · {{ row.catalog === 'sincronizado' ? 'com sincronização' : 'sem sincronização' }}</template>
             <template v-else>Sincronizado com catálogo</template>
             <span v-if="row.catalog_info" class="ml-1 rounded-full px-1.5" :class="CATALOG_TONE[row.catalog_info.state]" data-test="catalogo-estado">
@@ -69,7 +69,7 @@ function offerLine(o: PromotionOfferShort | null) {
             </template>
             <template v-else> · {{ row.catalog_info.message }}</template>
           </p>
-          <p class="text-[11px] text-ink-3">
+          <p class="text-[12px] text-ink-3">
             <template v-if="row.settings.limit_mode === 'price'">
               valor<template v-if="row.settings.min_price !== null"> mín. {{ brl(row.settings.min_price) }}</template><template v-if="row.settings.max_price !== null"> · máx. {{ brl(row.settings.max_price) }}</template>
             </template>

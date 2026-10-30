@@ -3,7 +3,6 @@ import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, MagnifyingGlassIcon }
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
-import PromotionAutomationCard from '../components/promocoes/PromotionAutomationCard.vue'
 import PromotionItemPanel from '../components/promocoes/PromotionItemPanel.vue'
 import PromotionRoutinePanel from '../components/promocoes/PromotionRoutinePanel.vue'
 import PromotionRow from '../components/promocoes/PromotionRow.vue'
@@ -153,12 +152,18 @@ const cards = computed(() => {
   const s = response.value?.summary
   if (!s) return []
   return [
-    { key: 'with', label: 'Em promoção', value: int(s.with_promotion), hint: `de ${int(s.items)} anúncios ativos` },
-    { key: 'without', label: 'Sem promoção', value: int(s.without_promotion), hint: 'podem entrar numa oferta', tone: s.without_promotion ? 'text-warning' : '' },
-    { key: 'switch', label: 'Trocas que rendem mais', value: int(s.to_switch), hint: `+${brl(s.switch_gain)} por unidade somando todas`, tone: s.to_switch ? 'text-warning' : '' },
-    { key: 'review', label: 'Para revisar', value: int(s.to_review), hint: 'nenhuma oferta cabe nas regras; nada foi aplicado', tone: s.to_review ? 'text-danger' : '' }
+    { key: 'with', label: 'Em promoção', value: int(s.with_promotion), hint: `de ${int(s.items)} anúncios ativos`, status: '' },
+    { key: 'without', label: 'Sem promoção', value: int(s.without_promotion), hint: 'podem entrar numa oferta', tone: s.without_promotion ? 'text-warning' : '', status: 'sem_promocao' },
+    { key: 'switch', label: 'Trocas que rendem mais', value: int(s.to_switch), hint: `+${brl(s.switch_gain)} por unidade somando todas`, tone: s.to_switch ? 'text-warning' : '', status: 'trocar' },
+    { key: 'review', label: 'Para revisar', value: int(s.to_review), hint: 'nenhuma oferta cabe nas regras; nada foi aplicado', tone: s.to_review ? 'text-danger' : '', status: 'para_revisar' }
   ]
 })
+
+/** Clique num card: abre a guia Anúncios já com o filtro daquela situação. */
+function openCard(status: string) {
+  tab.value = 'anuncios'
+  promos.change({ status, promotionId: '', q: '' })
+}
 
 function toggle(row: PromotionItemRow) {
   groupPanel.value = null
@@ -193,6 +198,7 @@ function runBulk() {
       <span v-if="response?.synced_at">Central de Promoções lida em {{ dateTimeShort(response.synced_at) }} (a cada hora)</span>
       <span v-if="response">Margem geral: mínima {{ pct(response.rules.min_margin_pct) }}<template v-if="response.rules.max_margin_pct !== null">, máxima {{ pct(response.rules.max_margin_pct) }}</template> (Configurações)</span>
       <div class="ml-auto flex gap-3 text-[13px]">
+        <NuxtLink v-if="session.isAdmin" to="/configuracoes?aba=promocoes" class="btn-link" data-test="configurar-promocoes">Configurar promoções</NuxtLink>
         <button type="button" class="btn-link" :disabled="exporting" @click="promos.exportCsv">{{ exporting ? 'Exportando…' : 'Exportar todas (CSV)' }}</button>
         <button v-if="session.isAdmin" type="button" class="btn-link" :disabled="syncing" @click="promos.syncNow">
           {{ syncing ? 'Pedindo…' : 'Atualizar do Mercado Livre agora' }}
@@ -211,15 +217,16 @@ function runBulk() {
 
     <template v-else>
       <div v-if="cards.length" class="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div v-for="c in cards" :key="c.key" class="card p-4" :data-test="`kpi-${c.key}`">
+        <button v-for="c in cards" :key="c.key" type="button" class="card p-4 text-left transition-all hover:-translate-y-px hover:shadow-md"
+          :class="tab === 'anuncios' && filters.status === c.status && !filters.promotionId && !filters.q ? 'ring-2 ring-primary' : ''"
+          :data-test="`kpi-${c.key}`" :title="`Ver ${c.label.toLowerCase()}`" @click="openCard(c.status)">
           <p class="text-[12px] font-medium text-ink-2">{{ c.label }}</p>
           <p class="mt-1 text-[20px] font-semibold leading-tight" :class="c.tone || 'text-ink'" data-numeric>{{ c.value }}</p>
           <p class="mt-1 text-[11px] text-ink-3">{{ c.hint }}</p>
-        </div>
+        </button>
       </div>
       <div v-else class="h-24 animate-pulse rounded-card bg-surface-2" />
 
-      <PromotionAutomationCard v-if="response?.automation" :automation="response.automation" :is-admin="session.isAdmin" :saving="saving" @save="promos.saveAutomation" />
 
       <div v-if="response?.catalog_alerts?.length" class="card border-danger p-4 text-[13px]" role="alert" data-test="avisos-catalogo">
         <p class="font-semibold text-danger">Catálogo para análise manual ({{ response.catalog_alerts.length }})</p>
@@ -336,10 +343,10 @@ function runBulk() {
                           <ChevronDownIcon v-if="isOpen(row)" class="h-4 w-4" aria-hidden="true" />
                           <ChevronRightIcon v-else class="h-4 w-4" aria-hidden="true" />
                         </button>
-                        <img v-if="row.thumbnail" :src="row.thumbnail" alt="" class="h-9 w-9 shrink-0 rounded object-cover" loading="lazy" />
+                        <img v-if="row.thumbnail" :src="row.thumbnail" alt="" class="h-12 w-12 shrink-0 rounded object-cover" loading="lazy" />
                         <div class="min-w-0">
-                          <p class="truncate font-semibold text-ink" :title="row.title">{{ row.title }}</p>
-                          <p class="truncate text-[11px] text-ink-3">
+                          <p class="truncate text-[13px] font-semibold text-ink" :title="row.title">{{ row.title }}</p>
+                          <p class="truncate text-[12px] text-ink-3">
                             {{ row.sku ?? 'produto' }} · {{ int(row.variations) }} {{ row.variations === 1 ? 'variação' : 'variações' }} · {{ int(row.count) }} anúncios
                             <template v-if="row.matched !== undefined && row.matched < row.count"> ({{ int(row.matched) }} no filtro)</template>
                           </p>

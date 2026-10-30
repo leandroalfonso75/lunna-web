@@ -35,7 +35,7 @@ onBeforeUnmount(sales.stop)
 
 const PERIODS = [
   { value: 'today', label: 'Hoje' }, { value: 'yesterday', label: 'Ontem' },
-  { value: '7d', label: '7 dias' }, { value: '30d', label: '30 dias' },
+  { value: '7d', label: '7 dias' }, { value: 'mtd', label: 'Mês até hoje' }, { value: '30d', label: '30 dias' },
   { value: '60d', label: '60 dias' }, { value: '90d', label: '3 meses' }
 ]
 
@@ -244,15 +244,15 @@ function onDate(which: 'from' | 'to', event: Event) {
                 <td class="px-2 py-2 align-top text-ink-2">{{ dateTimeShort(row.date_created) }}</td>
                 <td class="px-2 py-2 align-top">
                   <div class="flex items-start gap-2">
-                    <img v-if="row.items[0]?.thumbnail" :src="row.items[0].thumbnail" alt="" class="h-9 w-9 shrink-0 rounded object-cover" loading="lazy" />
+                    <img v-if="row.items[0]?.thumbnail" :src="row.items[0].thumbnail" alt="" class="h-12 w-12 shrink-0 rounded object-cover" loading="lazy" />
                     <div class="min-w-0">
-                      <p class="truncate font-medium text-ink" :title="row.items.map((i) => i.title).join(' + ')">{{ row.items[0]?.title ?? 'Sem itens' }}</p>
-                      <p class="truncate text-[11px] text-ink-3">
+                      <p class="truncate text-[13px] font-medium text-ink" :title="row.items.map((i) => i.title).join(' + ')">{{ row.items[0]?.title ?? 'Sem itens' }}</p>
+                      <p class="truncate text-[12px] text-ink-3">
                         #{{ row.order_id }} · {{ row.items[0]?.sku ?? 'sem SKU' }} · {{ int(row.units) }} un
                         <template v-if="row.items.length > 1"> · +{{ row.items.length - 1 }} {{ row.items.length === 2 ? 'item' : 'itens' }}</template>
                         <span v-if="row.status.tone !== 'ok'" class="ml-1" :class="tone(row.status.tone)">{{ row.status.label }}</span>
                       </p>
-                      <p v-if="row.issue" class="truncate text-[11px]" :class="tone(row.issue.tone)" :title="row.issue.label" data-test="sale-issue">{{ row.issue.label }}</p>
+                      <p v-if="row.issue" class="truncate text-[12px]" :class="tone(row.issue.tone)" :title="row.issue.label" data-test="sale-issue">{{ row.issue.label }}</p>
                     </div>
                   </div>
                 </td>

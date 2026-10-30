@@ -41,8 +41,10 @@ const costText = () => {
     @click="showDetail = !showDetail"
   >
     <td class="whitespace-nowrap px-3 py-2 font-mono text-[12px]" :class="level ? 'pl-8' : ''">{{ product.sku || '—' }}</td>
-    <td class="max-w-[420px] px-3 py-2">
+    <td class="max-w-[460px] px-3 py-2">
       <div class="flex items-start gap-2">
+        <img v-if="product.thumbnail" :src="product.thumbnail" alt="" class="h-12 w-12 shrink-0 rounded object-cover" loading="lazy" data-test="produto-foto" />
+        <div v-else class="h-12 w-12 shrink-0 rounded bg-surface-2" aria-hidden="true" />
         <span class="min-w-0 flex-1" :class="level ? 'font-medium text-ink-2' : 'font-semibold text-ink'">{{ product.description }}</span>
         <button
           v-if="hasVariations()"

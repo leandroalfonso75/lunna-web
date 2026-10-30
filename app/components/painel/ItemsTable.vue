@@ -248,8 +248,8 @@ function totalPages(): number {
             <template v-for="item in response?.items ?? []" :key="item.id">
               <tr class="group cursor-pointer border-b border-line hover:bg-surface-2" @click="toggleRow(item)">
                 <td class="px-2 py-2">
-                  <p class="truncate font-medium text-ink" :title="item.title">{{ item.title }}</p>
-                  <p class="truncate text-[11px] text-ink-3">
+                  <p class="truncate text-[13px] font-medium text-ink" :title="item.title">{{ item.title }}</p>
+                  <p class="truncate text-[12px] text-ink-3">
                     {{ item.id }} · {{ item.status_label }}
                     <span v-if="item.full" class="pill-primary ml-1 px-1.5 py-0 text-[10px]">Full</span>
                   </p>

@@ -34,7 +34,7 @@ onBeforeUnmount(ads.stop)
 
 const PERIODS = [
   { value: 'today', label: 'Hoje' }, { value: 'yesterday', label: 'Ontem' },
-  { value: '7d', label: '7 dias' }, { value: '30d', label: '30 dias' },
+  { value: '7d', label: '7 dias' }, { value: 'mtd', label: 'Mês até hoje' }, { value: '30d', label: '30 dias' },
   { value: '60d', label: '60 dias' }, { value: '90d', label: '3 meses' }
 ]
 
