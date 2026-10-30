@@ -70,10 +70,10 @@ const scheduleText = computed(() => {
 </script>
 
 <template>
-  <div class="card space-y-4 p-4 text-[13px]" data-test="automacao">
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+  <div class="card automation space-y-5 p-5 text-[13px]" data-test="automacao">
+    <div class="automation-top">
       <!-- rotina automática -->
-      <section class="space-y-3 rounded-card bg-surface-2/50 p-3" data-test="rotina">
+      <section class="space-y-3 rounded-card bg-surface-2/50 p-4" data-test="rotina">
         <div class="flex flex-wrap items-center gap-3">
           <label class="switch" :class="locked ? 'opacity-60' : ''">
             <input v-model="form.enabled" type="checkbox" class="sr-only" :disabled="locked" data-test="rotina-ligar" @change="emit('save', { routine_enabled: form.enabled })" />
@@ -147,7 +147,7 @@ const scheduleText = computed(() => {
       </section>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 border-t border-line pt-4 md:grid-cols-3">
+    <div class="automation-bottom border-t border-line pt-5">
       <div>
         <label class="flex items-start gap-2">
           <input v-model="form.allowDrop" type="checkbox" class="mt-0.5" :disabled="locked" data-test="permitir-reducao" @change="!form.allowDrop && saveDrop()" />
@@ -189,6 +189,34 @@ const scheduleText = computed(() => {
 </template>
 
 <style scoped>
+/* As colunas dependem da largura do próprio card (container query), não da janela: em coluna estreita, tudo empilha. */
+.automation {
+  container-type: inline-size;
+}
+.automation-top,
+.automation-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+@container (min-width: 820px) {
+  .automation-top {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+@container (min-width: 1000px) {
+  .automation-bottom {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2rem;
+  }
+}
+@container (min-width: 620px) and (max-width: 999.9px) {
+  .automation-bottom {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Liga/desliga: arrasta para a direita = ligado (azul forte); esquerda = desligado (claro). */
 .switch {
   @apply inline-flex cursor-pointer select-none items-center gap-2;
