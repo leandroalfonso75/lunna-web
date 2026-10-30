@@ -86,7 +86,7 @@ const scheduleText = computed(() => {
               Simulação
             </button>
             <button type="button" role="radio" :aria-checked="form.mode === 'apply'" class="rounded-full px-3 py-1 transition-colors" :disabled="locked" data-test="modo-aplicar"
-              :class="form.mode === 'apply' ? 'bg-danger-soft font-semibold text-danger' : 'text-ink-2'" @click="form.mode = 'apply'; emit('save', { routine_mode: 'apply' })">
+              :class="form.mode === 'apply' ? 'bg-primary-soft font-semibold text-primary' : 'text-ink-2'" @click="form.mode = 'apply'; emit('save', { routine_mode: 'apply' })">
               Aplicação real
             </button>
           </div>
