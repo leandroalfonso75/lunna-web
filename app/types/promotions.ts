@@ -24,6 +24,9 @@ export interface PromotionOfferShort {
   price: number | null
   margin_pct: number | null
   profit: number | null
+  /** Lucro e margem antes de descontar o Ads. */
+  profit_before_ads: number | null
+  margin_before_ads_pct: number | null
   /** Parte do desconto paga pelo Mercado Livre, em R$ por unidade. */
   meli_amount: number
   valid: boolean
@@ -87,7 +90,7 @@ export interface PromotionItemRow {
   catalog_info: CatalogInfo | null
   full_price: number
   cost: number | null
-  base: { price: number; profit: number; margin_pct: number; costs: PromotionCosts } | null
+  base: { price: number; profit: number; margin_pct: number; profit_before_ads: number; margin_before_ads_pct: number; costs: PromotionCosts } | null
   /** Ads dos últimos 15 dias: gasto, unidades vendidas e custo por unidade (zero sem histórico). */
   ads: { spend: number; units: number; unit: number; days: number }
   current: PromotionOfferShort | null
@@ -176,9 +179,21 @@ export interface CatalogInfo {
 
 /** Regras da automação (rotina e lote), por empresa. */
 export interface PromotionAutomation {
+  routine_enabled: boolean
+  routine_mode: 'simulation' | 'apply'
+  /** Hora cheia (0 a 23) e dias da semana (0 = domingo … 6 = sábado) da rotina, no horário de Brasília. */
+  schedule_hour: number
+  schedule_days: number[]
+  /** Qual lucro vale para a margem mínima/máxima. */
+  margin_basis: 'after_ads' | 'before_ads'
+  /** O preço final busca a margem mínima ou a máxima (a outra é barreira). */
+  price_target: 'min' | 'max'
+  /** Pode subir o preço final para entrar em outra promoção (dentro da máxima). */
+  allow_price_increase: boolean
   allow_margin_drop: boolean
   /** Pontos percentuais que a margem pode cair (com allow_margin_drop). */
   margin_drop_tolerance: number | null
+  allow_lightning: boolean
   include_catalog: boolean
 }
 

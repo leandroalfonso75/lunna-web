@@ -131,10 +131,11 @@ const allItems = computed<PromotionItemRow[]>(() => (response.value?.items ?? []
 const COLUMNS = [
   { key: 'item', label: 'Anúncio', sort: 'title', width: 'w-[30%]', align: 'left' },
   { key: 'price', label: 'Preço cheio', sort: 'price', width: 'w-[9%]', align: 'right' },
-  { key: 'current', label: 'Promoção atual (margem real)', sort: 'margin', width: 'w-[20%]', align: 'left' },
-  { key: 'best', label: 'Melhor oferta (margem real)', sort: 'best_margin', width: 'w-[20%]', align: 'left' },
-  { key: 'gain', label: 'Ganho/un.', sort: 'gain', width: 'w-[8%]', align: 'right' },
-  { key: 'status', label: 'Situação', width: 'w-[13%]', align: 'left' }
+  { key: 'current', label: 'Promoção atual (margem real)', sort: 'margin', width: 'w-[18%]', align: 'left' },
+  { key: 'best', label: 'Melhor oferta (margem real)', sort: 'best_margin', width: 'w-[18%]', align: 'left' },
+  { key: 'before_ads', label: 'Lucro antes do Ads', width: 'w-[9%]', align: 'right' },
+  { key: 'gain', label: 'Ganho/un.', sort: 'gain', width: 'w-[7%]', align: 'right' },
+  { key: 'status', label: 'Situação', width: 'w-[12%]', align: 'left' }
 ]
 
 const TONE: Record<string, string> = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger', neutral: 'text-ink-3' }
@@ -247,7 +248,7 @@ function runBulk() {
         </button>
         <button type="button" role="tab" :aria-selected="tab === 'rotina'" class="-mb-px border-b-2 px-4 py-2 text-[14px]"
           :class="tab === 'rotina' ? 'border-primary font-semibold text-primary' : 'border-transparent text-ink-2 hover:text-ink'" data-test="aba-rotina" @click="tab = 'rotina'">
-          Rotina das 03:00
+          Rotina automática
         </button>
         <button type="button" role="tab" :aria-selected="tab === 'historico'" class="-mb-px border-b-2 px-4 py-2 text-[14px]"
           :class="tab === 'historico' ? 'border-primary font-semibold text-primary' : 'border-transparent text-ink-2 hover:text-ink'" @click="tab = 'historico'">
@@ -353,6 +354,7 @@ function runBulk() {
                     </td>
                     <td class="px-2 py-2 align-top text-[11px] text-ink-2" data-numeric>{{ row.current_margin === null ? '—' : `margem mín. ${pct(row.current_margin)}` }}</td>
                     <td class="px-2 py-2 align-top text-[11px] text-ink-2" data-numeric>{{ row.best_margin === null ? '—' : `até ${pct(row.best_margin)}` }}</td>
+                    <td class="px-2 py-2 text-right align-top text-[11px] text-ink-3">—</td>
                     <td class="px-2 py-2 text-right align-top font-medium" data-numeric :class="row.gain && row.gain > 0 ? 'text-success' : row.gain && row.gain < 0 ? 'text-danger' : 'text-ink-3'">
                       {{ row.gain ? `${row.gain > 0 ? '+' : ''}${brl(row.gain)}` : '—' }}
                     </td>

@@ -105,6 +105,20 @@ function offerLine(o: PromotionOfferShort | null) {
       </template>
       <span v-else class="text-ink-3">—</span>
     </td>
+    <td class="px-2 py-2 text-right align-top text-[12px]" data-numeric data-test="lucro-antes-ads">
+      <template v-if="row.current?.profit_before_ads !== null && row.current?.profit_before_ads !== undefined">
+        <span class="text-ink">{{ brl(row.current.profit_before_ads) }}</span>
+        <span class="block text-[11px] text-ink-3">{{ pct(row.current.margin_before_ads_pct) }} hoje</span>
+      </template>
+      <template v-else-if="row.base">
+        <span class="text-ink">{{ brl(row.base.profit_before_ads) }}</span>
+        <span class="block text-[11px] text-ink-3">{{ pct(row.base.margin_before_ads_pct) }} sem promoção</span>
+      </template>
+      <span v-else class="text-ink-3">—</span>
+      <span v-if="row.best && row.best.action !== 'manter' && row.best.profit_before_ads !== null" class="block text-[11px] text-ink-3">
+        → {{ brl(row.best.profit_before_ads) }} na melhor
+      </span>
+    </td>
     <td class="px-2 py-2 text-right align-top font-medium" data-numeric :class="row.gain && row.gain > 0 ? 'text-success' : row.gain && row.gain < 0 ? 'text-danger' : 'text-ink-3'">
       {{ row.gain ? `${row.gain > 0 ? '+' : ''}${brl(row.gain)}` : '—' }}
     </td>

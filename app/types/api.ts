@@ -29,6 +29,12 @@ export interface Company {
   promo_margin_drop_tolerance?: number | null
   /** Promoções: anúncios de catálogo entram na automação (com conferência de 1 em 1 hora). */
   promo_include_catalog?: boolean
+  promo_schedule_hour?: number
+  promo_schedule_days?: number[]
+  promo_margin_basis?: 'after_ads' | 'before_ads'
+  promo_price_target?: 'min' | 'max'
+  promo_allow_price_increase?: boolean
+  promo_allow_lightning?: boolean
   abc_cut_a: number
   abc_cut_b: number
   group_up_pct: number

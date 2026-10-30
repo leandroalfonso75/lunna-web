@@ -6,7 +6,7 @@ import type { PromotionsClient } from '../../lib/promotionsClient'
 import type { PromotionRunDetail, PromotionRunsResponse } from '../../types/promotions'
 
 /**
- * Aba "Rotina das 03:00" da seção Promoções: se a rotina está ligada e em que modo (muda em Configurações), as
+ * Aba "Rotina automática" da seção Promoções: se a rotina está ligada e em que modo (muda abaixo dos cards), as
  * execuções (agendadas e "Simular agora") e, da escolhida, o antes e o depois de cada anúncio, com exportação.
  */
 const props = defineProps<{ client: PromotionsClient; accountId: string; isAdmin: boolean }>()
@@ -82,15 +82,15 @@ onMounted(load)
   <div class="space-y-4 text-[13px]">
     <div class="card flex flex-wrap items-center gap-3 p-4">
       <div class="min-w-0 flex-1">
-        <p class="font-semibold text-ink">Rotina das 03:00</p>
+        <p class="font-semibold text-ink">Rotina automática</p>
         <p v-if="data" class="text-ink-2">
           <template v-if="data.routine.enabled">
             Ligada, em <span class="font-semibold" :class="data.routine.mode === 'apply' ? 'text-danger' : 'text-ink'">{{ data.routine.mode === 'apply' ? 'aplicação real' : 'simulação' }}</span>:
-            {{ data.routine.mode === 'apply' ? 'toda madrugada aplica no Mercado Livre a melhor oferta de cada anúncio.' : 'toda madrugada registra o que faria, sem mudar nada no Mercado Livre.' }}
+            {{ data.routine.mode === 'apply' ? 'no horário escolhido, aplica no Mercado Livre o que a regra manda.' : 'no horário escolhido, registra o que faria, sem mudar nada no Mercado Livre.' }}
           </template>
-          <template v-else>Desligada: não roda de madrugada. Ligue em Configurações → Impostos e margem.</template>
+          <template v-else>Desligada: não roda sozinha. Ligue na parte de cima da tela, abaixo dos cards.</template>
         </p>
-        <p class="text-[11px] text-ink-3">Precisa do computador ligado (ou do servidor) às 03:00. A mesma regra da tela: limites, preço cheio, aumento máximo por faixa e casa de cem. Anúncio com regra própria em texto não é mexido.</p>
+        <p class="text-[11px] text-ink-3">Só entra numa promoção se o anúncio ficou sem nenhuma, e troca quando surge uma campanha do Mercado Livre mais atraente. Anúncio com regra própria em texto não é mexido.</p>
       </div>
       <button v-if="isAdmin" type="button" class="btn-primary h-9 px-4 text-[13px]" :disabled="data?.running" data-test="simular-agora" @click="simulateNow">
         {{ data?.running ? 'Rodando…' : 'Simular agora' }}

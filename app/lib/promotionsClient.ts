@@ -92,6 +92,14 @@ export function createPromotionsClient(api: ApiFn) {
       if (patch.allow_margin_drop !== undefined) body.promo_allow_margin_drop = patch.allow_margin_drop
       if (patch.margin_drop_tolerance !== undefined) body.promo_margin_drop_tolerance = patch.margin_drop_tolerance
       if (patch.include_catalog !== undefined) body.promo_include_catalog = patch.include_catalog
+      if (patch.routine_enabled !== undefined) body.promo_routine_enabled = patch.routine_enabled
+      if (patch.routine_mode !== undefined) body.promo_routine_mode = patch.routine_mode
+      if (patch.schedule_hour !== undefined) body.promo_schedule_hour = patch.schedule_hour
+      if (patch.schedule_days !== undefined) body.promo_schedule_days = patch.schedule_days
+      if (patch.margin_basis !== undefined) body.promo_margin_basis = patch.margin_basis
+      if (patch.price_target !== undefined) body.promo_price_target = patch.price_target
+      if (patch.allow_price_increase !== undefined) body.promo_allow_price_increase = patch.allow_price_increase
+      if (patch.allow_lightning !== undefined) body.promo_allow_lightning = patch.allow_lightning
       return api('/api/company', { method: 'PATCH', body })
     },
     /** Aviso de catálogo para análise manual: marcar como visto. Só administradores. */
