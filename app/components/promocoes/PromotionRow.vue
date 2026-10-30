@@ -102,6 +102,15 @@ function offerLine(o: PromotionOfferShort | null) {
           {{ brl(row.review.blocked_best.price) }} · {{ pct(row.review.blocked_best.margin_pct) }} · barrada
         </p>
         <p class="text-[11px] text-ink-3">{{ promotionValidity(row.review.blocked_best, true) }}</p>
+        <p v-if="row.review.fitting" class="text-[11px] text-success" data-numeric :title="row.review.fitting.soft_reason ?? ''">
+          cabe: {{ row.review.fitting.name || row.review.fitting.label }} a {{ brl(row.review.fitting.price) }} · {{ pct(row.review.fitting.margin_pct) }}<template v-if="row.review.fitting.soft_reason"> (sobe o preço)</template>
+        </p>
+      </template>
+      <template v-else-if="key === 'best' && row.review?.fitting">
+        <p class="truncate text-ink-3" :title="row.review.fitting.name || row.review.fitting.label">nenhuma dentro das regras</p>
+        <p class="text-[11px] text-success" data-numeric :title="row.review.fitting.soft_reason ?? ''">
+          cabe: {{ row.review.fitting.name || row.review.fitting.label }} a {{ brl(row.review.fitting.price) }} · {{ pct(row.review.fitting.margin_pct) }}<template v-if="row.review.fitting.soft_reason"> (sobe o preço)</template>
+        </p>
       </template>
       <span v-else class="text-ink-3">—</span>
     </td>

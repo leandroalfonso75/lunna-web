@@ -155,15 +155,49 @@ const today = computed(() => {
   return null
 })
 
-const after = computed(() => {
+interface CostColumn {
+  title: string
+  sub: string
+  validity: string
+  price: number | null
+  profit: number | null
+  margin: number | null
+  costs: PromotionCosts
+  tone: 'ok' | 'blocked' | 'fit'
+}
+
+/** Colunas ao lado de "Hoje": depois da melhor oferta; ou, para revisar, a melhor barrada e a oferta cabível. */
+const cols = computed<CostColumn[]>(() => {
   const d = props.detail
   const b = d?.best
-  if (b?.costs && b.action !== 'manter') return { title: 'Depois da melhor oferta', sub: b.name || b.label, validity: promotionValidity(b), price: b.price, profit: b.profit, margin: b.margin_pct, costs: b.costs, blocked: false }
-  // Para revisar: a melhor oferta barrada, com a regra que a barrou
+  if (b?.costs && b.action !== 'manter') {
+    return [{ title: 'Depois da melhor oferta', sub: b.name || b.label, validity: promotionValidity(b), price: b.price, profit: b.profit, margin: b.margin_pct, costs: b.costs, tone: 'ok' }]
+  }
+  const out: CostColumn[] = []
   const x = d?.review?.blocked_best
-  if (x?.costs) return { title: 'Melhor oferta barrada', sub: `${x.name || x.label} · ${x.reason}`, validity: promotionValidity(x), price: x.price, profit: x.profit, margin: x.margin_pct, costs: x.costs, blocked: true }
-  return null
+  if (x?.costs) out.push({ title: 'Melhor oferta barrada', sub: `${x.name || x.label} · ${x.reason}`, validity: promotionValidity(x), price: x.price, profit: x.profit, margin: x.margin_pct, costs: x.costs, tone: 'blocked' })
+  const f = d?.review?.fitting
+  if (f?.costs) {
+    out.push({ title: 'Oferta cabível', sub: `${f.name || f.label}${f.soft_reason ? ` · ${f.soft_reason}` : ''}`, validity: promotionValidity(f), price: f.price, profit: f.profit, margin: f.margin_pct, costs: f.costs, tone: 'fit' })
+  }
+  return out
 })
+const after = computed(() => cols.value[0] ?? null)
+const COL_TONE: Record<CostColumn['tone'], string> = { ok: '', blocked: 'text-danger', fit: 'text-success' }
+
+/** Aplica a oferta cabível (pode ferir a trava de lucro ou a regra de aumento: fica no Histórico). */
+function askFitting() {
+  const f = props.detail?.review?.fitting
+  if (!f) return
+  const target: PromotionTarget = { promotion_id: f.promotion_id, promotion_type: f.type, action: f.action === 'editar_preco' ? 'editar_preco' : 'aderir', force: true }
+  const offer = props.detail?.offers.find((o) => o.promotion_id === f.promotion_id && o.type === f.type)
+  if (offer?.flexible && f.price !== null) target.price = f.price
+  const why = f.soft_reason ? ` Fere a regra: ${f.soft_reason}. Fica registrado no Histórico.` : ''
+  pending.value = {
+    text: `${props.detail?.current ? `Sai de ${describe(props.detail.current)} e entra em` : 'Entra em'} ${describe(f)}.${why} O preço muda no Mercado Livre na hora.`,
+    run: (goNext) => emit('apply', target, { alsoSku: false, alsoVariations: false }, goNext)
+  }
+}
 
 /** Regras que nem "aplicar mesmo assim" passa (o Mercado Livre recusaria); iguais às da API. */
 const HARD_REASONS = ['não muda o preço', 'encerrada', 'sem preço permitido', 'acima do preço cheio do anúncio', 'sem estoque sugerido', 'estoque insuficiente']
@@ -315,8 +349,9 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
                 {{ today.title }}<span class="block text-[11px] font-normal text-ink-3">{{ today.sub }}</span>
                 <span v-if="today.validity" class="block text-[11px] font-normal text-ink-3" data-test="validade-hoje">Validade: {{ today.validity }}</span>
               </th>
-              <th v-if="after" scope="col" class="px-3 py-1.5 text-right font-semibold" :class="after.blocked ? 'text-danger' : ''">{{ after.title }}<span class="block text-[11px] font-normal" :class="after.blocked ? 'text-danger' : 'text-ink-3'">{{ after.sub }}</span>
-                <span v-if="after.validity" class="block text-[11px] font-normal text-ink-3" data-test="validade-melhor">Validade: {{ after.validity }}</span>
+              <th v-for="c in cols" :key="c.title" scope="col" class="px-3 py-1.5 text-right font-semibold" :class="COL_TONE[c.tone]" :data-test="c.tone === 'fit' ? 'coluna-cabivel' : undefined">
+                {{ c.title }}<span class="block text-[11px] font-normal" :class="c.tone === 'ok' ? 'text-ink-3' : COL_TONE[c.tone]">{{ c.sub }}</span>
+                <span v-if="c.validity" class="block text-[11px] font-normal text-ink-3" data-test="validade-melhor">Validade: {{ c.validity }}</span>
               </th>
             </tr>
           </thead>
@@ -324,25 +359,32 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
             <tr class="border-b border-line">
               <td class="px-3 py-1">Preço de venda</td>
               <td class="px-3 py-1 text-right" data-numeric>{{ brl(today.price) }}</td>
-              <td v-if="after" class="px-3 py-1 text-right" data-numeric>{{ brl(after.price) }}</td>
+              <td v-for="c in cols" :key="c.title" class="px-3 py-1 text-right" data-numeric>{{ brl(c.price) }}</td>
             </tr>
-            <tr v-if="today.costs.meli_amount || after?.costs.meli_amount" class="border-b border-line">
+            <tr v-if="today.costs.meli_amount || cols.some((c) => c.costs.meli_amount)" class="border-b border-line">
               <td class="px-3 py-1">Parte paga pelo ML</td>
               <td class="px-3 py-1 text-right" data-numeric>+ {{ brl(today.costs.meli_amount) }}</td>
-              <td v-if="after" class="px-3 py-1 text-right" data-numeric>+ {{ brl(after.costs.meli_amount) }}</td>
+              <td v-for="c in cols" :key="c.title" class="px-3 py-1 text-right" data-numeric>+ {{ brl(c.costs.meli_amount) }}</td>
             </tr>
             <tr v-for="r in COST_ROWS" :key="r.key" class="border-b border-line text-ink-2">
               <td class="px-3 py-1">{{ r.label }}</td>
               <td class="px-3 py-1 text-right" data-numeric>− {{ brl(today.costs[r.key]) }}</td>
-              <td v-if="after" class="px-3 py-1 text-right" data-numeric>− {{ brl(after.costs[r.key]) }}</td>
+              <td v-for="c in cols" :key="c.title" class="px-3 py-1 text-right" data-numeric>− {{ brl(c.costs[r.key]) }}</td>
             </tr>
             <tr class="font-semibold">
               <td class="px-3 py-1.5">Lucro real (pós Ads)</td>
               <td class="px-3 py-1.5 text-right" data-numeric :class="(today.profit ?? 0) < 0 ? 'text-danger' : 'text-success'">{{ brl(today.profit) }} · {{ pct(today.margin) }}</td>
-              <td v-if="after" class="px-3 py-1.5 text-right" data-numeric :class="(after.profit ?? 0) < 0 ? 'text-danger' : 'text-success'">{{ brl(after.profit) }} · {{ pct(after.margin) }}</td>
+              <td v-for="c in cols" :key="c.title" class="px-3 py-1.5 text-right" data-numeric :class="(c.profit ?? 0) < 0 ? 'text-danger' : 'text-success'">{{ brl(c.profit) }} · {{ pct(c.margin) }}</td>
             </tr>
           </tbody>
         </table>
+      </div>
+      <div v-if="isAdmin && !blocked && detail.review?.fitting" class="mb-4 rounded-card border border-success p-3 text-[12px]" data-test="cabivel">
+        <p class="font-semibold text-ink">Oferta cabível</p>
+        <p class="mt-0.5 text-ink-2">
+          {{ detail.review.fitting.name || detail.review.fitting.label }} a {{ brl(detail.review.fitting.price) }} cabe nos limites (margem {{ pct(detail.review.fitting.margin_pct) }})<template v-if="detail.review.fitting.soft_reason">, mas {{ detail.review.fitting.soft_reason }}</template>.
+        </p>
+        <button type="button" class="btn-primary mt-2 h-8 px-3 text-[12px]" :disabled="acting" data-test="aplicar-cabivel" @click="askFitting">Aplicar a cabível ({{ brl(detail.review.fitting.price) }})</button>
       </div>
       <div v-if="isAdmin && blocked" class="mb-4 rounded-card border border-danger p-3 text-[12px]" data-test="forcar">
         <p class="font-semibold text-ink">Aplicar fora das regras</p>
@@ -354,6 +396,10 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
         <div v-else class="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2">
           <button type="button" class="btn-primary h-8 px-3 text-[12px]" :disabled="acting" data-test="aplicar-mesmo-assim" @click="askForce">
             Aplicar mesmo assim ({{ brl(blocked.short.price) }})
+          </button>
+          <button v-if="detail.review?.fitting" type="button" class="btn-secondary h-8 px-3 text-[12px]" :disabled="acting" data-test="aplicar-cabivel"
+            :title="detail.review.fitting.soft_reason ?? 'cabe nas regras'" @click="askFitting">
+            Aplicar a cabível: {{ detail.review.fitting.name || detail.review.fitting.label }} ({{ brl(detail.review.fitting.price) }})
           </button>
           <template v-if="customRange">
             <div class="flex items-end gap-2">

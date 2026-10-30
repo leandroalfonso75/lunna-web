@@ -107,6 +107,8 @@ export interface PromotionItemRow {
     label: string
     /** A melhor oferta entre as barradas (maior margem), com o que faltou para caber. */
     blocked_best: (PromotionOfferShort & { shortfall: string }) | null
+    /** A oferta que cabe nos limites (outra campanha ou o desconto próprio); soft_reason = trava de lucro ou aumento que ela feriria. */
+    fitting: (PromotionOfferShort & { soft_reason: string | null }) | null
     /** O que mudar nos limites para a melhor barrada caber (null quando não há saída). */
     suggestion: string | null
     /** Campo e valor dos limites que fariam a melhor barrada caber (botão "Usar a sugestão"). */
