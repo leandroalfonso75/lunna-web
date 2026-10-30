@@ -72,7 +72,7 @@ export function createPromotionsClient(api: ApiFn) {
     actions(accountId: string): Promise<{ actions: PromotionActionLog[] }> {
       return api('/api/promotions/actions', { query: { account_id: accountId } })
     },
-    /** Rotina das 03:00: se está ligada, em que modo, e as execuções. */
+    /** Rotina automática: se está ligada, em que modo, e as execuções. */
     runs(accountId: string): Promise<PromotionRunsResponse> {
       return api('/api/promotions/runs', { query: { account_id: accountId } })
     },

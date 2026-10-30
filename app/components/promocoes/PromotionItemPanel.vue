@@ -447,7 +447,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
         <input v-model="manual.on" type="checkbox" class="mt-0.5" :disabled="!isAdmin" @change="manual.dirty = true" />
         <span>
           <span class="font-semibold text-ink">Não automatizar promoções {{ groupMode ? 'neste produto' : 'neste anúncio' }}</span>
-          <span class="block text-[11px] text-ink-3">A rotina das 03:00 e o lote não mexem; só muda pela tela. A melhor oferta continua sugerida.</span>
+          <span class="block text-[11px] text-ink-3">A rotina automática e o lote não mexem; só muda pela tela. A melhor oferta continua sugerida.</span>
         </span>
       </label>
       <template v-if="manual.dirty || manual.on !== detail.manual">
@@ -507,7 +507,7 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
         <span class="text-[12px] text-ink-2">Regras específicas deste anúncio{{ groupMode ? ' (todas as variações)' : '' }} · texto livre</span>
         <textarea v-model="form.rules_note" rows="3" class="input mt-1 w-full py-1.5 text-[12px]" maxlength="2000" :disabled="!isAdmin"
           placeholder="Ex.: nunca entrar em oferta relâmpago; manter abaixo de R$ 199,90 na Black Friday" />
-        <span class="mt-1 block text-[11px] text-ink-3">Fica guardado com o anúncio e aparece na lista; a rotina das 03:00 vai respeitar o que estiver aqui.</span>
+        <span class="mt-1 block text-[11px] text-ink-3">Fica guardado com o anúncio e aparece na lista; a rotina automática não mexe em anúncio com regra própria.</span>
       </label>
       <label v-if="detail.sku_items.length" class="flex items-start gap-2">
         <input v-model="form.apply_to_sku" type="checkbox" class="mt-0.5" :disabled="!isAdmin || groupMode" />

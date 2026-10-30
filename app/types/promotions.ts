@@ -270,7 +270,7 @@ export interface PromotionActionLog {
   created_at: string
 }
 
-/** Uma execução da rotina das 03:00 (agendada ou "Simular agora"). */
+/** Uma execução da rotina automática (agendada ou "Simular agora"). */
 export interface PromotionRun {
   id: number
   mode: 'simulation' | 'apply'
