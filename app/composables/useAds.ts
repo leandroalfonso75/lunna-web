@@ -3,7 +3,7 @@ import { buildAdsItemsQuery, createAdsClient } from '../lib/adsClient'
 import { apiErrorMessage } from '../lib/apiErrors'
 import { withTransientRetry } from '../lib/transientRetry'
 import { useSessionStore } from '../stores/session'
-import type { AdsAnalysis, AdsItemsFilters, AdsItemsResponse, AdsRange, AdsResponse } from '../types/ads'
+import type { AdsAnalysis, AdsDiagnosis, AdsItemsFilters, AdsItemsResponse, AdsRange, AdsResponse } from '../types/ads'
 import { usePolling } from './usePolling'
 
 const DEBOUNCE_MS = 300
@@ -106,6 +106,46 @@ export function useAds() {
   }
   watch(tab, (t) => { if (t === 'analise' && !analysis.value) loadAnalysis() })
 
+  const diagnosis = ref<AdsDiagnosis | null>(null)
+  const diagnosisLoading = ref(false)
+  const diagnosisError = ref('')
+  async function diagnose(target: { family?: string; campaign_id?: number }) {
+    const accountId = session.selectedAccountId
+    if (!accountId) return
+    diagnosisLoading.value = true
+    diagnosisError.value = ''
+    diagnosis.value = null
+    try {
+      diagnosis.value = await client.diagnosis(accountId, target)
+    } catch (err) {
+      diagnosisError.value = apiErrorMessage(err, 'Não foi possível montar o diagnóstico agora.')
+    } finally {
+      diagnosisLoading.value = false
+    }
+  }
+
+  /** Feito/ignorado num item da fila; a análise volta relida com o item marcado. */
+  async function decide(key: string, signal: string, status: 'feito' | 'ignorado') {
+    const accountId = session.selectedAccountId
+    if (!accountId) return
+    try {
+      await client.decide(accountId, key, signal, status)
+      analysis.value = await client.analysis(accountId)
+    } catch (err) {
+      analysisError.value = apiErrorMessage(err, 'Não foi possível registrar a decisão.')
+    }
+  }
+  async function undecide(id: number) {
+    const accountId = session.selectedAccountId
+    if (!accountId) return
+    try {
+      await client.undecide(accountId, id)
+      analysis.value = await client.analysis(accountId)
+    } catch (err) {
+      analysisError.value = apiErrorMessage(err, 'Não foi possível desfazer a decisão.')
+    }
+  }
+
   function setPeriod(value: string) {
     range.period = value
     filters.page = 1
@@ -175,7 +215,7 @@ export function useAds() {
 
   return {
     range, tab, overview, itemsResponse, loading, itemsLoading, loadError, stale, syncing, syncMessage, filters,
-    analysis, analysisLoading, analysisError, loadAnalysis,
+    analysis, analysisLoading, analysisError, loadAnalysis, diagnosis, diagnosisLoading, diagnosisError, diagnose, decide, undecide,
     setPeriod, setCustomRange, changeFilters, sortBy, setPage, showCampaignItems, syncNow, ...polling
   }
 }

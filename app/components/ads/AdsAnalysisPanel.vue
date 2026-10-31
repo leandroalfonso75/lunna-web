@@ -1,14 +1,47 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { brl, dateShort, int, num, pct } from '../../lib/format'
-import type { AdsAnalysis, AdsAnalysisFamily, AdsAnalysisQueueItem } from '../../types/ads'
+import { brl, dateShort, dateTimeShort, int, num, pct } from '../../lib/format'
+import type { AdsAnalysis, AdsAnalysisFamily, AdsAnalysisQueueItem, AdsDiagnosis } from '../../types/ads'
 
 /**
  * Aba Análise da seção Ads: saúde da conta (com TACOS), a fila de decisões ordenada por dinheiro em jogo, os
  * intocáveis, o leilão por campanha e as famílias (produtos) com sinais. Só recomenda: quem aplica é o operador, no
  * Seller Center. Regras e contas em docs/secoes/ads.md ("Análise").
  */
-const props = defineProps<{ data: AdsAnalysis | null; loading: boolean; error: string }>()
+const props = defineProps<{
+  data: AdsAnalysis | null
+  loading: boolean
+  error: string
+  isAdmin: boolean
+  diagnosis: AdsDiagnosis | null
+  diagnosisLoading: boolean
+  diagnosisError: string
+}>()
+const emit = defineEmits<{
+  diagnose: [target: { family?: string; campaign_id?: number }]
+  decide: [key: string, signal: string, status: 'feito' | 'ignorado']
+  undecide: [id: number]
+  refresh: []
+}>()
+
+/** Diagnóstico aberto: família ou campanha; fica num quadro logo abaixo da fila. */
+const diagTarget = ref<{ family?: string; campaign_id?: number } | null>(null)
+function openDiagnosis(target: { family?: string; campaign_id?: number }) {
+  diagTarget.value = target
+  emit('diagnose', target)
+}
+const SYMPTOM_LABEL: Record<string, string> = {
+  saiu_do_ar: 'Saiu do ar com histórico', gasta_e_nao_vende: 'Gasta e não vende', ctr_baixo: 'CTR baixo', cvr_baixa: 'Clica e não compra',
+  roas_caiu: 'ROAS caiu de repente', abaixo_do_equilibrio: 'Abaixo do equilíbrio', multiplos_ativos: 'Vários anúncios ativos',
+  canibalizacao: 'Possível canibalização', perde_por_orcamento: 'Perde por orçamento', perde_por_ad_rank: 'Perde por classificação',
+  nao_gasta: 'Não gasta o orçamento', sem_sintoma: 'Sem sintoma claro'
+}
+function afterText(d: AdsAnalysis['decisions'][number]) {
+  if (!d.after) return 'ainda sem dia fechado depois da decisão'
+  const b = d.before
+  const roas = (v: number | null | undefined) => (v === null || v === undefined ? '—' : num(v, 2))
+  return `${d.after.partial ? `parcial (${d.after.days} de 7 dias)` : '7 dias depois'}: investimento ${brl(d.after.cost)} (antes ${brl(b.cost ?? 0)}), receita ${brl(d.after.revenue)} (antes ${brl(b.revenue ?? 0)}), ROAS ${roas(d.after.roas)} (antes ${roas(b.roas)})`
+}
 
 const CLASS_TONE: Record<string, string> = {
   destravar: 'bg-success-soft text-success', desperdicio: 'bg-danger-soft text-danger', alocacao: 'bg-warning-soft text-warning',
@@ -91,9 +124,70 @@ function value(q: AdsAnalysisQueueItem) {
             <p class="text-[12px] text-ink-2"><span class="font-medium">Evidência:</span> {{ q.evidence }}</p>
             <p class="mt-1 text-ink"><span class="font-medium">Ação:</span> {{ q.action }}</p>
             <p class="text-[12px] text-ink-2"><span class="font-medium">Antes de aplicar:</span> {{ q.check_before }} · <span class="font-medium">Reavaliar:</span> {{ q.reassess }}</p>
+            <div class="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
+              <template v-if="q.decided">
+                <span class="rounded-full px-2 py-0.5 font-semibold" :class="q.decided.status === 'feito' ? 'bg-success-soft text-success' : 'bg-surface-2 text-ink-2'">
+                  {{ q.decided.status === 'feito' ? 'Feito' : 'Ignorado' }} em {{ dateTimeShort(q.decided.at) }}
+                </span>
+                <button v-if="isAdmin" type="button" class="btn-link" @click="emit('undecide', q.decided.id)">desfazer</button>
+              </template>
+              <template v-else-if="isAdmin">
+                <button type="button" class="btn-secondary h-7 px-2.5 text-[12px]" :data-test="`feito-${q.n}`" @click="emit('decide', q.key, q.signal, 'feito')">Marcar como feito</button>
+                <button type="button" class="btn-link" @click="emit('decide', q.key, q.signal, 'ignorado')">Ignorar</button>
+              </template>
+              <button type="button" class="btn-link ml-auto" @click="openDiagnosis(q.key.startsWith('campaign:') ? { campaign_id: Number(q.key.slice(9)) } : { family: q.key })">Diagnóstico</button>
+            </div>
           </li>
         </ol>
         <p class="mt-3 text-[12px] text-ink-2" data-test="fechamento">{{ data.closing.text }}</p>
+      </div>
+
+      <div v-if="diagTarget" class="card border-primary p-4" data-test="diagnostico">
+        <div class="flex items-baseline gap-2">
+          <p class="font-semibold text-ink">Diagnóstico</p>
+          <p v-if="diagnosis" class="text-[12px] text-ink-3">{{ diagnosis.scope.kind === 'campanha' ? 'Campanha' : 'Família' }} {{ diagnosis.scope.name }}<template v-if="diagnosis.scope.items"> · {{ diagnosis.scope.active }} ativo(s) de {{ diagnosis.scope.items }} anúncios</template> · {{ dateShort(diagnosis.scope.period.from) }} a {{ dateShort(diagnosis.scope.period.to) }}</p>
+          <button type="button" class="btn-link ml-auto text-[12px]" @click="diagTarget = null">Fechar</button>
+        </div>
+        <p v-if="diagnosisLoading" class="mt-2 text-ink-3">Montando o diagnóstico…</p>
+        <p v-else-if="diagnosisError" class="mt-2 text-danger" role="alert">{{ diagnosisError }}</p>
+        <template v-else-if="diagnosis">
+          <p class="mt-2"><span class="rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary">{{ SYMPTOM_LABEL[diagnosis.symptom] ?? diagnosis.symptom }}</span></p>
+          <p class="mt-2 text-[14px] font-medium text-ink">{{ diagnosis.verdict }}</p>
+          <div class="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div>
+              <p class="font-semibold text-ink">Evidência</p>
+              <ul class="mt-1 list-disc space-y-0.5 pl-5 text-[12px] text-ink-2"><li v-for="e in diagnosis.evidence" :key="e">{{ e }}</li></ul>
+              <p v-if="diagnosis.discarded.length" class="mt-3 font-semibold text-ink">Descartado</p>
+              <ul class="mt-1 list-disc space-y-0.5 pl-5 text-[12px] text-ink-2"><li v-for="e in diagnosis.discarded" :key="e">{{ e }}</li></ul>
+            </div>
+            <div>
+              <p class="font-semibold text-ink">O que fazer, em ordem</p>
+              <ol class="mt-1 list-decimal space-y-0.5 pl-5 text-[12px] text-ink"><li v-for="a in diagnosis.actions" :key="a.action">{{ a.action }} <span class="text-ink-3">(reavaliar: {{ a.reassess }})</span></li></ol>
+              <p v-if="diagnosis.avoid.length" class="mt-3 font-semibold text-danger">O que não fazer</p>
+              <ul class="mt-1 list-disc space-y-0.5 pl-5 text-[12px] text-ink-2"><li v-for="e in diagnosis.avoid" :key="e">{{ e }}</li></ul>
+              <p v-if="diagnosis.uncertainty.length" class="mt-3 font-semibold text-ink">Incerteza</p>
+              <ul class="mt-1 list-disc space-y-0.5 pl-5 text-[12px] text-ink-3"><li v-for="e in diagnosis.uncertainty" :key="e">{{ e }}</li></ul>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div class="card p-4" data-test="historico-decisoes">
+        <p class="font-semibold text-ink">Decisões dos últimos 30 dias <span class="text-[12px] font-normal text-ink-3">({{ data.decisions.length }}) · o "depois" são os 7 dias fechados seguintes</span></p>
+        <ul class="mt-2 space-y-2 text-[12px]">
+          <li v-for="d in data.decisions" :key="d.id" class="rounded-card border border-line p-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="rounded-full px-2 py-0.5 font-semibold" :class="d.status === 'feito' ? 'bg-success-soft text-success' : 'bg-surface-2 text-ink-2'">{{ d.status === 'feito' ? 'Feito' : 'Ignorado' }}</span>
+              <span class="rounded-full px-1.5 text-[10px] font-semibold" :class="CLASS_TONE[d.class]">{{ d.class_label }}</span>
+              <span class="font-medium text-ink">{{ d.title }}</span>
+              <span class="text-ink-3">{{ dateTimeShort(d.decided_at) }}<template v-if="d.user"> · {{ d.user }}</template></span>
+              <button v-if="isAdmin" type="button" class="btn-link ml-auto" @click="emit('undecide', d.id)">desfazer</button>
+            </div>
+            <p class="mt-1 text-ink-2">{{ d.action }}</p>
+            <p class="mt-1 text-ink-3">{{ afterText(d) }}</p>
+          </li>
+          <li v-if="!data.decisions.length" class="text-ink-3">Nenhuma decisão registrada ainda. Marque os itens da fila como feitos ou ignorados para acompanhar o efeito.</li>
+        </ul>
       </div>
 
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -154,7 +248,9 @@ function value(q: AdsAnalysisQueueItem) {
               <td class="py-1.5 pr-2 text-right" data-numeric>{{ c.auction.impression_share === null || c.auction.impression_share === undefined ? '—' : pct(c.auction.impression_share * 100) }}</td>
               <td class="py-1.5 pr-2 text-right" data-numeric :class="(c.auction.lost_by_budget ?? 0) >= 0.2 ? 'font-semibold text-warning' : ''">{{ c.auction.lost_by_budget === null || c.auction.lost_by_budget === undefined ? '—' : pct(c.auction.lost_by_budget * 100) }}</td>
               <td class="py-1.5 pr-2 text-right" data-numeric :class="(c.auction.lost_by_ad_rank ?? 0) >= 0.5 ? 'font-semibold text-warning' : ''">{{ c.auction.lost_by_ad_rank === null || c.auction.lost_by_ad_rank === undefined ? '—' : pct(c.auction.lost_by_ad_rank * 100) }}</td>
-              <td class="py-1.5 pr-2 text-right" data-numeric>{{ int(c.families) }} <span class="text-[11px] text-ink-3">({{ c.attribution }})</span></td>
+              <td class="py-1.5 pr-2 text-right" data-numeric>{{ int(c.families) }} <span class="text-[11px] text-ink-3">({{ c.attribution }})</span>
+                <button type="button" class="btn-link block text-[11px]" @click="openDiagnosis({ campaign_id: c.id })">Diagnóstico</button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -207,6 +303,7 @@ function value(q: AdsAnalysisQueueItem) {
                   <ul class="space-y-1 text-[12px]">
                     <li v-for="s in f.signals" :key="s.type"><span class="font-semibold" :class="PRIORITY_TONE[s.priority]">{{ SIGNAL_LABEL[s.type] ?? s.type }}:</span> {{ s.detail }}</li>
                   </ul>
+                  <button type="button" class="btn-link mt-1 text-[12px]" :data-test="`diagnosticar-${f.key}`" @click.stop="openDiagnosis({ family: f.key })">Diagnóstico desta família</button>
                   <table class="mt-2 w-full text-[11px]">
                     <tbody>
                       <tr v-for="i in f.items" :key="i.item_id" class="text-ink-2">

@@ -18,7 +18,7 @@ import { useSessionStore } from '../stores/session'
  */
 const session = useSessionStore()
 const ads = useAds()
-const { range, tab, overview, itemsResponse, itemsLoading, loading, loadError, stale, syncing, syncMessage, filters, analysis, analysisLoading, analysisError } = ads
+const { range, tab, overview, itemsResponse, itemsLoading, loading, loadError, stale, syncing, syncMessage, filters, analysis, analysisLoading, analysisError, diagnosis, diagnosisLoading, diagnosisError } = ads
 
 const header = usePageHeader()
 watchEffect(() => {
@@ -116,7 +116,9 @@ const TABS = [
 
       <p v-if="range.period === 'custom' && (!range.from || !range.to)" class="text-[13px] text-ink-3">Escolha a data inicial e a final para ver o período.</p>
       <CampaignsTable v-if="tab === 'campanhas' && overview" :campaigns="overview.campaigns" @show-items="ads.showCampaignItems" />
-      <AdsAnalysisPanel v-if="tab === 'analise'" :data="analysis" :loading="analysisLoading" :error="analysisError" />
+      <AdsAnalysisPanel v-if="tab === 'analise'" :data="analysis" :loading="analysisLoading" :error="analysisError" :is-admin="session.isAdmin"
+        :diagnosis="diagnosis" :diagnosis-loading="diagnosisLoading" :diagnosis-error="diagnosisError"
+        @diagnose="ads.diagnose" @decide="ads.decide" @undecide="ads.undecide" @refresh="ads.loadAnalysis" />
       <p v-if="tab === 'anuncios' && itemsResponse?.live_error" role="status" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning">
         Não foi possível consultar os números dos anúncios deste período no Mercado Livre agora. Tente de novo em instantes.
       </p>

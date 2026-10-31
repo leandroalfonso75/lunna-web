@@ -214,6 +214,37 @@ export interface AdsAnalysisQueueItem {
   action: string
   check_before: string
   reassess: string
+  /** Já decidido nos últimos 7 dias (feito ou ignorado). */
+  decided?: { id: number; status: 'feito' | 'ignorado'; at: string } | null
+}
+
+/** Uma decisão da fila, com o "antes" (gravado na hora) e o "depois" (7 dias fechados seguintes; parcial até completar). */
+export interface AdsDecision {
+  id: number
+  key: string
+  signal: string
+  class: string
+  class_label: string
+  title: string | null
+  action: string | null
+  value: number | null
+  status: 'feito' | 'ignorado'
+  decided_at: string
+  user: string | null
+  before: { cost?: number; revenue?: number; roas?: number | null; clicks?: number; prints?: number; tacos?: number | null; period?: { from: string; to: string } }
+  after: { cost: number; revenue: number; roas: number | null; clicks: number; prints: number; from: string; to: string; days: number; partial: boolean } | null
+}
+
+/** `GET /api/ads/diagnosis`: veredito de uma família ou campanha, no formato do plugin. */
+export interface AdsDiagnosis {
+  scope: { kind: 'familia' | 'campanha'; key: string; name: string | null; items?: number; active?: number; families?: number; period: { from: string; to: string } }
+  symptom: string
+  verdict: string
+  evidence: string[]
+  discarded: string[]
+  actions: { action: string; reassess: string }[]
+  avoid: string[]
+  uncertainty: string[]
 }
 
 export interface AdsAnalysisHealth extends AdsAnalysisMetrics {
@@ -238,5 +269,6 @@ export interface AdsAnalysis {
   watch: AdsAnalysisQueueItem[]
   untouchables: { key: string; name: string | null; reason: string; until: string | null }[]
   closing: { tacos: number | null; previous_tacos: number | null; target: number[]; direction: string; text: string }
+  decisions: AdsDecision[]
   generated_at: string
 }

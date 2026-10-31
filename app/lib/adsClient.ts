@@ -1,4 +1,4 @@
-import type { AdsAnalysis, AdsItemsFilters, AdsItemsResponse, AdsRange, AdsResponse } from '../types/ads'
+import type { AdsAnalysis, AdsDecision, AdsDiagnosis, AdsItemsFilters, AdsItemsResponse, AdsRange, AdsResponse } from '../types/ads'
 
 type ApiFn = (path: string, options?: Record<string, unknown>) => Promise<any>
 
@@ -30,6 +30,16 @@ export function createAdsClient(api: ApiFn) {
     /** Aba Análise: saúde, famílias com sinais, leilão e fila de decisões dos últimos 7 dias fechados. */
     analysis(accountId: string): Promise<AdsAnalysis> {
       return api('/api/ads/analysis', { query: { account_id: accountId } })
+    },
+    diagnosis(accountId: string, target: { family?: string; campaign_id?: number }): Promise<AdsDiagnosis> {
+      return api('/api/ads/diagnosis', { query: { account_id: accountId, ...target } })
+    },
+    /** Marca um item da fila como feito ou ignorado. Só administradores. */
+    decide(accountId: string, key: string, signal: string, status: 'feito' | 'ignorado'): Promise<AdsDecision> {
+      return api('/api/ads/decisions', { method: 'POST', query: { account_id: accountId }, body: { key, signal, status } })
+    },
+    undecide(accountId: string, id: number): Promise<unknown> {
+      return api(`/api/ads/decisions/${id}`, { method: 'DELETE', query: { account_id: accountId } })
     },
     sync(accountId: string): Promise<{ queued: boolean }> {
       return api('/api/ads/sync', { method: 'POST', query: { account_id: accountId } })
