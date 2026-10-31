@@ -163,6 +163,7 @@ export interface AdsAnalysisFamily {
   n_items: number
   n_active: number
   campaigns: number[]
+  campaign_names: string[]
   metrics: AdsAnalysisMetrics
   previous: AdsAnalysisMetrics
   month: AdsAnalysisMetrics
@@ -214,8 +215,9 @@ export interface AdsAnalysisQueueItem {
   action: string
   check_before: string
   reassess: string
-  /** Códigos dos anúncios envolvidos (vazio em item de campanha). */
+  /** Códigos dos anúncios envolvidos (vazio em item de campanha) e as campanhas em que estão. */
   item_ids: string[]
+  campaigns: string[]
   /** perdido = dinheiro gasto sem retorno (vermelho); deixou_de_ganhar = receita que não veio (preto). */
   value_kind: 'perdido' | 'deixou_de_ganhar'
   value_label: string

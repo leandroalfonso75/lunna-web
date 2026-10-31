@@ -118,7 +118,7 @@ function value(q: AdsAnalysisQueueItem) {
               <span class="text-[15px] font-semibold text-ink">#{{ q.n }}</span>
               <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="CLASS_TONE[q.class]">{{ q.class_label }}</span>
               <span class="font-medium text-ink">{{ q.title }}</span>
-              <span v-if="q.item_ids?.length" class="text-[11px] text-ink-3" data-test="acao-codigos">{{ q.item_ids.join(', ') }}</span>
+              <span v-if="q.item_ids?.length" class="text-[11px] text-ink-3" data-test="acao-codigos">{{ q.item_ids.join(', ') }}<template v-if="q.campaigns?.length"> · campanha {{ q.campaigns.join(', ') }}</template></span>
               <span class="ml-auto max-w-[260px] text-right" data-test="valor-em-jogo">
                 <span class="block text-[15px] font-semibold" :class="q.value_kind === 'perdido' ? 'text-danger' : 'text-ink'" data-numeric :title="q.value_how ?? 'não estimável'">{{ value(q) }}</span>
                 <span class="block text-[11px]" :class="q.value_kind === 'perdido' ? 'text-danger' : 'text-ink-2'">{{ q.value_kind === 'perdido' ? 'Perdido' : 'Deixou de ganhar' }}: {{ q.value_label }}</span>
@@ -288,7 +288,7 @@ function value(q: AdsAnalysisQueueItem) {
                     <div class="min-w-0">
                       <p class="truncate font-medium text-ink" :title="f.name ?? ''">{{ f.name }}</p>
                       <p class="truncate text-[11px] text-ink-3" :title="f.items.map((i) => i.item_id).join(', ')">{{ f.items.slice(0, 4).map((i) => i.item_id).join(', ') }}<template v-if="f.items.length > 4"> +{{ f.items.length - 4 }}</template></p>
-                      <p class="text-[11px] text-ink-3">{{ f.n_active }} ativo(s) de {{ f.n_items }} · {{ f.domain ?? '' }}<template v-if="f.untouchable"> · <span class="text-warning">{{ f.untouchable.reason }}</span></template></p>
+                      <p class="text-[11px] text-ink-3">{{ f.n_active }} ativo(s) de {{ f.n_items }}<template v-if="f.campaign_names?.length"> · campanha {{ f.campaign_names.join(', ') }}</template> · {{ f.domain ?? '' }}<template v-if="f.untouchable"> · <span class="text-warning">{{ f.untouchable.reason }}</span></template></p>
                     </div>
                   </div>
                 </td>
