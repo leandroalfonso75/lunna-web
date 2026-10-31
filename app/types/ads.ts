@@ -113,3 +113,130 @@ export interface AdsItemsFilters {
   page: number
   perPage: number
 }
+
+/** Métricas somadas de uma janela (anúncio, família, campanha ou conta). */
+export interface AdsAnalysisMetrics {
+  cost: number
+  revenue: number
+  clicks: number
+  prints: number
+  units: number
+  roas: number | null
+  acos: number | null
+  ctr: number | null
+  cvr: number | null
+  cpc: number | null
+}
+
+export interface AdsAnalysisSignal {
+  type: string
+  priority: 'alta' | 'media' | 'baixa'
+  value: number | null
+  detail: string
+  item_ids?: string[]
+  campaign_id?: number
+}
+
+export interface AdsAnalysisItem extends AdsAnalysisMetrics {
+  item_id: string
+  title: string | null
+  status: string
+  campaign_id: number | null
+  campaign: string | null
+  thumbnail: string | null
+  permalink: string | null
+  price: number | null
+  image_quality: string | null
+  catalog: boolean | null
+  buy_box_winner: boolean | null
+  recommended: boolean | null
+  date_created: string | null
+  age_days: number | null
+}
+
+export interface AdsAnalysisFamily {
+  key: string
+  family_id: string | null
+  name: string | null
+  domain: string | null
+  thumbnail: string | null
+  n_items: number
+  n_active: number
+  campaigns: number[]
+  metrics: AdsAnalysisMetrics
+  previous: AdsAnalysisMetrics
+  month: AdsAnalysisMetrics
+  variation: { cost: number | null; revenue: number | null; roas: number | null }
+  /** ROAS de Equilíbrio = 1 ÷ margem bruta, com o custo real; null sem custo. */
+  economics: { price: number; cost: number | null; margin_pct: number; roas_equilibrio: number | null; complete: boolean; alert: string | null } | null
+  sample: { cvr_ok: boolean; ctr_ok: boolean }
+  items: AdsAnalysisItem[]
+  signals: AdsAnalysisSignal[]
+  untouchable: { reason: string; until: string | null } | null
+}
+
+export interface AdsAnalysisCampaign {
+  id: number
+  name: string
+  status: string
+  strategy: string | null
+  roas_target: number | null
+  acos_target: number | null
+  budget: number | null
+  daily_budget: number | null
+  families: number
+  attribution: 'exata' | 'compartilhada'
+  metrics: AdsAnalysisMetrics
+  equilibrium: number | null
+  auction: {
+    impression_share: number | null
+    top_impression_share: number | null
+    lost_by_budget: number | null
+    lost_by_ad_rank: number | null
+    acos_benchmark: number | null
+    consistent: boolean | null
+    prev_impression_share: number | null
+    synced_at: string | null
+  }
+  acos_vs_benchmark: number | null
+}
+
+export interface AdsAnalysisQueueItem {
+  n?: number
+  key: string
+  class: 'destravar' | 'desperdicio' | 'alocacao' | 'orcamento' | 'posicao' | 'ajuste'
+  class_label: string
+  title: string
+  signal: string
+  value: number | null
+  value_how: string | null
+  evidence: string
+  action: string
+  check_before: string
+  reassess: string
+}
+
+export interface AdsAnalysisHealth extends AdsAnalysisMetrics {
+  organic: number
+  total_revenue: number
+  tacos: number | null
+  ads_share: number | null
+  tacos_state: 'ok' | 'warn' | 'bad' | 'sem_dados'
+  previous: AdsAnalysisMetrics & { organic: number; total_revenue: number; tacos: number | null; ads_share: number | null }
+  variation: { cost: number | null; revenue: number | null; roas: number | null; tacos: number | null; organic: number | null }
+}
+
+/** `GET /api/ads/analysis`: análise e fila de decisões de Product Ads (só recomenda). */
+export interface AdsAnalysis {
+  period: { from: string; to: string; days: number; prev_from: string; prev_to: string }
+  rules: { min_clicks: number; min_prints: number; relevant_cost: number; maturity_days: number; max_actions: number; tacos_target: number[]; tacos_bad: number; reference_equilibrium: number; note: string }
+  health: AdsAnalysisHealth
+  campaigns: AdsAnalysisCampaign[]
+  families: AdsAnalysisFamily[]
+  queue: AdsAnalysisQueueItem[]
+  next_round: AdsAnalysisQueueItem[]
+  watch: AdsAnalysisQueueItem[]
+  untouchables: { key: string; name: string | null; reason: string; until: string | null }[]
+  closing: { tacos: number | null; previous_tacos: number | null; target: number[]; direction: string; text: string }
+  generated_at: string
+}

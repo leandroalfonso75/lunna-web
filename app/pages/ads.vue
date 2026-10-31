@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, watchEffect } from 'vue'
+import AdsAnalysisPanel from '../components/ads/AdsAnalysisPanel.vue'
 import AdsItemsTable from '../components/ads/AdsItemsTable.vue'
 import AdsSummary from '../components/ads/AdsSummary.vue'
 import CampaignsTable from '../components/ads/CampaignsTable.vue'
@@ -17,7 +18,7 @@ import { useSessionStore } from '../stores/session'
  */
 const session = useSessionStore()
 const ads = useAds()
-const { range, tab, overview, itemsResponse, itemsLoading, loading, loadError, stale, syncing, syncMessage, filters } = ads
+const { range, tab, overview, itemsResponse, itemsLoading, loading, loadError, stale, syncing, syncMessage, filters, analysis, analysisLoading, analysisError } = ads
 
 const header = usePageHeader()
 watchEffect(() => {
@@ -47,7 +48,8 @@ function onDate(which: 'from' | 'to', event: Event) {
 
 const TABS = [
   { value: 'campanhas' as const, label: 'Campanhas' },
-  { value: 'anuncios' as const, label: 'Anúncios' }
+  { value: 'anuncios' as const, label: 'Anúncios' },
+  { value: 'analise' as const, label: 'Análise' }
 ]
 </script>
 
@@ -107,12 +109,14 @@ const TABS = [
           @click="tab = t.value"
         >
           {{ t.label }}
-          <span class="ml-1 text-[12px] text-ink-3">{{ t.value === 'campanhas' ? int(overview?.campaigns.length ?? 0) : int(overview?.sync.ads ?? 0) }}</span>
+          <span v-if="t.value !== 'analise'" class="ml-1 text-[12px] text-ink-3">{{ t.value === 'campanhas' ? int(overview?.campaigns.length ?? 0) : int(overview?.sync.ads ?? 0) }}</span>
+          <span v-else-if="analysis?.queue.length" class="ml-1 rounded-full bg-danger-soft px-1.5 text-[11px] font-semibold text-danger">{{ analysis.queue.length }} ações</span>
         </button>
       </div>
 
       <p v-if="range.period === 'custom' && (!range.from || !range.to)" class="text-[13px] text-ink-3">Escolha a data inicial e a final para ver o período.</p>
       <CampaignsTable v-if="tab === 'campanhas' && overview" :campaigns="overview.campaigns" @show-items="ads.showCampaignItems" />
+      <AdsAnalysisPanel v-if="tab === 'analise'" :data="analysis" :loading="analysisLoading" :error="analysisError" />
       <p v-if="tab === 'anuncios' && itemsResponse?.live_error" role="status" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning">
         Não foi possível consultar os números dos anúncios deste período no Mercado Livre agora. Tente de novo em instantes.
       </p>

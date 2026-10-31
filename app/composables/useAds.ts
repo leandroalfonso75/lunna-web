@@ -3,7 +3,7 @@ import { buildAdsItemsQuery, createAdsClient } from '../lib/adsClient'
 import { apiErrorMessage } from '../lib/apiErrors'
 import { withTransientRetry } from '../lib/transientRetry'
 import { useSessionStore } from '../stores/session'
-import type { AdsItemsFilters, AdsItemsResponse, AdsRange, AdsResponse } from '../types/ads'
+import type { AdsAnalysis, AdsItemsFilters, AdsItemsResponse, AdsRange, AdsResponse } from '../types/ads'
 import { usePolling } from './usePolling'
 
 const DEBOUNCE_MS = 300
@@ -18,7 +18,7 @@ export function useAds() {
   const session = useSessionStore()
 
   const range = reactive<AdsRange>({ period: '30d', from: '', to: '' })
-  const tab = ref<'campanhas' | 'anuncios'>('campanhas')
+  const tab = ref<'campanhas' | 'anuncios' | 'analise'>('campanhas')
   const overview = ref<AdsResponse | null>(null)
   const itemsResponse = ref<AdsItemsResponse | null>(null)
   const loading = ref(true)
@@ -85,6 +85,26 @@ export function useAds() {
     if (debounced) timer = setTimeout(loadItems, DEBOUNCE_MS)
     else loadItems()
   }
+
+  const analysis = ref<AdsAnalysis | null>(null)
+  const analysisLoading = ref(false)
+  const analysisError = ref('')
+
+  /** Aba Análise: lida ao abrir a aba e ao atualizar; independe do período da tela (sempre os últimos 7 dias fechados). */
+  async function loadAnalysis() {
+    const accountId = session.selectedAccountId
+    if (!accountId || analysisLoading.value) return
+    analysisLoading.value = true
+    analysisError.value = ''
+    try {
+      analysis.value = await client.analysis(accountId)
+    } catch (err) {
+      analysisError.value = apiErrorMessage(err, 'Não foi possível montar a análise agora.')
+    } finally {
+      analysisLoading.value = false
+    }
+  }
+  watch(tab, (t) => { if (t === 'analise' && !analysis.value) loadAnalysis() })
 
   function setPeriod(value: string) {
     range.period = value
@@ -155,6 +175,7 @@ export function useAds() {
 
   return {
     range, tab, overview, itemsResponse, loading, itemsLoading, loadError, stale, syncing, syncMessage, filters,
+    analysis, analysisLoading, analysisError, loadAnalysis,
     setPeriod, setCustomRange, changeFilters, sortBy, setPage, showCampaignItems, syncNow, ...polling
   }
 }

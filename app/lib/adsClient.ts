@@ -1,4 +1,4 @@
-import type { AdsItemsFilters, AdsItemsResponse, AdsRange, AdsResponse } from '../types/ads'
+import type { AdsAnalysis, AdsItemsFilters, AdsItemsResponse, AdsRange, AdsResponse } from '../types/ads'
 
 type ApiFn = (path: string, options?: Record<string, unknown>) => Promise<any>
 
@@ -27,6 +27,10 @@ export function createAdsClient(api: ApiFn) {
       return api('/api/ads/items', { query: params, signal: options.signal })
     },
     /** Lê de novo campanhas e métricas no Mercado Livre. Só administradores. */
+    /** Aba Análise: saúde, famílias com sinais, leilão e fila de decisões dos últimos 7 dias fechados. */
+    analysis(accountId: string): Promise<AdsAnalysis> {
+      return api('/api/ads/analysis', { query: { account_id: accountId } })
+    },
     sync(accountId: string): Promise<{ queued: boolean }> {
       return api('/api/ads/sync', { method: 'POST', query: { account_id: accountId } })
     }
