@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { brl, dateShort, dateTimeShort, int, num, pct } from '../../lib/format'
-import type { AdsAnalysis, AdsAnalysisFamily, AdsAnalysisQueueItem, AdsDiagnosis } from '../../types/ads'
+import type { AdsAnalysis, AdsAnalysisFamily, AdsAnalysisQueueItem, AdsDiagnosis, AdsStructureType } from '../../types/ads'
 
 /**
  * Aba Análise da seção Ads: saúde da conta (com TACOS), a fila de decisões ordenada por dinheiro em jogo, os
@@ -23,6 +23,15 @@ const emit = defineEmits<{
   undecide: [id: number]
   refresh: []
 }>()
+
+/** Tipos de sugestão de estrutura de campanhas: rótulo e cor. */
+const STRUCTURE_TYPE: Record<AdsStructureType, { label: string; tone: string }> = {
+  dividir: { label: 'Dividir', tone: 'bg-primary-soft text-primary' },
+  mover: { label: 'Mover', tone: 'bg-warning-soft text-warning' },
+  ativar: { label: 'Ativar', tone: 'bg-success-soft text-success' },
+  reativar: { label: 'Reativar', tone: 'bg-success-soft text-success' },
+  reduzir: { label: 'Reduzir', tone: 'bg-danger-soft text-danger' }
+}
 
 /** Diagnóstico aberto: família ou campanha; fica num quadro logo abaixo da fila. */
 const diagTarget = ref<{ family?: string; campaign_id?: number } | null>(null)
@@ -175,6 +184,39 @@ function value(q: AdsAnalysisQueueItem) {
             </div>
           </div>
         </template>
+      </div>
+
+      <div class="card p-4" data-test="estrutura-campanhas">
+        <p class="font-semibold text-ink">Estrutura de campanhas <span class="text-[12px] font-normal text-ink-3">({{ data.structure.suggestions.length }}) · só recomendação: dividir, mover, ativar ou reativar anúncios</span></p>
+        <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-ink-2" data-test="estrutura-plano">
+          <span>Orçamento diário ativo hoje: <strong class="text-ink">{{ brl(data.structure.plan.current_daily) }}</strong></span>
+          <span>Dinheiro novo sugerido: <strong class="text-ink">{{ brl(data.structure.plan.new_daily) }}</strong></span>
+          <span>Realocado entre campanhas: <strong class="text-ink">{{ brl(data.structure.plan.reallocated_daily) }}</strong></span>
+          <span>Depois das sugestões: <strong :class="data.structure.plan.fits ? 'text-success' : 'text-danger'">{{ brl(data.structure.plan.after_daily) }}</strong>
+            <template v-if="data.structure.plan.daily_max != null"> de no máximo {{ brl(data.structure.plan.daily_max) }}/dia</template></span>
+        </div>
+        <p v-if="data.structure.plan.note" class="mt-1 text-[12px] text-warning">{{ data.structure.plan.note }}</p>
+        <ul class="mt-2 space-y-2 text-[12px]">
+          <li v-for="s in data.structure.suggestions" :key="s.key + s.type" class="rounded-card border border-line p-2" :class="{ 'opacity-70': !s.within_limit }" :data-test="`estrutura-${s.type}`">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="rounded-full px-2 py-0.5 font-semibold" :class="STRUCTURE_TYPE[s.type].tone">{{ STRUCTURE_TYPE[s.type].label }}</span>
+              <span class="font-medium text-ink">{{ s.title }}</span>
+              <span v-if="s.item_ids.length" class="text-ink-3">{{ s.item_ids.slice(0, 3).join(', ') }}<template v-if="s.item_ids.length > 3"> +{{ s.item_ids.length - 3 }}</template></span>
+              <span class="ml-auto text-right">
+                <span v-if="s.daily_budget" class="font-semibold" :class="s.daily_budget < 0 ? 'text-danger' : 'text-ink'">{{ s.daily_budget < 0 ? '−' : '+' }}{{ brl(Math.abs(s.daily_budget)) }}/dia</span>
+                <span v-if="s.roas_target" class="block text-[11px] text-ink-3">ROAS Objetivo sugerido {{ num(s.roas_target, 1) }}</span>
+              </span>
+            </div>
+            <p class="mt-1 text-ink-2">
+              <template v-if="s.from_campaign && s.to_campaign">De <strong>{{ s.from_campaign }}</strong> para <strong>{{ s.to_campaign }}</strong>.</template>
+              <template v-else-if="s.to_campaign">Para <strong>{{ s.to_campaign }}</strong>.</template>
+              {{ s.rationale }}
+            </p>
+            <p class="mt-1 text-ink-3">Esperado: {{ s.expected }} · Antes: {{ s.check_before }}</p>
+            <p v-if="s.note" class="mt-1 font-semibold text-warning">{{ s.note }}</p>
+          </li>
+          <li v-if="!data.structure.suggestions.length" class="text-ink-3">Nenhuma mudança de estrutura com potencial viável agora: campanhas sem família dominante perdendo leilão, e nenhum anúncio fora de campanha ou pausado com vendas, margem e estoque para justificar.</li>
+        </ul>
       </div>
 
       <div class="card p-4" data-test="historico-decisoes">

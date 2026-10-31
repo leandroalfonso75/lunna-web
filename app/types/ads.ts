@@ -277,5 +277,34 @@ export interface AdsAnalysis {
   untouchables: { key: string; name: string | null; reason: string; until: string | null }[]
   closing: { tacos: number | null; previous_tacos: number | null; target: number[]; direction: string; text: string }
   decisions: AdsDecision[]
+  structure: AdsStructure
   generated_at: string
+}
+
+export type AdsStructureType = 'dividir' | 'mover' | 'ativar' | 'reativar' | 'reduzir'
+
+/** Sugestão de estrutura de campanhas (só recomendação): dividir, mover, ativar, reativar ou reduzir. */
+export interface AdsStructureSuggestion {
+  type: AdsStructureType
+  title: string | null
+  key: string
+  item_ids: string[]
+  from_campaign: string | null
+  to_campaign: string | null
+  daily_budget: number
+  frees_from: { campaign_id: number; amount: number } | null
+  roas_target: number | null
+  value: number | null
+  within_limit: boolean
+  note?: string | null
+  rationale: string
+  expected: string
+  check_before: string
+}
+
+export interface AdsStructure {
+  daily_max: number | null
+  current_daily: number
+  suggestions: AdsStructureSuggestion[]
+  plan: { current_daily: number; new_daily: number; reallocated_daily: number; after_daily: number; daily_max: number | null; fits: boolean; note: string | null }
 }

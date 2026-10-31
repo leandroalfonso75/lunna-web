@@ -32,6 +32,8 @@ export interface Company {
   promo_schedule_hour?: number
   /** Base do custo de Ads por unidade em Anúncios e Promoções: 7, 15 ou 30 dias fechados. */
   ads_cost_days?: 7 | 15 | 30
+  /** Limite máximo de investimento diário em Ads (R$) respeitado pelas sugestões de estrutura; null = não informado */
+  ads_daily_budget_max?: number | null
   promo_schedule_days?: number[]
   promo_margin_basis?: 'after_ads' | 'before_ads'
   promo_price_target?: 'min' | 'max'
