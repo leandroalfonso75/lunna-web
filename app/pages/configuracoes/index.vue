@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watchEffect } from 'vue'
 import ContasTab from '../../components/settings/ContasTab.vue'
+import AdsTab from '../../components/settings/AdsTab.vue'
 import AnunciosTab from '../../components/settings/AnunciosTab.vue'
 import EmpresaTab from '../../components/settings/EmpresaTab.vue'
 import PromocoesTab from '../../components/settings/PromocoesTab.vue'
@@ -86,6 +87,7 @@ watchEffect(() => {
 
     <EmpresaTab v-if="currentTab === 'empresa'" :settings-api="settingsApi" />
     <AnunciosTab v-else-if="currentTab === 'anuncios'" :settings-api="settingsApi" />
+    <AdsTab v-else-if="currentTab === 'ads'" :settings-api="settingsApi" />
     <PromocoesTab v-else-if="currentTab === 'promocoes'" :settings-api="settingsApi" />
     <UsuariosTab v-else-if="currentTab === 'usuarios'" :settings-api="settingsApi" @loaded="usersCount = $event" />
     <ContasTab v-else-if="currentTab === 'contas'" :settings-api="settingsApi" :is-admin="session.isAdmin" @loaded="accountsCount = $event" />

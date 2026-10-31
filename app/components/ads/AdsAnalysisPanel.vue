@@ -187,7 +187,7 @@ function value(q: AdsAnalysisQueueItem) {
       </div>
 
       <div class="card p-4" data-test="estrutura-campanhas">
-        <p class="font-semibold text-ink">Estrutura de campanhas <span class="text-[12px] font-normal text-ink-3">({{ data.structure.suggestions.length }}) · só recomendação: dividir, mover, ativar ou reativar anúncios</span></p>
+        <p class="font-semibold text-ink">Estrutura de campanhas <span class="text-[12px] font-normal text-ink-3">({{ data.structure.suggestions.length }}) · só recomendação: campanha nova vem com orçamento e ROAS Objetivo a preencher</span></p>
         <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-ink-2" data-test="estrutura-plano">
           <span>Orçamento diário ativo hoje: <strong class="text-ink">{{ brl(data.structure.plan.current_daily) }}</strong></span>
           <span>Dinheiro novo sugerido: <strong class="text-ink">{{ brl(data.structure.plan.new_daily) }}</strong></span>

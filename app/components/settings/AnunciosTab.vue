@@ -19,30 +19,6 @@ const OPTIONS: { value: 7 | 15 | 30; label: string }[] = [
   { value: 7, label: 'Últimos 7 dias' }, { value: 15, label: 'Últimos 15 dias' }, { value: 30, label: 'Últimos 30 dias' }
 ]
 const current = computed(() => session.company?.ads_cost_days ?? 15)
-const budgetMax = ref<string>(session.company?.ads_daily_budget_max != null ? String(session.company.ads_daily_budget_max) : '')
-const savingBudget = ref(false)
-
-/** Limite máximo de investimento diário (R$); vazio = não informado. */
-async function saveBudget() {
-  if (savingBudget.value) return
-  const raw = budgetMax.value.replace(',', '.').trim()
-  const value = raw === '' ? null : Number(raw)
-  if (value !== null && (!Number.isFinite(value) || value < 0)) {
-    toast.error('Informe um valor em reais, ou deixe em branco.')
-    return
-  }
-  if (value === (session.company?.ads_daily_budget_max ?? null)) return
-  savingBudget.value = true
-  try {
-    const { company } = await props.settingsApi.updateCompany({ ads_daily_budget_max: value })
-    session.setCompany(company as Company)
-    toast.success(value === null ? 'Limite diário removido.' : `Limite diário de Ads salvo: R$ ${value.toFixed(2).replace('.', ',')}.`)
-  } catch (err) {
-    toast.error(apiErrorMessage(err, 'Não foi possível salvar agora. Tente de novo.'))
-  } finally {
-    savingBudget.value = false
-  }
-}
 
 async function save(days: 7 | 15 | 30) {
   if (saving.value || days === current.value) return
@@ -78,20 +54,5 @@ async function save(days: 7 | 15 | 30) {
       <p class="text-[12px] text-ink-3">Anúncio sem gasto no período, ou com gasto e nenhuma venda, fica com custo de Ads zero por unidade.</p>
     </fieldset>
 
-    <div>
-      <h3 class="section-title">Limite de investimento diário</h3>
-      <p class="page-subtitle text-[13px]">
-        Teto da soma dos orçamentos diários das campanhas de Product Ads. As sugestões de estrutura de campanhas (aba Análise de Ads)
-        nunca propõem passar deste valor: o que não cabe só entra com realocação de verba.
-      </p>
-    </div>
-    <div class="card flex flex-wrap items-end gap-3 p-4 text-[14px]">
-      <label class="block">
-        <span class="mb-1 block text-[12px] text-ink-3">Máximo por dia (R$)</span>
-        <input v-model="budgetMax" type="text" inputmode="decimal" class="input w-40" placeholder="ex.: 500" :disabled="!session.isAdmin || savingBudget" data-test="ads-limite-diario" @keydown.enter.prevent="saveBudget" />
-      </label>
-      <button type="button" class="btn-primary h-10" :disabled="!session.isAdmin || savingBudget" data-test="ads-limite-salvar" @click="saveBudget">Salvar</button>
-      <p class="basis-full text-[12px] text-ink-3">Em branco, as sugestões não aplicam teto e a tela avisa.</p>
-    </div>
   </div>
 </template>

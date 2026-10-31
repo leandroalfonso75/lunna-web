@@ -5,7 +5,7 @@ import type { UserRole } from '../types/api'
  * somente leitura (a aba em si decide o que renderiza para cada papel — o
  * gate aqui é só sobre quais abas aparecem/podem ser pedidas por `?aba=`).
  */
-export type SettingsTab = 'empresa' | 'anuncios' | 'promocoes' | 'usuarios' | 'contas'
+export type SettingsTab = 'empresa' | 'anuncios' | 'ads' | 'promocoes' | 'usuarios' | 'contas'
 
 export interface SettingsTabDef {
   value: SettingsTab
@@ -18,6 +18,7 @@ export interface SettingsTabDef {
 export const SETTINGS_TABS: SettingsTabDef[] = [
   { value: 'empresa', label: 'Empresa', roles: ['admin'] },
   { value: 'anuncios', label: 'Anúncios', roles: ['admin'] },
+  { value: 'ads', label: 'Ads', roles: ['admin'] },
   { value: 'promocoes', label: 'Promoções', roles: ['admin'] },
   { value: 'usuarios', label: 'Usuários', roles: ['admin'] },
   { value: 'contas', label: 'Contas do Mercado Livre', shortLabel: 'Contas ML', roles: ['admin', 'member'] }
