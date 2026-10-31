@@ -118,7 +118,11 @@ function value(q: AdsAnalysisQueueItem) {
               <span class="text-[15px] font-semibold text-ink">#{{ q.n }}</span>
               <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="CLASS_TONE[q.class]">{{ q.class_label }}</span>
               <span class="font-medium text-ink">{{ q.title }}</span>
-              <span class="ml-auto font-semibold text-ink" data-numeric>{{ value(q) }}</span>
+              <span v-if="q.item_ids?.length" class="text-[11px] text-ink-3" data-test="acao-codigos">{{ q.item_ids.join(', ') }}</span>
+              <span class="ml-auto text-right">
+                <span class="block text-[10px] uppercase tracking-wide text-ink-3">Valor em jogo</span>
+                <span class="font-semibold text-ink" data-numeric :title="q.value_how ?? 'não estimável'">{{ value(q) }}</span>
+              </span>
             </div>
             <p class="mt-1 text-[12px] text-ink-3"><span class="font-medium text-ink-2">Valor em jogo:</span> {{ q.value_how ?? 'não estimável' }}</p>
             <p class="text-[12px] text-ink-2"><span class="font-medium">Evidência:</span> {{ q.evidence }}</p>
@@ -282,6 +286,7 @@ function value(q: AdsAnalysisQueueItem) {
                     <img v-if="f.thumbnail" :src="f.thumbnail" alt="" class="h-9 w-9 shrink-0 rounded object-cover" loading="lazy" />
                     <div class="min-w-0">
                       <p class="truncate font-medium text-ink" :title="f.name ?? ''">{{ f.name }}</p>
+                      <p class="truncate text-[11px] text-ink-3" :title="f.items.map((i) => i.item_id).join(', ')">{{ f.items.slice(0, 4).map((i) => i.item_id).join(', ') }}<template v-if="f.items.length > 4"> +{{ f.items.length - 4 }}</template></p>
                       <p class="text-[11px] text-ink-3">{{ f.n_active }} ativo(s) de {{ f.n_items }} · {{ f.domain ?? '' }}<template v-if="f.untouchable"> · <span class="text-warning">{{ f.untouchable.reason }}</span></template></p>
                     </div>
                   </div>
