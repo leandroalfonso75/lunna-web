@@ -3,7 +3,7 @@ import { resolveSettingsTab, SETTINGS_TABS, settingsTabPath, visibleSettingsTabs
 
 describe('visibleSettingsTabs', () => {
   it('admin vê as três abas', () => {
-    expect(visibleSettingsTabs('admin').map((t) => t.value)).toEqual(['empresa', 'promocoes', 'usuarios', 'contas'])
+    expect(visibleSettingsTabs('admin').map((t) => t.value)).toEqual(['empresa', 'anuncios', 'promocoes', 'usuarios', 'contas'])
   })
 
   it('member vê só "contas"', () => {

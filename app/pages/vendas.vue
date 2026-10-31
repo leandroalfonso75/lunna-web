@@ -79,7 +79,9 @@ const ADS_HINT: Record<string, string> = {
 
 const taxPct = (row: SaleRow) => (row.economics && row.economics.revenue ? (row.economics.tax / row.economics.revenue) * 100 : 0)
 const fixedPct = (row: SaleRow) => (row.economics && row.economics.revenue ? (row.economics.fixed_expenses / row.economics.revenue) * 100 : 0)
-const money = (v: number | null | undefined) => (v === null || v === undefined ? '—' : num(v, 2))
+const money = (v: number | null | undefined) => (v === null || v === undefined ? '—' : brl(v))
+/** Percentual de um custo sobre a receita da venda. */
+const share = (v: number | null | undefined, revenue: number | null | undefined) => (v === null || v === undefined || !revenue ? '' : pct((v / revenue) * 100))
 const expanded = ref<number | null>(null)
 
 function toggle(row: SaleRow) {
@@ -224,7 +226,7 @@ function onDate(which: 'from' | 'to', event: Event) {
                 </button>
                 <span v-else>
                   {{ c.label }}
-                  <span v-if="c.key === 'profit' || c.key === 'profit_after_ads'" class="block text-[10px] font-normal text-ink-3">% e R$</span>
+                  <span v-if="c.key === 'profit' || c.key === 'profit_after_ads'" class="block text-[10px] font-normal text-ink-3">R$ e %</span>
                 </span>
               </th>
             </tr>
@@ -257,17 +259,23 @@ function onDate(which: 'from' | 'to', event: Event) {
                   </div>
                 </td>
                 <td class="px-2 py-2 text-right align-top" data-numeric>{{ brl(row.economics?.revenue ?? row.total_amount) }}</td>
-                <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>{{ row.economics ? money(row.economics.fee) : '—' }}</td>
                 <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>
-                  <template v-if="row.economics">{{ row.economics.shipping_known ? money(row.economics.shipping_cost) : '…' }}</template>
+                  <template v-if="row.economics"><span class="block text-danger">{{ money(row.economics.fee) }}</span><span class="block text-[11px] text-ink">{{ share(row.economics.fee, row.economics.revenue) }}</span></template>
+                  <template v-else>—</template>
+                </td>
+                <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>
+                  <template v-if="row.economics">
+                    <template v-if="row.economics.shipping_known"><span class="block text-danger">{{ money(row.economics.shipping_cost) }}</span><span class="block text-[11px] text-ink">{{ share(row.economics.shipping_cost, row.economics.revenue) }}</span></template>
+                    <template v-else>…</template>
+                  </template>
                   <template v-else>—</template>
                 </td>
                 <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric data-test="col-imposto">
-                  <span v-if="row.economics" :title="`${num(taxPct(row), 1)}% da receita dos itens`">{{ money(row.economics.tax) }}</span>
+                  <span v-if="row.economics" :title="`${num(taxPct(row), 1)}% da receita dos itens`"><span class="block text-danger">{{ money(row.economics.tax) }}</span><span class="block text-[11px] text-ink">{{ share(row.economics.tax, row.economics.revenue) }}</span></span>
                   <span v-else>—</span>
                 </td>
                 <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric data-test="col-despesas">
-                  <span v-if="row.economics" :title="`${num(fixedPct(row), 1)}% do valor da venda`">{{ money(row.economics.fixed_expenses) }}</span>
+                  <span v-if="row.economics" :title="`${num(fixedPct(row), 1)}% do valor da venda`"><span class="block text-danger">{{ money(row.economics.fixed_expenses) }}</span><span class="block text-[11px] text-ink">{{ share(row.economics.fixed_expenses, row.economics.revenue) }}</span></span>
                   <span v-else>—</span>
                 </td>
                 <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>
@@ -279,22 +287,22 @@ function onDate(which: 'from' | 'to', event: Event) {
                 </td>
                 <td class="px-2 py-2 text-right align-top" data-numeric>
                   <template v-if="row.economics && row.economics.net_profit !== null">
-                    <span class="block font-semibold" :class="row.economics.net_profit < 0 ? 'text-danger' : 'text-success'">{{ pct(row.economics.net_profit_pct) }}</span>
-                    <span class="block text-[11px] text-ink-3">{{ money(row.economics.net_profit) }}</span>
+                    <span class="block font-semibold" :class="row.economics.net_profit < 0 ? 'text-danger' : 'text-success'">{{ money(row.economics.net_profit) }}</span>
+                    <span class="block text-[11px] text-ink">{{ pct(row.economics.net_profit_pct) }}</span>
                   </template>
                   <span v-else class="text-ink-3" :title="row.economics ? 'Sem custo de algum item: o lucro não pode ser calculado' : 'Venda cancelada'">—</span>
                 </td>
                 <td class="px-2 py-2 text-right align-top" data-numeric data-test="col-ads">
                   <template v-if="row.economics && row.economics.ads_state !== 'sem_ads'">
-                    <span :title="ADS_HINT[row.economics.ads_state]">{{ row.economics.ads_cost > 0 ? money(row.economics.ads_cost) : '0,00' }}</span>
+                    <span :title="ADS_HINT[row.economics.ads_state]"><span class="block" :class="row.economics.ads_cost > 0 ? 'text-danger' : ''">{{ money(row.economics.ads_cost) }}</span><span class="block text-[11px] text-ink">{{ share(row.economics.ads_cost, row.economics.revenue) }}</span></span>
                     <span v-if="row.economics.ads_state === 'pendente'" class="block text-[10px] text-warning" :title="ADS_HINT.pendente">pendente</span>
                   </template>
                   <span v-else class="text-ink-3" :title="row.economics ? ADS_HINT.sem_ads : ''">—</span>
                 </td>
                 <td class="px-2 py-2 text-right align-top" data-numeric data-test="col-lucro-pos-ads">
                   <template v-if="row.economics && row.economics.net_profit_after_ads !== null">
-                    <span class="block font-semibold" :class="row.economics.net_profit_after_ads < 0 ? 'text-danger' : 'text-success'">{{ pct(row.economics.net_profit_after_ads_pct) }}</span>
-                    <span class="block text-[11px] text-ink-3">{{ money(row.economics.net_profit_after_ads) }}</span>
+                    <span class="block font-semibold" :class="row.economics.net_profit_after_ads < 0 ? 'text-danger' : 'text-success'">{{ money(row.economics.net_profit_after_ads) }}</span>
+                    <span class="block text-[11px] text-ink">{{ pct(row.economics.net_profit_after_ads_pct) }}</span>
                   </template>
                   <span v-else class="text-ink-3">—</span>
                 </td>

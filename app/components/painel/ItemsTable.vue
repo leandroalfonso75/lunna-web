@@ -16,7 +16,9 @@ const COST_SOURCE_LABEL: Record<string, string> = {
   manual: 'Custo informado manualmente'
 }
 
-const money = (v: number | null | undefined) => (v === null || v === undefined ? '—' : num(v, 2))
+const money = (v: number | null | undefined) => (v === null || v === undefined ? '—' : brl(v))
+/** Percentual de um custo sobre o preço de venda. */
+const share = (v: number | null | undefined, price: number) => (v === null || v === undefined || !price ? '' : pct((v / price) * 100))
 
 function feesHint(e: ItemEconomics): string {
   if (!e.fees_known) return 'A tarifa do Mercado Livre ainda não foi lida para este anúncio.'
@@ -40,12 +42,14 @@ const COLUMNS: { key: string; label: string; sort?: string; filter?: 'text' | 'n
   { key: 'shipping_fees', label: 'Frete/taxas', width: 'w-[8%]' },
   { key: 'fixed_expenses', label: 'Desp. fixas', width: 'w-[7%]' },
   { key: 'tax', label: 'Imposto', width: 'w-[7%]' },
-  { key: 'net_profit', label: 'Lucro líquido', sort: 'net_profit_pct', width: 'w-[10%]' },
+  { key: 'net_profit', label: 'Lucro líquido', sort: 'net_profit_pct', width: 'w-[9%]' },
+  { key: 'ads', label: 'Custo Ads', width: 'w-[7%]' },
+  { key: 'net_profit_after_ads', label: 'Lucro pós Ads', sort: 'net_profit_after_ads_pct', width: 'w-[9%]' },
   { key: 'coverage_days', label: 'Cobertura', sort: 'coverage_days', filter: 'numeric', placeholder: '<14', width: 'w-[7%]', hide: true },
   { key: 'quality_score', label: 'Qualidade', sort: 'quality_score', filter: 'numeric', placeholder: '>=70', width: 'w-[8%]', hide: true }
 ]
 
-const MONEY_COLUMNS = ['cost', 'commission', 'shipping_fees', 'fixed_expenses', 'tax', 'net_profit']
+const MONEY_COLUMNS = ['cost', 'commission', 'shipping_fees', 'fixed_expenses', 'tax', 'net_profit', 'ads', 'net_profit_after_ads']
 
 const STATUS_TABS: { value: 'active' | 'paused' | 'closed' | 'all'; label: string }[] = [
   { value: 'active', label: 'Ativos' },
@@ -264,7 +268,10 @@ function totalPages(): number {
                 </td>
                 <td class="px-2 py-2 text-right" data-numeric data-test="col-custo">
                   <template v-if="item.economics">
-                    <span v-if="item.economics.cost !== null" :title="COST_SOURCE_LABEL[item.economics.cost_source ?? ''] ?? ''">{{ money(item.economics.cost) }}</span>
+                    <span v-if="item.economics.cost !== null" :title="COST_SOURCE_LABEL[item.economics.cost_source ?? ''] ?? ''">
+                      <span class="block text-danger">{{ money(item.economics.cost) }}</span>
+                      <span class="block text-[11px] text-ink">{{ share(item.economics.cost, item.economics.price) }}</span>
+                    </span>
                     <span v-else class="text-[11px] text-warning" title="Sem custo no Olist para este SKU">sem custo</span>
                   </template>
                   <span v-else class="text-ink-3">—</span>
@@ -273,27 +280,41 @@ function totalPages(): number {
                   <span
                     v-if="item.economics && item.economics.fees_known"
                     :title="item.economics.fees_split ? 'Comissão do Mercado Livre' : 'Tarifa total do Mercado Livre (o detalhe ainda não foi lido)'"
-                  >{{ money(item.economics.commission) }}</span>
+                  ><span class="block text-danger">{{ money(item.economics.commission) }}</span><span class="block text-[11px] text-ink">{{ share(item.economics.commission, item.economics.price) }}</span></span>
                   <span v-else class="text-ink-3">—</span>
                 </td>
                 <td class="px-2 py-2 text-right" data-numeric data-test="col-frete">
-                  <span v-if="item.economics" :title="feesHint(item.economics)">{{ money(item.economics.shipping_fees) }}</span>
+                  <span v-if="item.economics" :title="feesHint(item.economics)"><span class="block text-danger">{{ money(item.economics.shipping_fees) }}</span><span class="block text-[11px] text-ink">{{ share(item.economics.shipping_fees, item.economics.price) }}</span></span>
                   <span v-else class="text-ink-3">—</span>
                 </td>
                 <td class="px-2 py-2 text-right" data-numeric data-test="col-despesas">
-                  <span v-if="item.economics" :title="`${num(item.economics.fixed_expenses_pct, 1)}% do preço de venda`">{{ money(item.economics.fixed_expenses) }}</span>
+                  <span v-if="item.economics" :title="`${num(item.economics.fixed_expenses_pct, 1)}% do preço de venda`"><span class="block text-danger">{{ money(item.economics.fixed_expenses) }}</span><span class="block text-[11px] text-ink">{{ share(item.economics.fixed_expenses, item.economics.price) }}</span></span>
                   <span v-else class="text-ink-3">—</span>
                 </td>
                 <td class="px-2 py-2 text-right" data-numeric data-test="col-imposto">
-                  <span v-if="item.economics" :title="`${num(item.economics.tax_pct, 1)}% do preço de venda (Configurações > Impostos e margem)`">{{ money(item.economics.tax) }}</span>
+                  <span v-if="item.economics" :title="`${num(item.economics.tax_pct, 1)}% do preço de venda (Configurações > Impostos e margem)`"><span class="block text-danger">{{ money(item.economics.tax) }}</span><span class="block text-[11px] text-ink">{{ share(item.economics.tax, item.economics.price) }}</span></span>
                   <span v-else class="text-ink-3">—</span>
                 </td>
                 <td class="px-2 py-2 text-right" data-numeric data-test="col-lucro">
                   <template v-if="item.economics && item.economics.net_profit !== null">
-                    <span class="block font-semibold" :class="item.economics.net_profit < 0 ? 'text-danger' : 'text-success'" data-test="lucro-pct">{{ pct(item.economics.net_profit_pct) }}</span>
-                    <span class="block text-[11px] text-ink-3" data-test="lucro-valor">{{ money(item.economics.net_profit) }}</span>
+                    <span class="block font-semibold" :class="item.economics.net_profit < 0 ? 'text-danger' : 'text-success'" data-test="lucro-valor">{{ money(item.economics.net_profit) }}</span>
+                    <span class="block text-[11px] text-ink" data-test="lucro-pct">{{ pct(item.economics.net_profit_pct) }}</span>
                   </template>
                   <span v-else class="text-ink-3" :title="item.economics ? 'Sem custo no Olist: o lucro não pode ser calculado' : ''">—</span>
+                </td>
+                <td class="px-2 py-2 text-right" data-numeric data-test="col-ads">
+                  <span v-if="item.economics" :title="item.economics.ads_spend > 0 ? `${brl(item.economics.ads_spend)} em ${item.economics.ads_days} dias ÷ ${item.economics.ads_units} unidades vendidas` : `Sem gasto de Ads nos últimos ${item.economics.ads_days} dias`">
+                    <span class="block" :class="item.economics.ads_unit > 0 ? 'text-danger' : 'text-ink-3'">{{ money(item.economics.ads_unit) }}</span>
+                    <span class="block text-[11px] text-ink">{{ share(item.economics.ads_unit, item.economics.price) }}</span>
+                  </span>
+                  <span v-else class="text-ink-3">—</span>
+                </td>
+                <td class="px-2 py-2 text-right" data-numeric data-test="col-lucro-pos-ads">
+                  <template v-if="item.economics && item.economics.net_profit_after_ads !== null">
+                    <span class="block font-semibold" :class="item.economics.net_profit_after_ads < 0 ? 'text-danger' : 'text-success'">{{ money(item.economics.net_profit_after_ads) }}</span>
+                    <span class="block text-[11px] text-ink">{{ pct(item.economics.net_profit_after_ads_pct) }}</span>
+                  </template>
+                  <span v-else class="text-ink-3">—</span>
                 </td>
                 <td class="px-2 py-2 text-right max-xl:hidden" data-numeric :class="{ 'font-semibold text-danger': item.coverage_state === 'bad', 'text-warning': item.coverage_state === 'warn' }">
                   {{ item.coverage_days !== null ? `${num(item.coverage_days, 1)} d` : '—' }}
@@ -382,6 +403,7 @@ function totalPages(): number {
                         <div class="def-row"><dt>Frete/taxas</dt><dd data-numeric>− {{ brl(item.economics.shipping_fees) }}</dd></div>
                         <div class="def-row"><dt>Despesas fixas ({{ num(item.economics.fixed_expenses_pct, 1) }}%)</dt><dd data-numeric>− {{ brl(item.economics.fixed_expenses) }}</dd></div>
                         <div class="def-row"><dt>Imposto ({{ num(item.economics.tax_pct, 1) }}%)</dt><dd data-numeric>− {{ brl(item.economics.tax) }}</dd></div>
+                        <div class="def-row"><dt>Custo Ads por unidade ({{ item.economics.ads_days }} dias)</dt><dd data-numeric>− {{ brl(item.economics.ads_unit) }}</dd></div>
                         <div class="def-row border-t border-line pt-1">
                           <dt class="font-semibold text-ink">Lucro líquido</dt>
                           <dd v-if="item.economics.net_profit !== null" data-numeric class="font-semibold" :class="item.economics.net_profit < 0 ? 'text-danger' : 'text-success'">

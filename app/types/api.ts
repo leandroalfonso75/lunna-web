@@ -30,6 +30,8 @@ export interface Company {
   /** Promoções: anúncios de catálogo entram na automação (com conferência de 1 em 1 hora). */
   promo_include_catalog?: boolean
   promo_schedule_hour?: number
+  /** Base do custo de Ads por unidade em Anúncios e Promoções: 7, 15 ou 30 dias fechados. */
+  ads_cost_days?: 7 | 15 | 30
   promo_schedule_days?: number[]
   promo_margin_basis?: 'after_ads' | 'before_ads'
   promo_price_target?: 'min' | 'max'

@@ -153,6 +153,13 @@ export interface ItemEconomics {
   tax_pct: number
   net_profit: number | null
   net_profit_pct: number | null
+  /** Ads por unidade (gasto ÷ unidades vendidas nos últimos `ads_days` dias fechados) e o lucro depois dele. */
+  ads_unit: number
+  ads_spend: number
+  ads_units: number
+  ads_days: number
+  net_profit_after_ads: number | null
+  net_profit_after_ads_pct: number | null
   fees_known: boolean
   /** false = o detalhe da tarifa ainda não foi lido: a tarifa inteira entrou como comissão. */
   fees_split: boolean
