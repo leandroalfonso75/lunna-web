@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { brl, dateShort, int, pct } from '../../lib/format'
+import { brl, dateShort, int, num, pct } from '../../lib/format'
 import type { AdsAnalysis, AdsAnalysisFamily, AdsAnalysisQueueItem } from '../../types/ads'
 
 /**
@@ -31,7 +31,7 @@ const cards = computed(() => {
   return [
     { label: 'Investimento', value: brl(h.cost), hint: delta(h.variation.cost) },
     { label: 'Receita por Ads', value: brl(h.revenue), hint: delta(h.variation.revenue) },
-    { label: 'ROAS', value: h.roas === null ? '—' : `${h.roas}x`, hint: delta(h.variation.roas) },
+    { label: 'ROAS', value: h.roas === null ? '—' : `${num(h.roas, 2)}x`, hint: delta(h.variation.roas) },
     { label: 'ACOS', value: h.acos === null ? '—' : pct(h.acos), hint: 'investimento ÷ receita por Ads' },
     { label: 'TACOS', value: h.tacos === null ? '—' : pct(h.tacos), hint: `alvo ${rules.tacos_target[0]}% a ${rules.tacos_target[1]}%${h.variation.tacos === null ? '' : ` · ${h.variation.tacos > 0 ? '+' : ''}${h.variation.tacos} p.p.`}`, tone: TACOS_TONE[h.tacos_state] },
     { label: 'Share de Ads', value: h.ads_share === null ? '—' : pct(h.ads_share), hint: `orgânico ${brl(h.organic)} (${h.variation.organic === null ? '—' : `${h.variation.organic > 0 ? '+' : ''}${h.variation.organic}%`})` }
