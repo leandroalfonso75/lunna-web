@@ -216,6 +216,9 @@ export interface AdsAnalysisQueueItem {
   reassess: string
   /** Códigos dos anúncios envolvidos (vazio em item de campanha). */
   item_ids: string[]
+  /** perdido = dinheiro gasto sem retorno (vermelho); deixou_de_ganhar = receita que não veio (preto). */
+  value_kind: 'perdido' | 'deixou_de_ganhar'
+  value_label: string
   /** Já decidido nos últimos 7 dias (feito ou ignorado). */
   decided?: { id: number; status: 'feito' | 'ignorado'; at: string } | null
 }

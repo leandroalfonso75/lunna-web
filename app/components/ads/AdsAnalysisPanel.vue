@@ -119,9 +119,10 @@ function value(q: AdsAnalysisQueueItem) {
               <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="CLASS_TONE[q.class]">{{ q.class_label }}</span>
               <span class="font-medium text-ink">{{ q.title }}</span>
               <span v-if="q.item_ids?.length" class="text-[11px] text-ink-3" data-test="acao-codigos">{{ q.item_ids.join(', ') }}</span>
-              <span class="ml-auto text-right">
-                <span class="block text-[10px] uppercase tracking-wide text-ink-3">Valor em jogo</span>
-                <span class="font-semibold text-ink" data-numeric :title="q.value_how ?? 'não estimável'">{{ value(q) }}</span>
+              <span class="ml-auto max-w-[260px] text-right" data-test="valor-em-jogo">
+                <span class="block text-[15px] font-semibold" :class="q.value_kind === 'perdido' ? 'text-danger' : 'text-ink'" data-numeric :title="q.value_how ?? 'não estimável'">{{ value(q) }}</span>
+                <span class="block text-[11px]" :class="q.value_kind === 'perdido' ? 'text-danger' : 'text-ink-2'">{{ q.value_kind === 'perdido' ? 'Perdido' : 'Deixou de ganhar' }}: {{ q.value_label }}</span>
+                <span class="block text-[11px] text-ink-3">de {{ dateShort(data.period.from) }} a {{ dateShort(data.period.to) }}</span>
               </span>
             </div>
             <p class="mt-1 text-[12px] text-ink-3"><span class="font-medium text-ink-2">Valor em jogo:</span> {{ q.value_how ?? 'não estimável' }}</p>
