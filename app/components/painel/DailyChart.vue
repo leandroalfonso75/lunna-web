@@ -28,7 +28,7 @@ function visitsHeight(point: DailyPoint): number {
 function tooltip(point: DailyPoint): string {
   // `dateTimeShort`/`timeShort` (lib/format.ts) reinterpretam o valor num
   // fuso — errado aqui, `day` já é só a data ("AAAA-MM-DD"), sem hora.
-  return `${dayLabel(point.day)}${point.is_today ? ' (hoje)' : ''} · ${int(point.units)} un. · ${brl(point.revenue)} · ${int(point.orders)} pedidos · ${int(point.visits)} visitas`
+  return `${dayLabel(point.day)}${point.is_today ? ' (hoje)' : ''} · ${int(point.units)} un. · ${brl(point.revenue)} · ${int(point.orders)} vendas · ${int(point.visits)} visitas`
 }
 </script>
 
