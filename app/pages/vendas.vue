@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShoppingCartIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
@@ -243,7 +243,7 @@ function onDate(which: 'from' | 'to', event: Event) {
 
             <template v-for="row in response?.sales ?? []" :key="row.order_id">
               <tr class="cursor-pointer border-b border-line hover:bg-surface-2" :class="row.status.tone === 'bad' ? 'opacity-70' : ''" data-test="sale-row" @click="toggle(row)">
-                <td class="px-2 py-2 align-top text-ink-2">{{ dateTimeShort(row.date_created) }}</td>
+                <td class="px-2 py-2 align-top text-ink-2" :class="row.cart ? 'border-l-2 border-l-primary' : ''">{{ dateTimeShort(row.date_created) }}</td>
                 <td class="px-2 py-2 align-top">
                   <div class="flex items-start gap-2">
                     <img v-if="row.items[0]?.thumbnail" :src="row.items[0].thumbnail" alt="" class="h-12 w-12 shrink-0 rounded object-cover" loading="lazy" />
@@ -253,6 +253,15 @@ function onDate(which: 'from' | 'to', event: Event) {
                         #{{ row.order_id }} · {{ row.items[0]?.sku ?? 'sem SKU' }} · {{ int(row.units) }} un
                         <template v-if="row.items.length > 1"> · +{{ row.items.length - 1 }} {{ row.items.length === 2 ? 'item' : 'itens' }}</template>
                         <span v-if="row.status.tone !== 'ok'" class="ml-1" :class="tone(row.status.tone)">{{ row.status.label }}</span>
+                      </p>
+                      <p
+                        v-if="row.cart"
+                        class="mt-0.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary"
+                        :title="`Mesmo pedido (carrinho ${row.cart.pack_id}): ${row.cart.order_ids.map((id) => '#' + id).join(', ')}. Conta como uma venda nos totais.`"
+                        data-test="sale-cart"
+                      >
+                        <ShoppingCartIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                        Mesmo pedido · {{ row.cart.position }}/{{ row.cart.size }}
                       </p>
                       <p v-if="row.issue" class="truncate text-[12px]" :class="tone(row.issue.tone)" :title="row.issue.label" data-test="sale-issue">{{ row.issue.label }}</p>
                     </div>

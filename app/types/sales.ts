@@ -59,6 +59,8 @@ export interface SaleEconomics {
 export interface SaleRow {
   order_id: number
   pack_id: number | null
+  /** Pedidos do mesmo carrinho do ML (2+ pedidos no mesmo pack_id): contam como uma venda; null fora disso. */
+  cart: { pack_id: number; size: number; position: number; order_ids: number[] } | null
   date_created: string
   date_closed: string | null
   status: { key: string; label: string; tone: Tone }
