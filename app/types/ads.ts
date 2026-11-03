@@ -293,6 +293,14 @@ export interface AdsStructureSuggestion {
   to_campaign: string | null
   daily_budget: number
   frees_from: { campaign_id: number; amount: number } | null
+  /** Dinheiro novo (além do realocado) que a sugestão pede por dia */
+  new_money?: number | null
+  /** Orçamento que a campanha de origem fica depois de dividir/mover */
+  origin_budget_after?: number | null
+  /** Piso do ROAS Objetivo (equilíbrio × 1,35): descer aos poucos até ele */
+  roas_floor?: number | null
+  /** ROAS Objetivo da campanha existente que continua valendo (origem ou destino) */
+  keep_origin_roas?: number | null
   roas_target: number | null
   value: number | null
   within_limit: boolean
@@ -305,9 +313,28 @@ export interface AdsStructureSuggestion {
   decided: { id: number; status: 'feito' | 'ignorado'; at: string } | null
 }
 
+export interface AdsStructureCampaignLedger {
+  id: number | null
+  name: string
+  new: boolean
+  budget_before: number
+  budget_after: number
+  roas_before: number | null
+  roas_after: number | null
+  changes: string[]
+}
+
 export interface AdsStructure {
   daily_max: number | null
   current_daily: number
   suggestions: AdsStructureSuggestion[]
-  plan: { current_daily: number; new_daily: number; reallocated_daily: number; after_daily: number; daily_max: number | null; fits: boolean; note: string | null }
+  /** Sugestões que ficaram para a próxima rodada (limite de 7 por rodada) */
+  next_round: { type: AdsStructureType; title: string | null; value: number | null }[]
+  plan: {
+    current_daily: number; new_daily: number; reallocated_daily: number; after_daily: number; daily_max: number | null; fits: boolean; note: string | null
+    /** Como cada campanha fica depois da rodada inteira (orçamento e ROAS Objetivo antes → depois) */
+    campaigns: AdsStructureCampaignLedger[]
+  }
+  /** Rodada semanal: campanhas travadas por mudança recente e data da próxima rodada */
+  round: { cadence_days: number; last_round_at: string | null; next_round_on: string; locked: { name: string; until_on: string; reason: string }[] }
 }

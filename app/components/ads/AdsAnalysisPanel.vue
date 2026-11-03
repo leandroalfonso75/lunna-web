@@ -196,6 +196,31 @@ function value(q: AdsAnalysisQueueItem) {
             <template v-if="data.structure.plan.daily_max != null"> de no máximo {{ brl(data.structure.plan.daily_max) }}/dia</template></span>
         </div>
         <p v-if="data.structure.plan.note" class="mt-1 text-[12px] text-warning">{{ data.structure.plan.note }}</p>
+        <div class="mt-2 rounded-card border border-line bg-surface-2 p-2 text-[12px] text-ink-2" data-test="estrutura-rodada">
+          <p>
+            <span class="font-semibold text-ink">Rodada semanal.</span>
+            As sugestões são conferidas juntas, campanha por campanha, para não conflitarem entre si. Campanha com mudança marcada como feita fica travada por 7 dias (aprendizado do ML e medição do "depois").
+            <template v-if="data.structure.round.last_round_at"> Última rodada: {{ dateShort(data.structure.round.last_round_at) }}.</template>
+            Próxima rodada: <strong class="text-ink">{{ dateShort(data.structure.round.next_round_on) }}</strong>.
+          </p>
+          <p v-for="l in data.structure.round.locked" :key="l.name" class="mt-0.5">🔒 <strong class="text-ink">{{ l.name }}</strong> travada até {{ dateShort(l.until_on) }}: {{ l.reason }}.</p>
+        </div>
+        <div v-if="data.structure.plan.campaigns.length" class="mt-2 overflow-x-auto" data-test="estrutura-campanhas-depois">
+          <p class="mb-1 text-[12px] font-semibold text-ink">Como ficam as campanhas depois desta rodada</p>
+          <table class="w-full text-[12px]">
+            <thead class="text-left text-ink-3">
+              <tr><th class="py-1 pr-2 font-medium">Campanha</th><th class="py-1 pr-2 text-right font-medium">Orçamento/dia</th><th class="py-1 pr-2 text-right font-medium">ROAS Objetivo</th><th class="py-1 font-medium">Mudanças</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="c in data.structure.plan.campaigns" :key="c.name" class="border-t border-line">
+                <td class="py-1 pr-2 font-medium text-ink">{{ c.name }}</td>
+                <td class="py-1 pr-2 text-right" data-numeric>{{ c.new ? 'nova' : brl(c.budget_before) }} → <strong>{{ brl(c.budget_after) }}</strong></td>
+                <td class="py-1 pr-2 text-right" data-numeric>{{ c.new ? 'nova' : (c.roas_before ?? '—') }} → <strong>{{ c.roas_after ?? '—' }}</strong></td>
+                <td class="py-1 text-ink-2">{{ c.changes.join('; ') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <ul class="mt-2 space-y-2 text-[12px]">
           <li v-for="s in data.structure.suggestions" :key="s.key + s.type" class="rounded-card border border-line p-2" :class="{ 'opacity-70': !s.within_limit }" :data-test="`estrutura-${s.type}`">
             <div class="flex flex-wrap items-center gap-2">
@@ -204,7 +229,8 @@ function value(q: AdsAnalysisQueueItem) {
               <span v-if="s.item_ids.length" class="text-ink-3">{{ s.item_ids.slice(0, 3).join(', ') }}<template v-if="s.item_ids.length > 3"> +{{ s.item_ids.length - 3 }}</template></span>
               <span class="ml-auto text-right">
                 <span v-if="s.daily_budget" class="font-semibold" :class="s.daily_budget < 0 ? 'text-danger' : 'text-ink'">{{ s.daily_budget < 0 ? '−' : '+' }}{{ brl(Math.abs(s.daily_budget)) }}/dia</span>
-                <span v-if="s.roas_target" class="block text-[11px] text-ink-3">ROAS Objetivo sugerido {{ num(s.roas_target, 1) }}</span>
+                <span v-if="s.roas_target" class="block text-[11px] text-ink-3">ROAS Objetivo: começar em {{ num(s.roas_target, 1) }}<template v-if="s.roas_floor && s.roas_floor !== s.roas_target"> · mínimo {{ num(s.roas_floor, 1) }}</template></span>
+                <span v-else-if="s.keep_origin_roas && s.type === 'ativar'" class="block text-[11px] text-ink-3">vale o ROAS Objetivo da campanha ({{ num(s.keep_origin_roas, 1) }})</span>
               </span>
             </div>
             <p class="mt-1 text-ink-2">
@@ -227,7 +253,8 @@ function value(q: AdsAnalysisQueueItem) {
               </template>
             </div>
           </li>
-          <li v-if="!data.structure.suggestions.length" class="text-ink-3">Nenhuma mudança de estrutura com potencial viável agora: campanhas sem família dominante perdendo leilão, e nenhum anúncio fora de campanha ou pausado com vendas, margem e estoque para justificar.</li>
+          <li v-if="data.structure.next_round.length" class="text-ink-3">Para a próxima rodada: {{ data.structure.next_round.map((n) => n.title).join(' · ') }}</li>
+          <li v-if="!data.structure.suggestions.length" class="text-ink-3">Nenhuma mudança de estrutura nesta rodada: sem família dominante perdendo leilão em campanha livre, e nenhum anúncio fora de campanha com vendas, margem, custo e estoque para justificar. Anúncios pausados não são sugeridos (a pausa é decisão sua).</li>
         </ul>
       </div>
 
