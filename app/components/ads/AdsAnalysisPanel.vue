@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { brl, dateShort, dateTimeShort, int, num, pct } from '../../lib/format'
-import type { AdsAnalysis, AdsAnalysisFamily, AdsAnalysisQueueItem, AdsDiagnosis, AdsStructureType } from '../../types/ads'
+import type { AdsAnalysis, AdsAnalysisFamily, AdsAnalysisQueueItem, AdsDiagnosis, AdsStructureSuggestion, AdsStructureType } from '../../types/ads'
 
 /**
  * Aba Análise da seção Ads: saúde da conta (com TACOS), a fila de decisões ordenada por dinheiro em jogo, os
@@ -26,6 +26,28 @@ const emit = defineEmits<{
 
 /** Data sem hora ("2026-11-09") em dd/mm, sem passar por fuso (new Date leria como UTC e voltaria um dia). */
 const dayOnly = (iso: string) => iso.slice(0, 10).split('-').reverse().slice(0, 2).join('/')
+
+/**
+ * Sugestões de estrutura agrupadas por campanha (a de origem; sem origem, a de destino), em sequência: cada campanha é
+ * uma seção com o nome em destaque e o antes → depois dela. Ordem: a seção com mais valor em jogo primeiro.
+ */
+const structureGroups = computed(() => {
+  const st = props.data?.structure
+  if (!st) return []
+  const groups = new Map<string, AdsStructureSuggestion[]>()
+  for (const s of st.suggestions) {
+    const name = s.from_campaign ?? s.to_campaign ?? 'Sem campanha'
+    groups.set(name, [...(groups.get(name) ?? []), s])
+  }
+  return [...groups.entries()]
+    .map(([name, items]) => ({
+      name,
+      items,
+      ledger: st.plan.campaigns.find((c) => c.name === name) ?? null,
+      value: items.reduce((sum, s) => sum + (s.value ?? 0), 0)
+    }))
+    .sort((a, b) => b.value - a.value)
+})
 
 /** Tipos de sugestão de estrutura de campanhas: rótulo e cor. */
 const STRUCTURE_TYPE: Record<AdsStructureType, { label: string; tone: string }> = {
@@ -225,36 +247,50 @@ function value(q: AdsAnalysisQueueItem) {
           </table>
         </div>
         <ul class="mt-2 space-y-2 text-[12px]">
-          <li v-for="s in data.structure.suggestions" :key="s.key + s.type" class="rounded-card border border-line p-2" :class="{ 'opacity-70': !s.within_limit }" :data-test="`estrutura-${s.type}`">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="rounded-full px-2 py-0.5 font-semibold" :class="STRUCTURE_TYPE[s.type].tone">{{ STRUCTURE_TYPE[s.type].label }}</span>
-              <span class="font-medium text-ink">{{ s.title }}</span>
-              <span v-if="s.item_ids.length" class="text-ink-3">{{ s.item_ids.slice(0, 3).join(', ') }}<template v-if="s.item_ids.length > 3"> +{{ s.item_ids.length - 3 }}</template></span>
-              <span class="ml-auto text-right">
-                <span v-if="s.daily_budget" class="font-semibold" :class="s.daily_budget < 0 ? 'text-danger' : 'text-ink'">{{ s.daily_budget < 0 ? '−' : '+' }}{{ brl(Math.abs(s.daily_budget)) }}/dia</span>
-                <span v-if="s.roas_target" class="block text-[11px] text-ink-3">ROAS Objetivo: começar em {{ num(s.roas_target, 1) }}<template v-if="s.roas_floor && s.roas_floor !== s.roas_target"> · mínimo {{ num(s.roas_floor, 1) }}</template></span>
-                <span v-else-if="s.keep_origin_roas && s.type === 'ativar'" class="block text-[11px] text-ink-3">vale o ROAS Objetivo da campanha ({{ num(s.keep_origin_roas, 1) }})</span>
-              </span>
-            </div>
-            <p class="mt-1 text-ink-2">
-              <template v-if="s.from_campaign && s.to_campaign">De <strong>{{ s.from_campaign }}</strong> para <strong>{{ s.to_campaign }}</strong>.</template>
-              <template v-else-if="s.to_campaign">Para <strong>{{ s.to_campaign }}</strong>.</template>
-              {{ s.rationale }}
-            </p>
-            <p class="mt-1 text-ink-3">Esperado: {{ s.expected }} · Antes: {{ s.check_before }}</p>
-            <p v-if="s.note" class="mt-1 font-semibold text-warning">{{ s.note }}</p>
-            <div class="mt-2 flex flex-wrap items-center gap-2" :data-test="`estrutura-decisao-${s.type}`">
-              <template v-if="s.decided">
-                <span class="rounded-full px-2 py-0.5 font-semibold" :class="s.decided.status === 'feito' ? 'bg-success-soft text-success' : 'bg-surface-2 text-ink-2'">
-                  {{ s.decided.status === 'feito' ? 'Feito' : 'Ignorado' }} em {{ dateTimeShort(s.decided.at) }}
-                </span>
-                <button v-if="isAdmin" type="button" class="btn-link" @click="emit('undecide', s.decided.id)">desfazer</button>
-              </template>
-              <template v-else-if="isAdmin">
-                <button type="button" class="btn-secondary h-7 px-2.5 text-[12px]" @click="emit('decide', s.key, s.signal, 'feito')">Marcar como feito</button>
-                <button type="button" class="btn-link" @click="emit('decide', s.key, s.signal, 'ignorado')">Ignorar</button>
-              </template>
-            </div>
+          <li v-for="g in structureGroups" :key="g.name" class="pt-2" :data-test="`estrutura-secao-${g.name}`">
+            <section class="rounded-card border-2 border-line">
+              <header class="flex flex-wrap items-baseline justify-between gap-2 border-b border-line bg-surface-2 px-3 py-2">
+                <h4 class="text-[17px] font-bold text-ink">{{ g.name }}</h4>
+                <p v-if="g.ledger" class="text-[12px] text-ink-2">
+                  Orçamento {{ g.ledger.new ? 'nova' : brl(g.ledger.budget_before) }} → <strong class="text-ink">{{ brl(g.ledger.budget_after) }}</strong>/dia
+                  · ROAS Objetivo {{ g.ledger.new ? 'nova' : (g.ledger.roas_before ?? '—') }} → <strong class="text-ink">{{ g.ledger.roas_after ?? '—' }}</strong>
+                  · {{ g.items.length }} {{ g.items.length === 1 ? 'sugestão' : 'sugestões' }}
+                </p>
+              </header>
+              <ul class="space-y-2 p-2">
+                <li v-for="s in g.items" :key="s.key + s.type" class="rounded-card border border-line p-2" :class="{ 'opacity-70': !s.within_limit }" :data-test="`estrutura-${s.type}`">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="rounded-full px-2 py-0.5 font-semibold" :class="STRUCTURE_TYPE[s.type].tone">{{ STRUCTURE_TYPE[s.type].label }}</span>
+                    <span class="font-medium text-ink">{{ s.title }}</span>
+                    <span v-if="s.item_ids.length" class="text-ink-3">{{ s.item_ids.slice(0, 3).join(', ') }}<template v-if="s.item_ids.length > 3"> +{{ s.item_ids.length - 3 }}</template></span>
+                    <span class="ml-auto text-right">
+                      <span v-if="s.daily_budget" class="font-semibold" :class="s.daily_budget < 0 ? 'text-danger' : 'text-ink'">{{ s.daily_budget < 0 ? '−' : '+' }}{{ brl(Math.abs(s.daily_budget)) }}/dia</span>
+                      <span v-if="s.roas_target" class="block text-[11px] text-ink-3">ROAS Objetivo: começar em {{ num(s.roas_target, 1) }}<template v-if="s.roas_floor && s.roas_floor !== s.roas_target"> · mínimo {{ num(s.roas_floor, 1) }}</template></span>
+                      <span v-else-if="s.keep_origin_roas && s.type === 'ativar'" class="block text-[11px] text-ink-3">vale o ROAS Objetivo da campanha ({{ num(s.keep_origin_roas, 1) }})</span>
+                    </span>
+                  </div>
+                  <p class="mt-1 text-ink-2">
+                    <template v-if="s.from_campaign && s.to_campaign">De <strong>{{ s.from_campaign }}</strong> para <strong>{{ s.to_campaign }}</strong>.</template>
+                    <template v-else-if="s.to_campaign">Para <strong>{{ s.to_campaign }}</strong>.</template>
+                    {{ s.rationale }}
+                  </p>
+                  <p class="mt-1 text-ink-3">Esperado: {{ s.expected }} · Antes: {{ s.check_before }}</p>
+                  <p v-if="s.note" class="mt-1 font-semibold text-warning">{{ s.note }}</p>
+                  <div class="mt-2 flex flex-wrap items-center gap-2" :data-test="`estrutura-decisao-${s.type}`">
+                    <template v-if="s.decided">
+                      <span class="rounded-full px-2 py-0.5 font-semibold" :class="s.decided.status === 'feito' ? 'bg-success-soft text-success' : 'bg-surface-2 text-ink-2'">
+                        {{ s.decided.status === 'feito' ? 'Feito' : 'Ignorado' }} em {{ dateTimeShort(s.decided.at) }}
+                      </span>
+                      <button v-if="isAdmin" type="button" class="btn-link" @click="emit('undecide', s.decided.id)">desfazer</button>
+                    </template>
+                    <template v-else-if="isAdmin">
+                      <button type="button" class="btn-secondary h-7 px-2.5 text-[12px]" @click="emit('decide', s.key, s.signal, 'feito')">Marcar como feito</button>
+                      <button type="button" class="btn-link" @click="emit('decide', s.key, s.signal, 'ignorado')">Ignorar</button>
+                    </template>
+                  </div>
+                </li>
+              </ul>
+            </section>
           </li>
           <li v-if="data.structure.next_round.length" class="text-ink-3">Para a próxima rodada: {{ data.structure.next_round.map((n) => n.title).join(' · ') }}</li>
           <li v-if="!data.structure.suggestions.length" class="text-ink-3">Nenhuma mudança de estrutura nesta rodada: sem família dominante perdendo leilão em campanha livre, e nenhum anúncio fora de campanha com vendas, margem, custo e estoque para justificar. Anúncios pausados não são sugeridos (a pausa é decisão sua).</li>
