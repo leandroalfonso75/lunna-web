@@ -34,21 +34,23 @@ function dayLabel(date: string): string {
     <table class="w-full table-fixed border-collapse text-[12px]">
       <thead>
         <tr class="border-b border-line text-ink-2">
-          <th class="w-[24%] px-2 py-2 text-left font-semibold max-xl:w-[30%]">Campanha</th>
-          <th class="w-[9%] px-2 py-2 text-right font-semibold">Investimento</th>
-          <th class="w-[10%] px-2 py-2 text-right font-semibold">Vendas por Ads</th>
-          <th class="w-[8%] px-2 py-2 text-right font-semibold">ACOS <span class="block text-[10px] font-normal text-ink-3">meta</span></th>
-          <th class="w-[7%] px-2 py-2 text-right font-semibold">ROAS</th>
-          <th class="w-[8%] px-2 py-2 text-right font-semibold max-xl:hidden">Cliques</th>
-          <th class="w-[7%] px-2 py-2 text-right font-semibold max-xl:hidden">CTR</th>
-          <th class="w-[7%] px-2 py-2 text-right font-semibold max-xl:hidden">CPC</th>
-          <th class="w-[7%] px-2 py-2 text-right font-semibold max-xl:hidden">Conv.</th>
-          <th class="w-[9%] px-2 py-2 text-right font-semibold">Orçamento/dia</th>
+          <th class="w-[19%] px-2 py-2 text-left font-semibold max-xl:w-[22%]">Campanha</th>
+          <th class="w-[8%] px-2 py-2 text-right font-semibold">Investimento</th>
+          <th class="w-[7%] px-2 py-2 text-right font-semibold" title="Unidades vendidas pelos anúncios da campanha atribuídas ao Ads (diretas + indiretas)">Qtde Vendas c/Ads</th>
+          <th class="w-[9%] px-2 py-2 text-right font-semibold">Vendas por Ads</th>
+          <th class="w-[7%] px-2 py-2 text-right font-semibold" title="Unidades vendidas pelos anúncios da campanha sem passar pelo Ads (orgânicas)">Qtde Vendas s/Ads</th>
+          <th class="w-[7%] px-2 py-2 text-right font-semibold">ACOS <span class="block text-[10px] font-normal text-ink-3">meta</span></th>
+          <th class="w-[6%] px-2 py-2 text-right font-semibold">ROAS</th>
+          <th class="w-[7%] px-2 py-2 text-right font-semibold max-xl:hidden">Cliques</th>
+          <th class="w-[6%] px-2 py-2 text-right font-semibold max-xl:hidden">CTR</th>
+          <th class="w-[6%] px-2 py-2 text-right font-semibold max-xl:hidden">CPC</th>
+          <th class="w-[6%] px-2 py-2 text-right font-semibold max-xl:hidden">Conv.</th>
+          <th class="w-[8%] px-2 py-2 text-right font-semibold max-xl:w-[12%]">Orçamento/dia</th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="!campaigns.length">
-          <td colspan="10" class="px-3 py-10 text-center text-ink-3">Nenhuma campanha de publicidade encontrada.</td>
+          <td colspan="12" class="px-3 py-10 text-center text-ink-3">Nenhuma campanha de publicidade encontrada.</td>
         </tr>
         <template v-for="c in campaigns" :key="c.id">
           <tr class="cursor-pointer border-b border-line hover:bg-surface-2" data-test="campaign-row" @click="expanded = expanded === c.id ? null : c.id">
@@ -60,7 +62,9 @@ function dayLabel(date: string): string {
               </p>
             </td>
             <td class="px-2 py-2.5 text-right align-top" data-numeric>{{ brl(c.metrics.cost) }}</td>
+            <td class="px-2 py-2.5 text-right align-top" data-numeric data-test="qtde-com-ads">{{ int(c.metrics.units) }}</td>
             <td class="px-2 py-2.5 text-right align-top" data-numeric>{{ brl(c.metrics.total_amount) }}</td>
+            <td class="px-2 py-2.5 text-right align-top" data-numeric data-test="qtde-sem-ads">{{ int(c.metrics.organic_units) }}</td>
             <td class="px-2 py-2.5 text-right align-top" data-numeric :title="ACOS_HINT[c.acos_state]">
               <span class="block font-semibold" :class="ACOS_TEXT[c.acos_state]">{{ pct(c.metrics.acos) }}</span>
               <span class="block text-[11px] text-ink-3">{{ c.acos_target ? pct(c.acos_target) : 'sem meta' }}</span>
@@ -73,7 +77,7 @@ function dayLabel(date: string): string {
             <td class="px-2 py-2.5 text-right align-top" data-numeric>{{ c.daily_budget ? brl(c.daily_budget) : '—' }}</td>
           </tr>
           <tr v-if="expanded === c.id" class="border-b border-line bg-surface-2">
-            <td colspan="10" class="border-l-4 border-l-primary px-4 py-4">
+            <td colspan="12" class="border-l-4 border-l-primary px-4 py-4">
               <div class="grid grid-cols-1 gap-4 text-[13px] md:grid-cols-2 xl:grid-cols-3" data-test="campaign-detail">
                 <div class="card p-4">
                   <p class="mb-2 font-semibold text-ink">Configuração</p>
