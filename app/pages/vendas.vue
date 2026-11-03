@@ -35,7 +35,7 @@ onBeforeUnmount(sales.stop)
 
 const PERIODS = [
   { value: 'today', label: 'Hoje' }, { value: 'yesterday', label: 'Ontem' },
-  { value: '7d', label: '7 dias' }, { value: 'mtd', label: 'Mês até hoje' }, { value: '30d', label: '30 dias' },
+  { value: '7d', label: '7 dias' }, { value: '30d', label: '30 dias' },
   { value: '60d', label: '60 dias' }, { value: '90d', label: '3 meses' }
 ]
 
@@ -58,7 +58,8 @@ const LOGISTIC_TABS: { value: SalesFilters['logistic']; label: string }[] = [
 
 const COLUMNS = [
   { key: 'date', label: 'Data', sort: 'date', width: 'w-[7%]', align: 'left' },
-  { key: 'sale', label: 'Venda', width: 'w-[16%] max-xl:w-[28%]', align: 'left' },
+  { key: 'sale', label: 'Venda', width: 'w-[16%] max-xl:w-[24%]', align: 'left' },
+  { key: 'buyer', label: 'Cliente', width: 'w-[11%] max-xl:w-[14%]', align: 'left' },
   { key: 'total', label: 'Valor', sort: 'total', width: 'w-[7%]', align: 'right' },
   { key: 'fee', label: 'Tarifa', width: 'w-[6%]', align: 'right', hide: true },
   { key: 'shipping_cost', label: 'Frete', width: 'w-[6%]', align: 'right', hide: true },
@@ -118,6 +119,12 @@ function tone(t: string): string {
   return { ok: 'pill-success', warn: 'pill-warning', bad: 'pill-danger', neutral: 'pill-neutral' }[t] ?? 'pill-neutral'
 }
 
+/** Lista de meses: escolher um mostra do dia 1º ao último dia (o atual vai até hoje). */
+function onMonth(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  if (value) sales.setPeriod(value)
+}
+
 function onDate(which: 'from' | 'to', event: Event) {
   const value = (event.target as HTMLInputElement).value
   sales.setCustomRange(which === 'from' ? value : filters.from, which === 'to' ? value : filters.to)
@@ -142,6 +149,19 @@ function onDate(which: 'from' | 'to', event: Event) {
         :aria-pressed="filters.period === p.value"
         @click="sales.setPeriod(p.value)"
       >{{ p.label }}</button>
+      <select
+        class="input h-8 w-auto rounded-full text-[13px]"
+        :class="filters.period.startsWith('month:') ? 'border-primary bg-primary text-white' : ''"
+        aria-label="Mês"
+        data-test="vendas-mes"
+        :value="filters.period.startsWith('month:') ? filters.period : ''"
+        @change="onMonth($event)"
+      >
+        <option value="" disabled>Mês</option>
+        <option v-for="m in response?.months ?? []" :key="m.value" :value="`month:${m.value}`">
+          {{ m.label }}{{ m.current ? ' (até hoje)' : m.partial ? ' (parcial)' : '' }}
+        </option>
+      </select>
       <span class="mx-1 text-[12px] text-ink-3">ou</span>
       <input type="date" class="input h-8 w-auto text-[13px]" :value="filters.from" aria-label="Data inicial" @change="onDate('from', $event)" />
       <span class="text-[12px] text-ink-3">até</span>
@@ -260,7 +280,10 @@ function onDate(which: 'from' | 'to', event: Event) {
                     <div class="min-w-0">
                       <p class="truncate text-[13px] font-medium text-ink" :title="row.items.map((i) => i.title).join(' + ')">{{ row.items[0]?.title ?? 'Sem itens' }}</p>
                       <p class="truncate text-[12px] text-ink-3">
-                        #{{ row.order_id }} · {{ row.items[0]?.sku ?? 'sem SKU' }} · {{ int(row.units) }} un
+                        #{{ row.order_id }}
+                      </p>
+                      <p class="truncate text-[12px] text-ink-3" data-test="venda-sku">
+                        {{ row.items[0]?.sku ?? 'sem SKU' }} · {{ int(row.units) }} un
                         <template v-if="row.items.length > 1"> · +{{ row.items.length - 1 }} {{ row.items.length === 2 ? 'item' : 'itens' }}</template>
                         <span v-if="row.status.tone !== 'ok'" class="ml-1" :class="tone(row.status.tone)">{{ row.status.label }}</span>
                       </p>
@@ -276,6 +299,17 @@ function onDate(which: 'from' | 'to', event: Event) {
                       <p v-if="row.issue" class="truncate text-[12px]" :class="tone(row.issue.tone)" :title="row.issue.label" data-test="sale-issue">{{ row.issue.label }}</p>
                     </div>
                   </div>
+                </td>
+                <td class="px-2 py-2 align-top text-[12px]" data-test="venda-cliente">
+                  <template v-if="row.buyer?.loaded">
+                    <p class="truncate font-medium text-ink" :title="row.buyer?.name ?? ''">{{ row.buyer?.name ?? '—' }}</p>
+                    <p class="truncate text-ink-3" data-numeric>{{ row.buyer?.doc ? `${row.buyer.doc_type ?? 'Doc.'} ${row.buyer.doc}` : '—' }}</p>
+                    <p class="truncate text-ink-3">{{ row.buyer?.city ?? '—' }}</p>
+                  </template>
+                  <template v-else>
+                    <p class="text-ink-3" title="Nome e CPF ainda não lidos do Mercado Livre: completam sozinhos, das vendas mais novas para as mais antigas">Carregando…</p>
+                    <p v-if="row.buyer?.city" class="truncate text-ink-3">{{ row.buyer.city }}</p>
+                  </template>
                 </td>
                 <td class="px-2 py-2 text-right align-top" data-numeric>{{ brl(row.economics?.revenue ?? row.total_amount) }}</td>
                 <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>

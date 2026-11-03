@@ -65,6 +65,8 @@ export interface SaleRow {
   date_closed: string | null
   status: { key: string; label: string; tone: Tone }
   buyer_nickname: string | null
+  /** Coluna "Cliente": nome, CPF/CNPJ (mascarado para quem não é administrador) e cidade/UF */
+  buyer?: { name: string | null; doc_type: string | null; doc: string | null; city: string | null; loaded?: boolean } | null
   items: SaleItemLine[]
   units: number
   total_amount: number | null
@@ -170,8 +172,20 @@ export interface SalesDay {
   net_profit: number
 }
 
+export interface SalesMonth {
+  /** "2026-10" */
+  value: string
+  /** "10/2026" */
+  label: string
+  current: boolean
+  /** mês mais antigo, cortado no limite de 92 dias */
+  partial: boolean
+}
+
 export interface SalesResponse {
-  period: { from: string; to: string; preset: string }
+  period: { from: string; to: string; preset: string; month?: string | null }
+  /** meses para o filtro: o atual primeiro e os anteriores em ordem decrescente */
+  months?: SalesMonth[]
   summary: SalesSummary
   daily: SalesDay[]
   counts: {

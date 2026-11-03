@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SalesFilters } from '../types/sales'
-import { buildSalesQuery, createSalesClient } from './salesClient'
+import { buildPeriodQuery, buildSalesQuery, createSalesClient } from './salesClient'
 
 const base: SalesFilters = {
   period: '30d', from: '', to: '', status: '', shipping: '', logistic: '', q: '',
@@ -17,6 +17,10 @@ describe('buildSalesQuery', () => {
   it('inclui situação, envio, logística e busca (sem espaços nas pontas)', () => {
     const query = buildSalesQuery('acc1', { ...base, status: 'paid', shipping: 'transit', logistic: 'full', q: '  SKU-1 ' })
     expect(query).toMatchObject({ status: 'paid', shipping: 'transit', logistic: 'full', q: 'SKU-1' })
+  })
+
+  it('mês escolhido manda month no lugar de period', () => {
+    expect(buildPeriodQuery({ period: 'month:2026-10', from: '', to: '' })).toEqual({ month: '2026-10' })
   })
 
   it('período personalizado manda from/to no lugar de period', () => {

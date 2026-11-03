@@ -15,6 +15,7 @@ export function buildSalesQuery(accountId: string, f: SalesFilters): Record<stri
 
 /** Período da tela (`period` ou `from`/`to`): o detalhe usa o mesmo, porque o rateio do custo de Ads depende dele. */
 export function buildPeriodQuery(f: Pick<SalesFilters, 'period' | 'from' | 'to'>): Record<string, string> {
+  if (f.period.startsWith('month:')) return { month: f.period.slice(6) }
   return f.period === 'custom' && f.from && f.to ? { from: f.from, to: f.to } : { period: f.period }
 }
 
