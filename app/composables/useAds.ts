@@ -3,6 +3,7 @@ import { buildAdsItemsQuery, createAdsClient } from '../lib/adsClient'
 import { apiErrorMessage } from '../lib/apiErrors'
 import { withTransientRetry } from '../lib/transientRetry'
 import { useSessionStore } from '../stores/session'
+import { useToast } from './useToast'
 import type { AdsAnalysis, AdsDiagnosis, AdsItemsFilters, AdsItemsResponse, AdsRange, AdsResponse } from '../types/ads'
 import { usePolling } from './usePolling'
 
@@ -16,6 +17,7 @@ export function useAds() {
   const { $api } = useNuxtApp()
   const client = createAdsClient($api)
   const session = useSessionStore()
+  const toast = useToast()
 
   const range = reactive<AdsRange>({ period: '30d', from: '', to: '' })
   const tab = ref<'campanhas' | 'anuncios' | 'analise'>('campanhas')
@@ -128,11 +130,18 @@ export function useAds() {
   async function decide(key: string, signal: string, status: 'feito' | 'ignorado') {
     const accountId = session.selectedAccountId
     if (!accountId) return
+    // Falha ao registrar não derruba a aba: avisa e relê a análise (a sugestão pode ter mudado desde que a tela abriu).
     try {
       await client.decide(accountId, key, signal, status)
-      analysis.value = await client.analysis(accountId)
+      toast.success(status === 'feito' ? 'Marcado como feito.' : 'Marcado como ignorado.')
     } catch (err) {
-      analysisError.value = apiErrorMessage(err, 'Não foi possível registrar a decisão.')
+      toast.error(apiErrorMessage(err, 'Não foi possível registrar a decisão. A análise foi atualizada; tente de novo.'))
+    }
+    try {
+      analysis.value = await client.analysis(accountId)
+      analysisError.value = ''
+    } catch {
+      // mantém a análise que já está na tela
     }
   }
   async function undecide(id: number) {
@@ -140,9 +149,14 @@ export function useAds() {
     if (!accountId) return
     try {
       await client.undecide(accountId, id)
-      analysis.value = await client.analysis(accountId)
     } catch (err) {
-      analysisError.value = apiErrorMessage(err, 'Não foi possível desfazer a decisão.')
+      toast.error(apiErrorMessage(err, 'Não foi possível desfazer a decisão. A análise foi atualizada; tente de novo.'))
+    }
+    try {
+      analysis.value = await client.analysis(accountId)
+      analysisError.value = ''
+    } catch {
+      // mantém a análise que já está na tela
     }
   }
 
