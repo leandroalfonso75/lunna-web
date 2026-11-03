@@ -24,6 +24,9 @@ const emit = defineEmits<{
   refresh: []
 }>()
 
+/** Data sem hora ("2026-11-09") em dd/mm, sem passar por fuso (new Date leria como UTC e voltaria um dia). */
+const dayOnly = (iso: string) => iso.slice(0, 10).split('-').reverse().slice(0, 2).join('/')
+
 /** Tipos de sugestão de estrutura de campanhas: rótulo e cor. */
 const STRUCTURE_TYPE: Record<AdsStructureType, { label: string; tone: string }> = {
   dividir: { label: 'Dividir', tone: 'bg-primary-soft text-primary' },
@@ -201,9 +204,9 @@ function value(q: AdsAnalysisQueueItem) {
             <span class="font-semibold text-ink">Rodada semanal.</span>
             As sugestões são conferidas juntas, campanha por campanha, para não conflitarem entre si. Campanha com mudança marcada como feita fica travada por 7 dias (aprendizado do ML e medição do "depois").
             <template v-if="data.structure.round.last_round_at"> Última rodada: {{ dateShort(data.structure.round.last_round_at) }}.</template>
-            Próxima rodada: <strong class="text-ink">{{ dateShort(data.structure.round.next_round_on) }}</strong>.
+            Próxima rodada: <strong class="text-ink">{{ dayOnly(data.structure.round.next_round_on) }}</strong>.
           </p>
-          <p v-for="l in data.structure.round.locked" :key="l.name" class="mt-0.5">🔒 <strong class="text-ink">{{ l.name }}</strong> travada até {{ dateShort(l.until_on) }}: {{ l.reason }}.</p>
+          <p v-for="l in data.structure.round.locked" :key="l.name" class="mt-0.5">🔒 <strong class="text-ink">{{ l.name }}</strong> travada até {{ dayOnly(l.until_on) }}: {{ l.reason }}.</p>
         </div>
         <div v-if="data.structure.plan.campaigns.length" class="mt-2 overflow-x-auto" data-test="estrutura-campanhas-depois">
           <p class="mb-1 text-[12px] font-semibold text-ink">Como ficam as campanhas depois desta rodada</p>
