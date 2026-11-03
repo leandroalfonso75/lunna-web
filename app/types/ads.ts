@@ -300,6 +300,9 @@ export interface AdsStructureSuggestion {
   rationale: string
   expected: string
   check_before: string
+  /** "estrutura_<tipo>": com a key, identifica a sugestão para Feito/Ignorar */
+  signal: string
+  decided: { id: number; status: 'feito' | 'ignorado'; at: string } | null
 }
 
 export interface AdsStructure {

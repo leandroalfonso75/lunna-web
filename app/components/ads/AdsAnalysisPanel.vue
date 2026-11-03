@@ -214,6 +214,18 @@ function value(q: AdsAnalysisQueueItem) {
             </p>
             <p class="mt-1 text-ink-3">Esperado: {{ s.expected }} · Antes: {{ s.check_before }}</p>
             <p v-if="s.note" class="mt-1 font-semibold text-warning">{{ s.note }}</p>
+            <div class="mt-2 flex flex-wrap items-center gap-2" :data-test="`estrutura-decisao-${s.type}`">
+              <template v-if="s.decided">
+                <span class="rounded-full px-2 py-0.5 font-semibold" :class="s.decided.status === 'feito' ? 'bg-success-soft text-success' : 'bg-surface-2 text-ink-2'">
+                  {{ s.decided.status === 'feito' ? 'Feito' : 'Ignorado' }} em {{ dateTimeShort(s.decided.at) }}
+                </span>
+                <button v-if="isAdmin" type="button" class="btn-link" @click="emit('undecide', s.decided.id)">desfazer</button>
+              </template>
+              <template v-else-if="isAdmin">
+                <button type="button" class="btn-secondary h-7 px-2.5 text-[12px]" @click="emit('decide', s.key, s.signal, 'feito')">Marcar como feito</button>
+                <button type="button" class="btn-link" @click="emit('decide', s.key, s.signal, 'ignorado')">Ignorar</button>
+              </template>
+            </div>
           </li>
           <li v-if="!data.structure.suggestions.length" class="text-ink-3">Nenhuma mudança de estrutura com potencial viável agora: campanhas sem família dominante perdendo leilão, e nenhum anúncio fora de campanha ou pausado com vendas, margem e estoque para justificar.</li>
         </ul>
