@@ -64,6 +64,14 @@ describe('layouts/default.vue (sidebar SaaS)', () => {
     expect(produtos).toBeLessThan(anuncios)
   })
 
+  it('mostra Reclamações logo abaixo de Vendas', () => {
+    const vendas = source.indexOf("{ to: '/vendas'")
+    const reclamacoes = source.indexOf("{ to: '/reclamacoes', label: 'Reclamações', icon: ChatBubbleLeftRightIcon }")
+    const ads = source.indexOf("{ to: '/ads'")
+    expect(reclamacoes).toBeGreaterThan(vendas)
+    expect(reclamacoes).toBeLessThan(ads)
+  })
+
   it('mostra o Radar Mercado Livre no menu Painel', () => {
     expect(source).toContain("{ to: '/radar-ml', label: 'Radar Mercado Livre', icon: SignalIcon }")
   })

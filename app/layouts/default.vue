@@ -3,6 +3,7 @@ import { Dialog, DialogPanel } from '@headlessui/vue'
 import {
   Bars3Icon,
   ChartBarIcon,
+  ChatBubbleLeftRightIcon,
   ChevronUpDownIcon,
   Cog6ToothIcon,
   CubeIcon,
@@ -45,6 +46,7 @@ const NAV_SECTIONS = [
       { to: '/produtos', label: 'Produtos', icon: CubeIcon },
       { to: '/anuncios', label: 'Anúncios', icon: ListBulletIcon },
       { to: '/vendas', label: 'Vendas', icon: ShoppingBagIcon },
+      { to: '/reclamacoes', label: 'Reclamações', icon: ChatBubbleLeftRightIcon },
       { to: '/ads', label: 'Ads', icon: MegaphoneIcon },
       { to: '/promocoes', label: 'Promoções', icon: TagIcon },
       { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon },
