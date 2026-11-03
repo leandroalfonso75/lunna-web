@@ -13,7 +13,8 @@ const COST_SOURCE_LABEL: Record<string, string> = {
   custo_medio: 'Custo médio do produto no Olist',
   ultima_entrada: 'Custo da última entrada de estoque no Olist (produto sem saldo)',
   kit: 'Kit: soma do custo dos componentes no Olist',
-  manual: 'Custo informado manualmente'
+  manual: 'Custo informado manualmente',
+  variacoes: 'Anúncio com variações: média do custo dos SKUs das variações vendidas nos últimos 90 dias (kits pela soma dos componentes)'
 }
 
 const money = (v: number | null | undefined) => (v === null || v === undefined ? '—' : brl(v))
