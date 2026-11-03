@@ -116,13 +116,15 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
               <th class="px-3 py-2 font-semibold">Venda</th>
               <th class="px-3 py-2 font-semibold">Motivo</th>
               <th class="px-3 py-2 font-semibold">Situação</th>
+              <th class="px-3 py-2 font-semibold">Devolução habilitada</th>
+              <th class="px-3 py-2 font-semibold">Devolução efetivada</th>
               <th class="px-3 py-2 font-semibold">Quem age / prazo</th>
               <th class="px-3 py-2 font-semibold">Reputação</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading && !response"><td colspan="7" class="px-3 py-10 text-center text-ink-3" role="status">Carregando reclamações…</td></tr>
-            <tr v-else-if="response && !response.claims.length"><td colspan="7" class="px-3 py-10 text-center text-ink-3">Nenhuma reclamação {{ filters.q ? 'com essa busca' : 'importada ainda' }}.</td></tr>
+            <tr v-if="loading && !response"><td colspan="9" class="px-3 py-10 text-center text-ink-3" role="status">Carregando reclamações…</td></tr>
+            <tr v-else-if="response && !response.claims.length"><td colspan="9" class="px-3 py-10 text-center text-ink-3">Nenhuma reclamação {{ filters.q ? 'com essa busca' : 'importada ainda' }}.</td></tr>
             <template v-for="c in response?.claims ?? []" :key="c.claim_id">
               <tr class="cursor-pointer border-b border-line align-top hover:bg-surface-2" data-test="reclamacao-linha" @click="toggle(c.claim_id)">
                 <td class="whitespace-nowrap px-3 py-2 text-ink-2">{{ dateTimeShort(c.date_created) }}</td>
@@ -145,6 +147,18 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
                 </td>
                 <td class="max-w-[220px] px-3 py-2 text-ink-2">{{ c.reason ?? '—' }}</td>
                 <td class="px-3 py-2"><span :class="TONE[c.tone] ?? 'pill-neutral'">{{ c.status_label }}</span></td>
+                <td class="px-3 py-2 text-[12px]" data-test="devolucao-habilitada">
+                  <span v-if="c.devolution_status?.enabled === true" class="font-semibold text-ink">Sim</span>
+                  <span v-else-if="c.devolution_status?.enabled === false" class="text-ink-3">Não</span>
+                  <span v-else class="text-ink-3">carregando…</span>
+                </td>
+                <td class="px-3 py-2 text-[12px]" data-test="devolucao-efetivada">
+                  <template v-if="c.devolution_status?.enabled">
+                    <span :class="TONE[c.devolution_status.tone ?? 'neutral'] ?? 'pill-neutral'" :title="c.devolution_status.status ? `Situação no Mercado Livre: ${c.devolution_status.status}` : 'Devolução autorizada, ainda sem envio gerado'">{{ c.devolution_status.label }}</span>
+                    <span v-if="c.devolution_status.date && c.devolution_status.key !== 'aguardando'" class="block text-ink-3">{{ dateShort(c.devolution_status.date) }}</span>
+                  </template>
+                  <span v-else class="text-ink-3">—</span>
+                </td>
                 <td class="px-3 py-2 text-[12px]">
                   <template v-if="c.action_responsible_label">{{ c.action_responsible_label }}<span v-if="c.due_date" class="block text-ink-3">até {{ dateTimeShort(c.due_date) }}</span></template>
                   <span v-else class="text-ink-3">{{ c.detailed ? '—' : 'carregando…' }}</span>
@@ -156,7 +170,7 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
                 </td>
               </tr>
               <tr v-if="expanded === c.claim_id" class="border-b border-line bg-surface-2">
-                <td colspan="7" class="border-l-4 border-l-primary px-4 py-4">
+                <td colspan="9" class="border-l-4 border-l-primary px-4 py-4">
                   <ClaimDetailPanel :claim="details[c.claim_id] ?? null" :loading="detailLoading" />
                 </td>
               </tr>

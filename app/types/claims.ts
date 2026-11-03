@@ -35,6 +35,8 @@ export interface ClaimRow {
   order: ClaimOrder | null
   detailed: boolean
   link: string | null
+  /** Devolução: habilitada (null = detalhes ainda não importados) e o que aconteceu com ela */
+  devolution_status?: { enabled: boolean | null; key?: string; label?: string; tone?: string; status?: string | null; shipment_status?: string | null; tracking?: string | null; refund_at?: string | null; money?: string | null; date?: string | null }
 }
 
 export interface ClaimMessage {
