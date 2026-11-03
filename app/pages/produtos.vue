@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ArrowPathIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
-import { watchEffect } from 'vue'
+import { computed, ref, watch, watchEffect } from 'vue'
 import OlistProductRow from '../components/produtos/OlistProductRow.vue'
+import RemoveProductsDialog from '../components/produtos/RemoveProductsDialog.vue'
 import { useOlistProducts } from '../composables/useOlistProducts'
 import { useSessionStore } from '../stores/session'
 import { usePageHeader } from '../composables/usePageHeader'
@@ -15,6 +16,37 @@ import { dateTimeShort, int } from '../lib/format'
 const header = usePageHeader()
 const olist = useOlistProducts()
 const session = useSessionStore()
+
+// Seleção para as ações em lote (só administradores). Variação vai junto com o pai.
+const selected = ref<Set<number>>(new Set())
+const action = ref<'excluir'>('excluir')
+const dialogOpen = ref(false)
+const removing = ref(false)
+const pageIds = computed(() => olist.products.value.map((p) => p.id))
+const allOnPage = computed(() => pageIds.value.length > 0 && pageIds.value.every((id) => selected.value.has(id)))
+
+function toggle(id: number) {
+  const next = new Set(selected.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selected.value = next
+}
+function toggleAll() {
+  selected.value = allOnPage.value ? new Set() : new Set(pageIds.value)
+}
+function runAction() {
+  if (!selected.value.size) return
+  if (action.value === 'excluir') dialogOpen.value = true
+}
+async function confirmRemove(keepInErp: boolean) {
+  removing.value = true
+  const ok = await olist.removeProducts([...selected.value], keepInErp)
+  removing.value = false
+  dialogOpen.value = false
+  if (ok) selected.value = new Set()
+}
+// trocar de página, busca ou filtro limpa a seleção (só vale o que está na tela)
+watch([olist.page, olist.q, olist.status], () => { selected.value = new Set() })
 
 watchEffect(() => {
   header.state.title = 'Produtos'
@@ -95,6 +127,18 @@ watchEffect(() => {
         <span class="text-[13px] text-ink-3" data-test="produtos-total">{{ int(olist.total.value) }} produtos</span>
       </div>
 
+      <div v-if="session.isAdmin && selected.size" class="card flex flex-wrap items-center gap-3 border-primary p-3 text-[13px]" data-test="produtos-acoes">
+        <span class="font-semibold text-ink">{{ selected.size }} {{ selected.size === 1 ? 'selecionado' : 'selecionados' }}</span>
+        <label class="flex items-center gap-2">
+          <span class="text-ink-2">Ação</span>
+          <select v-model="action" class="input w-auto" data-test="produtos-acao">
+            <option value="excluir">Excluir</option>
+          </select>
+        </label>
+        <button type="button" class="btn-primary h-9" data-test="produtos-aplicar-acao" @click="runAction">Aplicar</button>
+        <button type="button" class="btn-link" @click="selected = new Set()">Limpar seleção</button>
+      </div>
+
       <div v-if="olist.error.value" class="card p-6 text-center" role="alert">
         <p class="text-[15px] text-danger">{{ olist.error.value }}</p>
       </div>
@@ -104,6 +148,9 @@ watchEffect(() => {
           <table class="w-full min-w-[1100px] border-collapse text-[13px]">
             <thead class="bg-surface-2">
               <tr class="border-b border-line text-left text-ink-2">
+                <th scope="col" class="w-8 px-2 py-2">
+                  <input v-if="session.isAdmin" type="checkbox" :checked="allOnPage" aria-label="Selecionar todos desta página" data-test="produtos-selecionar-todos" @change="toggleAll" />
+                </th>
                 <th scope="col" class="px-3 py-2 font-semibold">SKU</th>
                 <th scope="col" class="px-3 py-2 font-semibold">Produto</th>
                 <th scope="col" class="px-3 py-2 font-semibold">Situação</th>
@@ -117,14 +164,22 @@ watchEffect(() => {
             </thead>
             <tbody>
               <tr v-if="olist.loading.value">
-                <td colspan="9" class="px-3 py-10 text-center text-ink-3" role="status">Carregando produtos…</td>
+                <td colspan="10" class="px-3 py-10 text-center text-ink-3" role="status">Carregando produtos…</td>
               </tr>
               <tr v-else-if="!olist.products.value.length">
-                <td colspan="9" class="px-3 py-10 text-center text-ink-3">
+                <td colspan="10" class="px-3 py-10 text-center text-ink-3">
                   {{ olist.q.value || olist.status.value ? 'Nenhum produto com esses filtros.' : 'Nenhum produto sincronizado ainda. Clique em “Atualizar agora”.' }}
                 </td>
               </tr>
-              <OlistProductRow v-for="p in olist.products.value" v-else :key="p.id" :product="p" />
+              <OlistProductRow
+                v-for="p in olist.products.value"
+                v-else
+                :key="p.id"
+                :product="p"
+                :selectable="session.isAdmin"
+                :selected="selected.has(p.id)"
+                @toggle="toggle"
+              />
             </tbody>
           </table>
         </div>
@@ -139,5 +194,14 @@ watchEffect(() => {
 
     <div v-else-if="olist.error.value" class="card p-6 text-center text-danger" role="alert">{{ olist.error.value }}</div>
     <div v-else class="card p-10 text-center text-ink-3" role="status">Carregando…</div>
+
+    <RemoveProductsDialog
+      v-if="dialogOpen"
+      :count="selected.size"
+      :integrated="olist.connected.value"
+      :busy="removing"
+      @confirm="confirmRemove"
+      @cancel="dialogOpen = false"
+    />
   </div>
 </template>

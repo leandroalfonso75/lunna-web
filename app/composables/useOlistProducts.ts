@@ -140,8 +140,23 @@ export function useOlistProducts() {
     clearInterval(refreshTimer)
   })
 
+  /** Ação "Excluir" da seção: remove no servidor, avisa o resultado e relê a lista. => true se removeu algum. */
+  async function removeProducts(ids: number[], keepInErp: boolean): Promise<boolean> {
+    try {
+      const res = await client.removeProducts(ids, keepInErp)
+      const n = res.removed.length
+      if (n) toast.success(`${n} ${n === 1 ? 'produto excluído' : 'produtos excluídos'}${res.kept_in_erp ? ' do Lunna (mantidos no ERP)' : ' do Lunna e do ERP'}.`)
+      for (const f of res.failed) toast.error(`${f.sku ?? f.id}: ${f.error}`)
+      await loadProducts({ silent: true })
+      return n > 0
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível excluir agora. Nada foi alterado.'))
+      return false
+    }
+  }
+
   return {
     olist, products, total, lastSyncedAt, loading, error, syncing, q, status, page, pages, connected, lastRun,
-    pageSize: PAGE_SIZE, refreshNow, reconnect, goTo
+    pageSize: PAGE_SIZE, refreshNow, reconnect, goTo, removeProducts
   }
 }

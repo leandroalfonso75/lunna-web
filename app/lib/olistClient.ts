@@ -168,6 +168,14 @@ export function createOlistClient(api: ApiFn) {
       return api('/api/olist/sync', { method: 'POST' })
     },
 
+    /**
+     * Só administradores: remove os produtos selecionados da seção Produtos. keepInErp = true mantém o cadastro no Olist
+     * (só some do Lunna); false exclui também o cadastro no Olist.
+     */
+    removeProducts(ids: number[], keepInErp: boolean): Promise<OlistRemoveResult> {
+      return api('/api/olist/products/remove', { method: 'POST', body: { ids, keep_in_erp: keepInErp, confirm: true } })
+    },
+
     /** Só administradores: devolve a URL do Olist para autorizar (ou reautorizar) o acesso. */
     authorize(): Promise<{ url: string }> {
       return api("/api/olist/authorize", { method: "POST" })
@@ -176,6 +184,12 @@ export function createOlistClient(api: ApiFn) {
 }
 
 export type OlistClient = ReturnType<typeof createOlistClient>
+
+export interface OlistRemoveResult {
+  removed: { id: number; sku: string | null; description: string | null }[]
+  failed: { id: number; sku: string | null; description: string | null; error: string }[]
+  kept_in_erp: boolean
+}
 
 export const STATUS_LABEL: Record<string, string> = { A: 'Ativo', I: 'Inativo', E: 'Excluído' }
 export const KIND_LABEL: Record<string, string> = { S: 'Simples', K: 'Kit', V: 'Com variações', F: 'Fabricado', M: 'Matéria-prima' }

@@ -9,7 +9,8 @@ import { KIND_LABEL, STATUS_LABEL, VARIATION_LABEL, formatQty, toNumber, type Ol
  * nome, uma seta: só ao clicar nela as variações aparecem (como linhas
  * recuadas logo abaixo). Clicar na linha abre/fecha os detalhes do produto.
  */
-const props = defineProps<{ product: OlistProduct; level?: number }>()
+const props = defineProps<{ product: OlistProduct; level?: number; selectable?: boolean; selected?: boolean }>()
+const emit = defineEmits<{ toggle: [id: number] }>()
 
 const showDetail = ref(false)
 const showVariations = ref(false)
@@ -40,6 +41,17 @@ const costText = () => {
     :data-nivel="level ?? 0"
     @click="showDetail = !showDetail"
   >
+    <td class="w-8 px-2 py-2" @click.stop>
+      <input
+        v-if="selectable && !level"
+        type="checkbox"
+        class="mt-1"
+        :checked="selected"
+        :aria-label="`Selecionar ${product.description}`"
+        data-test="produto-selecionar"
+        @change="emit('toggle', product.id)"
+      />
+    </td>
     <td class="whitespace-nowrap px-3 py-2 font-mono text-[12px]" :class="level ? 'pl-8' : ''">{{ product.sku || '—' }}</td>
     <td class="max-w-[460px] px-3 py-2">
       <div class="flex items-start gap-2">
@@ -86,7 +98,7 @@ const costText = () => {
   </tr>
 
   <tr v-if="showDetail" class="border-b border-line bg-surface-2" data-test="produto-detalhe">
-    <td colspan="9" class="px-6 py-4">
+    <td colspan="10" class="px-6 py-4">
       <dl class="grid gap-x-8 gap-y-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
         <div><dt class="text-ink-3">ID no Olist</dt><dd class="font-mono">{{ product.id }}</dd></div>
         <div><dt class="text-ink-3">GTIN / EAN</dt><dd>{{ product.gtin || '—' }}</dd></div>
