@@ -3,8 +3,10 @@ import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/
 import { onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
+import ClaimAttentionCard from '../components/reclamacoes/ClaimAttentionCard.vue'
 import ClaimDetailPanel from '../components/reclamacoes/ClaimDetailPanel.vue'
 import { usePageHeader } from '../composables/usePageHeader'
+import { useToast } from '../composables/useToast'
 import { apiErrorMessage } from '../lib/apiErrors'
 import { brl, dateShort, dateTimeShort, int } from '../lib/format'
 import { useSessionStore } from '../stores/session'
@@ -20,7 +22,33 @@ const session = useSessionStore()
 const header = usePageHeader()
 
 // período (como em Vendas: presets, mês ou datas; padrão: todas) e ordenação por coluna
-const filters = reactive({ q: '', page: 1, per_page: 50, period: 'all', from: '', to: '', sort: 'date', dir: 'desc' as 'asc' | 'desc' })
+const filters = reactive({ q: '', page: 1, per_page: 50, period: 'all', from: '', to: '', sort: 'date', dir: 'desc' as 'asc' | 'desc', view: '' as '' | 'atender' | 'abertas' })
+const toast = useToast()
+const sending = ref(false)
+const cards = ref<InstanceType<typeof ClaimAttentionCard>[]>([])
+
+function setView(view: '' | 'atender' | 'abertas') {
+  Object.assign(filters, { view: filters.view === view ? '' : view, page: 1 })
+}
+
+// Resposta na reclamação: vai para o Mercado Livre (o cartão já pediu a confirmação).
+async function reply(claimId: number, receiver: string, text: string) {
+  sending.value = true
+  try {
+    await $api(`/api/claims/${claimId}/reply`, {
+      method: 'POST',
+      query: { account_id: session.selectedAccountId },
+      body: { receiver_role: receiver, message: text, confirm: true }
+    })
+    toast.success('Resposta enviada na reclamação no Mercado Livre.')
+    cards.value.forEach((c) => c?.reset())
+    await load(true)
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'O Mercado Livre não aceitou a resposta. Nada foi enviado.'))
+  } finally {
+    sending.value = false
+  }
+}
 const PERIODS = [
   { value: 'all', label: 'Todas' }, { value: 'today', label: 'Hoje' }, { value: 'yesterday', label: 'Ontem' },
   { value: '7d', label: '7 dias' }, { value: '30d', label: '30 dias' }, { value: '60d', label: '60 dias' },
@@ -71,7 +99,12 @@ async function load(silent = false) {
   if (!silent) loading.value = true
   try {
     response.value = await $api('/api/claims', {
-      query: { account_id: accountId, q: filters.q.trim() || undefined, page: filters.page, per_page: filters.per_page, sort: filters.sort, dir: filters.dir, ...periodQuery() }
+      query: {
+        account_id: accountId, q: filters.q.trim() || undefined, page: filters.page, per_page: filters.per_page,
+        view: filters.view || undefined,
+        // na visão A atender/Abertas a ordem é pelo prazo e o período não se aplica
+        ...(filters.view ? {} : { sort: filters.sort, dir: filters.dir, ...periodQuery() })
+      }
     })
     error.value = ''
   } catch (err) {
@@ -99,7 +132,7 @@ watch(() => filters.q, () => {
   clearTimeout(timer)
   timer = setTimeout(() => { filters.page = 1; void load() }, 300)
 })
-watch(() => [filters.page, filters.per_page, filters.sort, filters.dir, filters.period, filters.from, filters.to, session.selectedAccountId], () => {
+watch(() => [filters.page, filters.per_page, filters.sort, filters.dir, filters.period, filters.from, filters.to, filters.view, session.selectedAccountId], () => {
   if (filters.period === 'custom' && !(filters.from && filters.to)) return
   void load()
 })
@@ -165,7 +198,67 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
       <input type="date" class="input h-8 w-auto text-[13px]" :value="filters.to" aria-label="Data final" @change="onDate('to', $event)" />
     </div>
 
-    <div class="card flex flex-wrap items-center gap-3 p-3">
+    <!-- A atender: reclamações que aguardam o vendedor (maior e mais chamativo que os filtros de data) -->
+    <div class="flex flex-wrap items-stretch gap-3" data-test="reclamacoes-atender">
+      <button
+        type="button"
+        class="group relative flex min-w-[260px] items-center gap-3 rounded-card border-2 px-5 py-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+        :class="filters.view === 'atender'
+          ? 'border-warning bg-warning text-white'
+          : (response?.attention?.to_attend ? 'border-warning bg-warning-soft text-warning' : 'border-line bg-surface text-ink-2')"
+        :aria-pressed="filters.view === 'atender'"
+        data-test="botao-a-atender"
+        @click="setView('atender')"
+      >
+        <span class="relative flex h-3 w-3">
+          <span v-if="response?.attention?.to_attend" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-75" />
+          <span class="relative inline-flex h-3 w-3 rounded-full" :class="response?.attention?.to_attend ? 'bg-warning' : 'bg-success'" />
+        </span>
+        <span>
+          <span class="block text-[18px] font-bold leading-tight">A atender</span>
+          <span class="block text-[12px]" :class="filters.view === 'atender' ? 'text-white' : 'text-ink-2'">
+            {{ response?.attention?.to_attend ? `${response.attention.to_attend} aguardando sua ação` : 'nada aguardando você agora' }}
+          </span>
+        </span>
+        <span class="ml-auto rounded-full px-3 py-1 text-[20px] font-bold" :class="filters.view === 'atender' ? 'bg-white text-warning' : 'bg-surface text-ink'">{{ int(response?.attention?.to_attend ?? 0) }}</span>
+      </button>
+      <button
+        type="button"
+        class="flex min-w-[200px] items-center gap-3 rounded-card border-2 px-4 py-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
+        :class="filters.view === 'abertas' ? 'border-primary bg-primary text-white' : 'border-line bg-surface text-ink-2'"
+        :aria-pressed="filters.view === 'abertas'"
+        data-test="botao-abertas"
+        @click="setView('abertas')"
+      >
+        <span>
+          <span class="block text-[16px] font-bold leading-tight">Abertas</span>
+          <span class="block text-[12px]">{{ int(response?.attention?.can_reply ?? 0) }} em que você pode responder</span>
+        </span>
+        <span class="ml-auto text-[20px] font-bold">{{ int(response?.attention?.open ?? 0) }}</span>
+      </button>
+      <button v-if="filters.view" type="button" class="btn-link self-center text-[13px]" @click="setView(filters.view)">← Ver todas as reclamações</button>
+    </div>
+
+    <div v-if="filters.view" class="space-y-3" data-test="lista-atender">
+      <p class="text-[13px] text-ink-2">
+        {{ filters.view === 'atender' ? 'Reclamações abertas em que o Mercado Livre aguarda uma ação sua' : 'Todas as reclamações abertas' }}, pelo prazo (as que aguardam você primeiro).
+        A resposta vai direto para a reclamação no Mercado Livre.
+      </p>
+      <p v-if="response && !response.claims.length" class="card p-6 text-center text-ink-3">
+        {{ filters.view === 'atender' ? 'Nenhuma reclamação aguardando você agora. Veja as abertas para acompanhar os prazos.' : 'Nenhuma reclamação aberta.' }}
+      </p>
+      <ClaimAttentionCard
+        v-for="c in response?.claims ?? []"
+        :key="c.claim_id"
+        ref="cards"
+        :claim="c"
+        :can-reply="session.isAdmin"
+        :sending="sending"
+        @reply="reply"
+      />
+    </div>
+
+    <div v-if="!filters.view" class="card flex flex-wrap items-center gap-3 p-3">
       <div class="relative min-w-[240px] flex-1">
         <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" aria-hidden="true" />
         <input v-model="filters.q" type="search" class="input pl-9" placeholder="Buscar por nº da reclamação ou da venda, comprador, produto, SKU ou motivo" aria-label="Buscar reclamações" data-test="reclamacoes-busca" />
@@ -175,7 +268,7 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
 
     <div v-if="error" class="card p-6 text-center text-danger" role="alert">{{ error }}</div>
 
-    <div v-else class="card overflow-hidden">
+    <div v-else-if="!filters.view" class="card overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full min-w-[980px] border-collapse text-[13px]">
           <thead class="bg-surface-2 text-left text-ink-2">
@@ -268,7 +361,7 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
       </div>
     </div>
 
-    <div v-if="response && pages() > 1" class="flex items-center justify-center gap-3">
+    <div v-if="response && pages() > 1 && !filters.view" class="flex items-center justify-center gap-3">
       <button type="button" class="btn-secondary" :disabled="filters.page <= 1" @click="filters.page -= 1">← Anteriores</button>
       <span class="text-[13px] text-ink-3">Página {{ filters.page }} de {{ int(pages()) }}</span>
       <button type="button" class="btn-secondary" :disabled="filters.page >= pages()" @click="filters.page += 1">Próximas →</button>

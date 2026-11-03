@@ -40,6 +40,16 @@ export interface ClaimRow {
   refund?: { key: 'integral' | 'parcial' | 'sem' | null; label: string | null; amount?: number | null; paid?: number | null; source?: string | null }
   /** Custo com frete na devolução: Sim / Sim (previsto) / Não, com o valor e se o ML aplicou cobertura */
   freight?: { key: 'sim' | 'previsto' | 'nao' | null; label?: string | null; amount?: number | null; source?: string | null; covered?: boolean; note?: string | null }
+  /** A atender: aberta e o ML aguarda o vendedor */
+  to_attend?: boolean
+  /** prazo da próxima ação (detalhe da reclamação no ML) */
+  deadline?: string | null
+  seller_actions?: { action: string; label: string; due_date: string | null; mandatory: boolean | null }[]
+  /** para quem o vendedor pode mandar mensagem agora: complainant, mediator */
+  reply_targets?: string[]
+  buyer_wants?: string[]
+  what_to_do?: { title: string | null; description: string | null } | null
+  last_message?: ClaimMessage | null
   devolution_status?: { enabled: boolean | null; key?: string; label?: string; tone?: string; status?: string | null; shipment_status?: string | null; tracking?: string | null; refund_at?: string | null; money?: string | null; date?: string | null }
 }
 
@@ -82,6 +92,9 @@ export interface ClaimsResponse {
   period?: { preset: string; month: string | null; from: string | null; to: string | null }
   /** meses com reclamação, do mais novo para o mais antigo (o atual primeiro) */
   months?: { value: string; label: string; current: boolean }[]
+  view?: 'atender' | 'abertas' | null
+  /** contadores do botão "A atender" (todas as abertas, sem filtro de período) */
+  attention?: { to_attend: number; open: number; can_reply: number }
   total: number
   page: number
   per_page: number
