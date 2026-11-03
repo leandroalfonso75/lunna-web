@@ -77,6 +77,11 @@ export interface ClaimDetail extends ClaimRow {
 
 export interface ClaimsResponse {
   claims: ClaimRow[]
+  sort?: string
+  dir?: 'asc' | 'desc'
+  period?: { preset: string; month: string | null; from: string | null; to: string | null }
+  /** meses com reclamação, do mais novo para o mais antigo (o atual primeiro) */
+  months?: { value: string; label: string; current: boolean }[]
   total: number
   page: number
   per_page: number

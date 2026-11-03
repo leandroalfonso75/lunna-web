@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
@@ -19,7 +19,43 @@ const { $api } = useNuxtApp()
 const session = useSessionStore()
 const header = usePageHeader()
 
-const filters = reactive({ q: '', page: 1, per_page: 50 })
+// período (como em Vendas: presets, mês ou datas; padrão: todas) e ordenação por coluna
+const filters = reactive({ q: '', page: 1, per_page: 50, period: 'all', from: '', to: '', sort: 'date', dir: 'desc' as 'asc' | 'desc' })
+const PERIODS = [
+  { value: 'all', label: 'Todas' }, { value: 'today', label: 'Hoje' }, { value: 'yesterday', label: 'Ontem' },
+  { value: '7d', label: '7 dias' }, { value: '30d', label: '30 dias' }, { value: '60d', label: '60 dias' },
+  { value: '90d', label: '3 meses' }, { value: '365d', label: '12 meses' }
+]
+const COLUMNS: { label: string; sort?: string }[] = [
+  { label: 'Aberta em', sort: 'date' }, { label: 'Reclamação', sort: 'type' }, { label: 'Venda' }, { label: 'Motivo', sort: 'reason' },
+  { label: 'Situação', sort: 'status' }, { label: 'Devolução habilitada', sort: 'return_enabled' },
+  { label: 'Devolução efetivada', sort: 'return_state' }, { label: 'Reembolso', sort: 'refund' },
+  { label: 'Custo com frete', sort: 'freight' }, { label: 'Quem age / prazo' }, { label: 'Reputação', sort: 'reputation' }
+]
+
+function periodQuery() {
+  if (filters.period.startsWith('month:')) return { month: filters.period.slice(6) }
+  if (filters.period === 'custom') return filters.from && filters.to ? { from: filters.from, to: filters.to } : {}
+  return filters.period === 'all' ? {} : { period: filters.period }
+}
+function setPeriod(value: string) {
+  Object.assign(filters, { period: value, from: '', to: '', page: 1 })
+}
+function onMonth(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  if (value) setPeriod(value)
+}
+function onDate(which: 'from' | 'to', event: Event) {
+  filters[which] = (event.target as HTMLInputElement).value
+  filters.period = 'custom'
+  filters.page = 1
+}
+// mesma coluna inverte; coluna nova começa decrescente (data) ou crescente (texto)
+function sortBy(key: string) {
+  if (filters.sort === key) filters.dir = filters.dir === 'asc' ? 'desc' : 'asc'
+  else Object.assign(filters, { sort: key, dir: key === 'date' ? 'desc' : 'asc' })
+  filters.page = 1
+}
 const response = ref<ClaimsResponse | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -34,7 +70,9 @@ async function load(silent = false) {
   if (!accountId) return
   if (!silent) loading.value = true
   try {
-    response.value = await $api('/api/claims', { query: { account_id: accountId, q: filters.q.trim() || undefined, page: filters.page, per_page: filters.per_page } })
+    response.value = await $api('/api/claims', {
+      query: { account_id: accountId, q: filters.q.trim() || undefined, page: filters.page, per_page: filters.per_page, sort: filters.sort, dir: filters.dir, ...periodQuery() }
+    })
     error.value = ''
   } catch (err) {
     error.value = apiErrorMessage(err, 'Não foi possível carregar as reclamações.')
@@ -61,7 +99,10 @@ watch(() => filters.q, () => {
   clearTimeout(timer)
   timer = setTimeout(() => { filters.page = 1; void load() }, 300)
 })
-watch(() => [filters.page, filters.per_page, session.selectedAccountId], () => void load())
+watch(() => [filters.page, filters.per_page, filters.sort, filters.dir, filters.period, filters.from, filters.to, session.selectedAccountId], () => {
+  if (filters.period === 'custom' && !(filters.from && filters.to)) return
+  void load()
+})
 
 let poll: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
@@ -96,6 +137,34 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
       <template v-if="response.import.listed_at"> · lista lida em {{ dateTimeShort(response.import.listed_at) }}</template>
     </p>
 
+    <!-- período (data de abertura da reclamação) -->
+    <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Período" data-test="reclamacoes-periodo">
+      <button
+        v-for="p in PERIODS"
+        :key="p.value"
+        type="button"
+        class="rounded-full border px-3 py-1 text-[13px]"
+        :class="filters.period === p.value ? 'border-primary bg-primary text-white' : 'border-line bg-surface text-ink-2 hover:bg-surface-2'"
+        :aria-pressed="filters.period === p.value"
+        @click="setPeriod(p.value)"
+      >{{ p.label }}</button>
+      <select
+        class="input h-8 w-auto rounded-full text-[13px]"
+        :class="filters.period.startsWith('month:') ? 'border-primary bg-primary text-white' : ''"
+        aria-label="Mês"
+        data-test="reclamacoes-mes"
+        :value="filters.period.startsWith('month:') ? filters.period : ''"
+        @change="onMonth($event)"
+      >
+        <option value="" disabled>Mês</option>
+        <option v-for="m in response?.months ?? []" :key="m.value" :value="`month:${m.value}`">{{ m.label }}{{ m.current ? ' (até hoje)' : '' }}</option>
+      </select>
+      <span class="mx-1 text-[12px] text-ink-3">ou</span>
+      <input type="date" class="input h-8 w-auto text-[13px]" :value="filters.from" aria-label="Data inicial" @change="onDate('from', $event)" />
+      <span class="text-[12px] text-ink-3">até</span>
+      <input type="date" class="input h-8 w-auto text-[13px]" :value="filters.to" aria-label="Data final" @change="onDate('to', $event)" />
+    </div>
+
     <div class="card flex flex-wrap items-center gap-3 p-3">
       <div class="relative min-w-[240px] flex-1">
         <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" aria-hidden="true" />
@@ -111,17 +180,19 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
         <table class="w-full min-w-[980px] border-collapse text-[13px]">
           <thead class="bg-surface-2 text-left text-ink-2">
             <tr class="border-b border-line">
-              <th class="px-3 py-2 font-semibold">Aberta em</th>
-              <th class="px-3 py-2 font-semibold">Reclamação</th>
-              <th class="px-3 py-2 font-semibold">Venda</th>
-              <th class="px-3 py-2 font-semibold">Motivo</th>
-              <th class="px-3 py-2 font-semibold">Situação</th>
-              <th class="px-3 py-2 font-semibold">Devolução habilitada</th>
-              <th class="px-3 py-2 font-semibold">Devolução efetivada</th>
-              <th class="px-3 py-2 font-semibold">Reembolso</th>
-              <th class="px-3 py-2 font-semibold">Custo com frete</th>
-              <th class="px-3 py-2 font-semibold">Quem age / prazo</th>
-              <th class="px-3 py-2 font-semibold">Reputação</th>
+              <th
+                v-for="col in COLUMNS"
+                :key="col.label"
+                class="px-3 py-2 font-semibold"
+                :aria-sort="col.sort && response?.sort === col.sort ? (response?.dir === 'asc' ? 'ascending' : 'descending') : undefined"
+              >
+                <button v-if="col.sort" type="button" class="inline-flex items-center gap-1 text-left hover:text-ink" :data-test="`ordenar-${col.sort}`" @click="sortBy(col.sort)">
+                  {{ col.label }}
+                  <ChevronUpIcon v-if="response?.sort === col.sort && response?.dir === 'asc'" class="h-3.5 w-3.5" aria-hidden="true" />
+                  <ChevronDownIcon v-else-if="response?.sort === col.sort" class="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+                <template v-else>{{ col.label }}</template>
+              </th>
             </tr>
           </thead>
           <tbody>
