@@ -115,6 +115,8 @@ export interface OlistProductsResponse {
   limit: number
   offset: number
   last_synced_at: string | null
+  /** Quantos produtos estão ocultos (removidos da lista pelo usuário) */
+  hidden_count?: number
 }
 
 export interface OlistSyncRun {
@@ -141,6 +143,8 @@ export interface OlistStatus {
 export interface OlistProductsQuery {
   q?: string
   status?: OlistProductStatus | ''
+  /** true: só os produtos ocultos (removidos da lista pelo usuário) */
+  hidden?: boolean
   limit?: number
   offset?: number
 }
@@ -161,6 +165,7 @@ export function createOlistClient(api: ApiFn) {
       if (query.status) clean.status = query.status
       if (query.limit) clean.limit = query.limit
       if (query.offset) clean.offset = query.offset
+      if (query.hidden) clean.hidden = 1
       return api('/api/olist/products', { query: clean })
     },
 
@@ -174,6 +179,11 @@ export function createOlistClient(api: ApiFn) {
      */
     removeProducts(ids: number[], keepInErp: boolean): Promise<OlistRemoveResult> {
       return api('/api/olist/products/remove', { method: 'POST', body: { ids, keep_in_erp: keepInErp, confirm: true } })
+    },
+
+    /** Só administradores: traz de volta para a lista produtos ocultos (não mexe no Olist). */
+    restoreProducts(ids: number[]): Promise<{ restored: { id: number; sku: string | null; description: string | null; deleted_in_erp: boolean }[] }> {
+      return api('/api/olist/products/restore', { method: 'POST', body: { ids } })
     },
 
     /** Só administradores: devolve a URL do Olist para autorizar (ou reautorizar) o acesso. */

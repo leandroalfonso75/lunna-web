@@ -19,7 +19,7 @@ const session = useSessionStore()
 
 // Seleção para as ações em lote (só administradores). Variação vai junto com o pai.
 const selected = ref<Set<number>>(new Set())
-const action = ref<'excluir'>('excluir')
+const action = ref<'excluir' | 'restaurar'>('excluir')
 const dialogOpen = ref(false)
 const removing = ref(false)
 const pageIds = computed(() => olist.products.value.map((p) => p.id))
@@ -34,9 +34,16 @@ function toggle(id: number) {
 function toggleAll() {
   selected.value = allOnPage.value ? new Set() : new Set(pageIds.value)
 }
-function runAction() {
+async function runAction() {
   if (!selected.value.size) return
-  if (action.value === 'excluir') dialogOpen.value = true
+  if (action.value === 'excluir') {
+    dialogOpen.value = true
+    return
+  }
+  removing.value = true
+  const ok = await olist.restoreProducts([...selected.value])
+  removing.value = false
+  if (ok) selected.value = new Set()
 }
 async function confirmRemove(keepInErp: boolean) {
   removing.value = true
@@ -45,8 +52,10 @@ async function confirmRemove(keepInErp: boolean) {
   dialogOpen.value = false
   if (ok) selected.value = new Set()
 }
-// trocar de página, busca ou filtro limpa a seleção (só vale o que está na tela)
-watch([olist.page, olist.q, olist.status], () => { selected.value = new Set() })
+// trocar de página, busca, filtro ou visão limpa a seleção (só vale o que está na tela)
+watch([olist.page, olist.q, olist.status, olist.hidden], () => { selected.value = new Set() })
+// na visão dos ocultos a única ação é Restaurar
+watch(olist.hidden, (h) => { action.value = h ? 'restaurar' : 'excluir' })
 
 watchEffect(() => {
   header.state.title = 'Produtos'
@@ -124,18 +133,31 @@ watchEffect(() => {
           <option value="I">Inativos</option>
           <option value="E">Excluídos</option>
         </select>
-        <span class="text-[13px] text-ink-3" data-test="produtos-total">{{ int(olist.total.value) }} produtos</span>
+        <span class="text-[13px] text-ink-3" data-test="produtos-total">{{ int(olist.total.value) }} {{ olist.hidden.value ? (olist.total.value === 1 ? 'oculto' : 'ocultos') : 'produtos' }}</span>
+        <button
+          v-if="session.isAdmin && (olist.hiddenCount.value || olist.hidden.value)"
+          type="button"
+          class="btn-link ml-auto text-[13px]"
+          data-test="produtos-ver-ocultos"
+          @click="olist.hidden.value = !olist.hidden.value"
+        >
+          {{ olist.hidden.value ? '← Voltar para a lista' : `Ver ocultos (${int(olist.hiddenCount.value)})` }}
+        </button>
       </div>
+      <p v-if="olist.hidden.value" class="rounded-card border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-2" data-test="produtos-aviso-ocultos">
+        Produtos removidos da lista. Selecione e use "Restaurar" para trazê-los de volta. Quem foi excluído também no ERP volta como "Excluído" (o cadastro não é recriado no Olist).
+      </p>
 
       <div v-if="session.isAdmin && selected.size" class="card flex flex-wrap items-center gap-3 border-primary p-3 text-[13px]" data-test="produtos-acoes">
         <span class="font-semibold text-ink">{{ selected.size }} {{ selected.size === 1 ? 'selecionado' : 'selecionados' }}</span>
         <label class="flex items-center gap-2">
           <span class="text-ink-2">Ação</span>
           <select v-model="action" class="input w-auto" data-test="produtos-acao">
-            <option value="excluir">Excluir</option>
+            <option v-if="!olist.hidden.value" value="excluir">Excluir</option>
+            <option v-else value="restaurar">Restaurar</option>
           </select>
         </label>
-        <button type="button" class="btn-primary h-9" data-test="produtos-aplicar-acao" @click="runAction">Aplicar</button>
+        <button type="button" class="btn-primary h-9" data-test="produtos-aplicar-acao" :disabled="removing" @click="runAction">Aplicar</button>
         <button type="button" class="btn-link" @click="selected = new Set()">Limpar seleção</button>
       </div>
 

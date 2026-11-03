@@ -33,6 +33,9 @@ export function useOlistProducts() {
 
   const q = ref('')
   const status = ref<OlistProductStatus | ''>('')
+  /** Visão dos produtos ocultos (removidos da lista), para restaurar */
+  const hidden = ref(false)
+  const hiddenCount = ref(0)
   const page = ref(0)
 
   const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
@@ -55,9 +58,10 @@ export function useOlistProducts() {
   async function loadProducts(opts: { silent?: boolean } = {}) {
     if (!opts.silent) loading.value = true
     try {
-      const res = await client.products({ q: q.value.trim(), status: status.value, limit: PAGE_SIZE, offset: page.value * PAGE_SIZE })
+      const res = await client.products({ q: q.value.trim(), status: status.value, hidden: hidden.value, limit: PAGE_SIZE, offset: page.value * PAGE_SIZE })
       products.value = res.products
       total.value = res.total
+      hiddenCount.value = res.hidden_count ?? 0
       lastSyncedAt.value = res.last_synced_at
       error.value = ''
     } catch (err) {
@@ -115,7 +119,7 @@ export function useOlistProducts() {
       void loadProducts()
     }, SEARCH_DEBOUNCE_MS)
   })
-  watch(status, () => {
+  watch([status, hidden], () => {
     page.value = 0
     void loadProducts()
   })
@@ -145,7 +149,7 @@ export function useOlistProducts() {
     try {
       const res = await client.removeProducts(ids, keepInErp)
       const n = res.removed.length
-      if (n) toast.success(`${n} ${n === 1 ? 'produto excluído' : 'produtos excluídos'}${res.kept_in_erp ? ' do Lunna (mantidos no ERP)' : ' do Lunna e do ERP'}.`)
+      if (n) toast.success(`${n} ${n === 1 ? 'produto excluído' : 'produtos excluídos'}${res.kept_in_erp ? ` do Lunna (${n === 1 ? 'mantido' : 'mantidos'} no ERP)` : ' do Lunna e do ERP'}.`)
       for (const f of res.failed) toast.error(`${f.sku ?? f.id}: ${f.error}`)
       await loadProducts({ silent: true })
       return n > 0
@@ -155,8 +159,23 @@ export function useOlistProducts() {
     }
   }
 
+  /** Traz de volta para a lista os produtos ocultos selecionados. => true se restaurou algum. */
+  async function restoreProducts(ids: number[]): Promise<boolean> {
+    try {
+      const res = await client.restoreProducts(ids)
+      const n = res.restored.length
+      const deleted = res.restored.filter((r) => r.deleted_in_erp).length
+      if (n) toast.success(`${n} ${n === 1 ? 'produto voltou' : 'produtos voltaram'} para a lista${deleted ? ` (${deleted} excluído${deleted === 1 ? '' : 's'} no ERP: aparece${deleted === 1 ? '' : 'm'} como "Excluído")` : ''}.`)
+      await loadProducts({ silent: true })
+      return n > 0
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível restaurar agora.'))
+      return false
+    }
+  }
+
   return {
-    olist, products, total, lastSyncedAt, loading, error, syncing, q, status, page, pages, connected, lastRun,
-    pageSize: PAGE_SIZE, refreshNow, reconnect, goTo, removeProducts
+    olist, products, total, lastSyncedAt, loading, error, syncing, q, status, hidden, hiddenCount, page, pages, connected, lastRun,
+    pageSize: PAGE_SIZE, refreshNow, reconnect, goTo, removeProducts, restoreProducts
   }
 }
