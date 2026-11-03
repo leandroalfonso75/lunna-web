@@ -300,8 +300,10 @@ export interface PromotionRunRow {
   changes: boolean
   ok: boolean
   reason: string | null
-  before: { name: string; price: number | null; margin_pct: number | null; profit: number | null } | null
-  after: { name: string; price: number | null; margin_pct: number | null; profit: number | null } | null
+  before: { name: string; price: number | null; margin_pct: number | null; profit: number | null; start?: string | null; finish?: string | null } | null
+  after: { name: string; price: number | null; margin_pct: number | null; profit: number | null; start?: string | null; finish?: string | null } | null
+  /** Mudança aplicada na hora ("Em vigor") ou que passa a valer depois ("Programada"), com a data */
+  effect?: { key: 'em_vigor' | 'programada'; label: string; at: string } | null
   price_change_pct: number | null
   gain: number | null
 }

@@ -76,6 +76,17 @@ const TOTAL_LABELS: Record<string, string> = {
 }
 
 onMounted(load)
+
+/** Data e hora de Brasília: "04/11 23:59". */
+function moment(v: string): string {
+  return new Date(v).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).replace(',', '')
+}
+
+/** Período da promoção: "16/10 00:00 até 04/11 23:59"; sem datas, vazio. */
+function period(start?: string | null, finish?: string | null): string {
+  if (!start && !finish) return ''
+  return `${start ? moment(start) : '—'} até ${finish ? moment(finish) : '—'}`
+}
 </script>
 
 <template>
@@ -169,6 +180,7 @@ onMounted(load)
                     <template v-if="r.before">
                       {{ r.before.name }}
                       <span class="block text-[11px] text-ink-3" data-numeric>{{ brl(r.before.price) }} · {{ pct(r.before.margin_pct) }} · {{ brl(r.before.profit) }}</span>
+                      <span v-if="period(r.before.start, r.before.finish)" class="block text-[11px] text-ink-3">Período: {{ period(r.before.start, r.before.finish) }}</span>
                     </template>
                     <span v-else class="text-ink-3">sem promoção</span>
                   </td>
@@ -176,6 +188,14 @@ onMounted(load)
                     <template v-if="r.after">
                       <span :class="r.changes ? '' : 'text-ink-3 line-through'">{{ r.after.name }}</span>
                       <span class="block text-[11px] text-ink-3" data-numeric>{{ brl(r.after.price) }} · {{ pct(r.after.margin_pct) }} · {{ brl(r.after.profit) }}</span>
+                      <span v-if="period(r.after.start, r.after.finish)" class="block text-[11px] text-ink-3">Período: {{ period(r.after.start, r.after.finish) }}</span>
+                      <span
+                        v-if="r.effect"
+                        class="mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                        :class="r.effect.key === 'programada' ? 'bg-warning-soft text-warning' : 'bg-success-soft text-success'"
+                        :title="r.effect.key === 'programada' ? `Passa a valer em ${moment(r.effect.at)}` : 'Aplicada na hora'"
+                        data-test="rotina-efeito"
+                      >{{ r.effect.label }}<template v-if="r.effect.key === 'programada'"> · a partir de {{ moment(r.effect.at) }}</template></span>
                     </template>
                     <span v-else class="text-ink-3">—</span>
                   </td>
