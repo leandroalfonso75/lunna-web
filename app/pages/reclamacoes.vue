@@ -118,13 +118,15 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
               <th class="px-3 py-2 font-semibold">Situação</th>
               <th class="px-3 py-2 font-semibold">Devolução habilitada</th>
               <th class="px-3 py-2 font-semibold">Devolução efetivada</th>
+              <th class="px-3 py-2 font-semibold">Reembolso</th>
+              <th class="px-3 py-2 font-semibold">Custo com frete</th>
               <th class="px-3 py-2 font-semibold">Quem age / prazo</th>
               <th class="px-3 py-2 font-semibold">Reputação</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading && !response"><td colspan="9" class="px-3 py-10 text-center text-ink-3" role="status">Carregando reclamações…</td></tr>
-            <tr v-else-if="response && !response.claims.length"><td colspan="9" class="px-3 py-10 text-center text-ink-3">Nenhuma reclamação {{ filters.q ? 'com essa busca' : 'importada ainda' }}.</td></tr>
+            <tr v-if="loading && !response"><td colspan="11" class="px-3 py-10 text-center text-ink-3" role="status">Carregando reclamações…</td></tr>
+            <tr v-else-if="response && !response.claims.length"><td colspan="11" class="px-3 py-10 text-center text-ink-3">Nenhuma reclamação {{ filters.q ? 'com essa busca' : 'importada ainda' }}.</td></tr>
             <template v-for="c in response?.claims ?? []" :key="c.claim_id">
               <tr class="cursor-pointer border-b border-line align-top hover:bg-surface-2" data-test="reclamacao-linha" @click="toggle(c.claim_id)">
                 <td class="whitespace-nowrap px-3 py-2 text-ink-2">{{ dateTimeShort(c.date_created) }}</td>
@@ -159,6 +161,21 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
                   </template>
                   <span v-else class="text-ink-3">—</span>
                 </td>
+                <td class="px-3 py-2 text-[12px]" data-test="reembolso">
+                  <template v-if="c.refund?.key">
+                    <span :class="c.refund.key === 'sem' ? 'text-ink-3' : 'font-semibold text-ink'" :title="c.refund.source === 'reclamacao' ? 'Pelo que o Mercado Livre registrou na reclamação (venda fora do Lunna)' : 'Pelos pagamentos da venda'">{{ c.refund.label }}</span>
+                    <span v-if="c.refund.amount" class="block text-ink-3">{{ brl(c.refund.amount) }}<template v-if="c.refund.key === 'parcial' && c.refund.paid"> de {{ brl(c.refund.paid) }}</template></span>
+                  </template>
+                  <span v-else class="text-ink-3">carregando…</span>
+                </td>
+                <td class="px-3 py-2 text-[12px]" data-test="custo-frete">
+                  <template v-if="c.freight?.key">
+                    <span :class="c.freight.key === 'nao' ? 'text-ink-3' : 'font-semibold text-ink'" :title="c.freight.source ? `Valor: ${c.freight.source}` : (c.freight.note ?? '')">{{ c.freight.label }}</span>
+                    <span v-if="c.freight.amount" class="block text-ink-3">{{ brl(c.freight.amount) }}</span>
+                    <span v-if="c.freight.covered && c.freight.key !== 'nao'" class="block text-ink-3" title="O Mercado Livre aplicou cobertura nesta reclamação: o custo pode ter sido reembolsado a você">cobertura do ML</span>
+                  </template>
+                  <span v-else class="text-ink-3">{{ c.detailed ? '—' : 'carregando…' }}</span>
+                </td>
                 <td class="px-3 py-2 text-[12px]">
                   <template v-if="c.action_responsible_label">{{ c.action_responsible_label }}<span v-if="c.due_date" class="block text-ink-3">até {{ dateTimeShort(c.due_date) }}</span></template>
                   <span v-else class="text-ink-3">{{ c.detailed ? '—' : 'carregando…' }}</span>
@@ -170,7 +187,7 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
                 </td>
               </tr>
               <tr v-if="expanded === c.claim_id" class="border-b border-line bg-surface-2">
-                <td colspan="9" class="border-l-4 border-l-primary px-4 py-4">
+                <td colspan="11" class="border-l-4 border-l-primary px-4 py-4">
                   <ClaimDetailPanel :claim="details[c.claim_id] ?? null" :loading="detailLoading" />
                 </td>
               </tr>

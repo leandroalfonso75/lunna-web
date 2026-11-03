@@ -36,6 +36,10 @@ export interface ClaimRow {
   detailed: boolean
   link: string | null
   /** Devolução: habilitada (null = detalhes ainda não importados) e o que aconteceu com ela */
+  /** Reembolso ao comprador: integral, parcial ou sem (pelos pagamentos da venda ou pelo que a reclamação diz) */
+  refund?: { key: 'integral' | 'parcial' | 'sem' | null; label: string | null; amount?: number | null; paid?: number | null; source?: string | null }
+  /** Custo com frete na devolução: Sim / Sim (previsto) / Não, com o valor e se o ML aplicou cobertura */
+  freight?: { key: 'sim' | 'previsto' | 'nao' | null; label?: string | null; amount?: number | null; source?: string | null; covered?: boolean; note?: string | null }
   devolution_status?: { enabled: boolean | null; key?: string; label?: string; tone?: string; status?: string | null; shipment_status?: string | null; tracking?: string | null; refund_at?: string | null; money?: string | null; date?: string | null }
 }
 
