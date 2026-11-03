@@ -118,11 +118,12 @@ defineExpose({ reset })
       <button
         v-if="canReply && claim.reply_targets?.length"
         type="button"
-        class="btn-primary h-9"
+        :class="claim.to_attend ? 'btn-primary h-9' : 'btn-secondary h-9'"
+        :title="claim.to_attend ? 'O Mercado Livre aguarda uma ação sua nesta reclamação' : 'Não há obrigação de responder agora; a mensagem é opcional'"
         data-test="atender-responder"
         @click="open = !open; confirming = false"
       >
-        <ChatBubbleLeftEllipsisIcon class="h-4 w-4" aria-hidden="true" /> Responder
+        <ChatBubbleLeftEllipsisIcon class="h-4 w-4" aria-hidden="true" /> {{ claim.to_attend ? 'Responder' : 'Responder (opcional)' }}
       </button>
       <span v-else-if="!claim.reply_targets?.length" class="text-[12px] text-ink-3">O Mercado Livre não libera mensagem nesta etapa.</span>
       <span v-else class="text-[12px] text-ink-3">Só administradores respondem.</span>
