@@ -18,15 +18,17 @@ const emit = defineEmits<{
 }>()
 
 const COLUMNS = [
-  { key: 'title', label: 'Anúncio', sort: 'title', width: 'w-[27%] max-xl:w-[34%]', align: 'left' },
-  { key: 'cost', label: 'Investimento', sort: 'cost', width: 'w-[10%]', align: 'right' },
-  { key: 'total_amount', label: 'Vendas por Ads', sort: 'total_amount', width: 'w-[10%]', align: 'right' },
-  { key: 'acos', label: 'ACOS', sort: 'acos', width: 'w-[8%]', align: 'right' },
-  { key: 'roas', label: 'ROAS', sort: 'roas', width: 'w-[7%]', align: 'right' },
-  { key: 'units', label: 'Unid.', sort: 'units', width: 'w-[6%]', align: 'right' },
+  { key: 'title', label: 'Anúncio', sort: 'title', width: 'w-[23%] max-xl:w-[28%]', align: 'left' },
+  { key: 'cost', label: 'Investimento', sort: 'cost', width: 'w-[9%]', align: 'right' },
+  // como na lista de campanhas (pedido do usuário em 04/11/2026)
+  { key: 'units', label: 'Qtde Vendas c/Ads', sort: 'units', width: 'w-[8%]', align: 'right', title: 'Unidades vendidas atribuídas ao Ads (diretas + indiretas)' },
+  { key: 'total_amount', label: 'Vendas por Ads', sort: 'total_amount', width: 'w-[9%]', align: 'right' },
+  { key: 'organic_units', label: 'Qtde Vendas s/Ads', sort: 'organic_units', width: 'w-[8%]', align: 'right', title: 'Unidades vendidas sem passar pelo Ads (orgânicas)' },
+  { key: 'acos', label: 'ACOS', sort: 'acos', width: 'w-[7%]', align: 'right' },
+  { key: 'roas', label: 'ROAS', sort: 'roas', width: 'w-[6%]', align: 'right' },
   { key: 'clicks', label: 'Cliques', sort: 'clicks', width: 'w-[7%]', align: 'right', hide: true },
-  { key: 'prints', label: 'Impressões', sort: 'prints', width: 'w-[9%]', align: 'right', hide: true },
-  { key: 'flag', label: 'Situação', width: 'w-[16%]', align: 'left' }
+  { key: 'prints', label: 'Impressões', sort: 'prints', width: 'w-[8%]', align: 'right', hide: true },
+  { key: 'flag', label: 'Situação', width: 'w-[15%]', align: 'left' }
 ]
 
 const FLAGS: { value: AdsItemsFilters['flag']; label: string; key?: string }[] = [
@@ -108,6 +110,7 @@ function flagCount(key?: string): string {
               scope="col"
               class="px-2 py-2 font-semibold text-ink-2"
               :class="[c.width, c.align === 'right' ? 'text-right' : 'text-left', c.hide ? 'max-xl:hidden' : '']"
+              :title="c.title"
               :aria-sort="c.sort && response?.sort === c.sort ? (response?.dir === 'asc' ? 'ascending' : 'descending') : undefined"
             >
               <button v-if="c.sort" type="button" class="inline-flex items-center gap-1 hover:text-ink" :class="response?.sort === c.sort ? 'text-ink' : ''" @click="emit('sort', c.sort)">
@@ -142,12 +145,13 @@ function flagCount(key?: string): string {
               </div>
             </td>
             <td class="px-2 py-2 text-right align-top" data-numeric>{{ brl(item.metrics.cost) }}</td>
+            <td class="px-2 py-2 text-right align-top" data-numeric data-test="item-qtde-com-ads">{{ int(item.metrics.units) }}</td>
             <td class="px-2 py-2 text-right align-top" data-numeric>{{ brl(item.metrics.total_amount) }}</td>
+            <td class="px-2 py-2 text-right align-top" data-numeric data-test="item-qtde-sem-ads">{{ int(item.metrics.organic_units) }}</td>
             <td class="px-2 py-2 text-right align-top" data-numeric>
               <span :class="item.flag?.tone === 'ok' ? 'font-semibold text-success' : item.flag?.tone === 'bad' ? 'font-semibold text-danger' : item.flag?.tone === 'warn' ? 'font-semibold text-warning' : ''">{{ pct(item.metrics.acos) }}</span>
             </td>
             <td class="px-2 py-2 text-right align-top" data-numeric>{{ item.metrics.roas === null ? '—' : `${num(item.metrics.roas, 2)}x` }}</td>
-            <td class="px-2 py-2 text-right align-top" data-numeric>{{ int(item.metrics.units) }}</td>
             <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>{{ int(item.metrics.clicks) }}</td>
             <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>{{ int(item.metrics.prints) }}</td>
             <td class="px-2 py-2 align-top"><span v-if="item.flag" :class="tone(item.flag.tone)">{{ item.flag.label }}</span><span v-else class="text-ink-3">—</span></td>
