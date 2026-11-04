@@ -100,3 +100,33 @@ export interface ClaimsResponse {
   per_page: number
   import: { total: number; detailed: number; open: number; listed_at: string | null; full_listed_at: string | null }
 }
+
+/** Assistente de contestação: reclamações que afetam a reputação e ainda podem ser contestadas (60 dias). */
+export type ContestStatus = 'pendente' | 'contestada' | 'aceita' | 'negada'
+
+export interface ContestClaim {
+  claim_id: number
+  status: string
+  opened_at: string
+  deadline: string
+  days_left: number
+  group: string
+  group_label: string
+  strength: string
+  reason: string
+  reason_code: string | null
+  order_id: number | null
+  sku: string | null
+  title: string | null
+  logistic: string | null
+  open_with_mediator: boolean
+  evidence: string[]
+  draft: string
+  contest: { status: ContestStatus; text: string | null; contested_at: string | null; user: string | null }
+  link: string | null
+}
+
+export interface ContestsResponse {
+  claims: ContestClaim[]
+  summary: { total: number; by_group: Record<string, number>; due_7d: number; by_status: Partial<Record<ContestStatus, number>> }
+}

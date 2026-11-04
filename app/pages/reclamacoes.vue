@@ -4,13 +4,14 @@ import { onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'v
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
 import ClaimAttentionCard from '../components/reclamacoes/ClaimAttentionCard.vue'
+import ClaimContestCard from '../components/reclamacoes/ClaimContestCard.vue'
 import ClaimDetailPanel from '../components/reclamacoes/ClaimDetailPanel.vue'
 import { usePageHeader } from '../composables/usePageHeader'
 import { useToast } from '../composables/useToast'
 import { apiErrorMessage } from '../lib/apiErrors'
 import { brl, dateShort, dateTimeShort, int } from '../lib/format'
 import { useSessionStore } from '../stores/session'
-import type { ClaimDetail, ClaimsResponse } from '../types/claims'
+import type { ClaimDetail, ClaimsResponse, ContestStatus, ContestsResponse } from '../types/claims'
 
 /**
  * `/reclamacoes`: todas as reclamações do Mercado Livre (cancelamentos, mediações, devoluções) importadas pelo Lunna,
@@ -22,14 +23,50 @@ const session = useSessionStore()
 const header = usePageHeader()
 
 // período (como em Vendas: presets, mês ou datas; padrão: todas) e ordenação por coluna
-const filters = reactive({ q: '', page: 1, per_page: 50, period: 'all', from: '', to: '', sort: 'date', dir: 'desc' as 'asc' | 'desc', view: '' as '' | 'atender' | 'abertas' })
+const filters = reactive({ q: '', page: 1, per_page: 50, period: 'all', from: '', to: '', sort: 'date', dir: 'desc' as 'asc' | 'desc', view: '' as '' | 'atender' | 'abertas' | 'contestar' })
 const toast = useToast()
 const sending = ref(false)
 const cards = ref<InstanceType<typeof ClaimAttentionCard>[]>([])
 
-function setView(view: '' | 'atender' | 'abertas') {
+function setView(view: '' | 'atender' | 'abertas' | 'contestar') {
   Object.assign(filters, { view: filters.view === view ? '' : view, page: 1 })
 }
+
+// Assistente de contestação (afetam a reputação, dentro dos 60 dias): o Lunna só guarda o andamento, não envia nada ao ML.
+const contests = ref<ContestsResponse | null>(null)
+const contestGroup = ref('')
+const savingContest = ref(false)
+async function loadContests() {
+  if (!session.selectedAccountId) return
+  try {
+    contests.value = await $api('/api/claims/contests', { query: { account_id: session.selectedAccountId } })
+  } catch {
+    // o botão fica sem contador; a próxima atualização tenta de novo
+  }
+}
+async function saveContest(claimId: number, status: ContestStatus, text: string) {
+  savingContest.value = true
+  try {
+    await $api(`/api/claims/${claimId}/contest`, { method: 'PATCH', query: { account_id: session.selectedAccountId }, body: { status, text } })
+    toast.success('Andamento da contestação salvo.')
+    await loadContests()
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível salvar o andamento.'))
+  } finally {
+    savingContest.value = false
+  }
+}
+const contestList = () => (contests.value?.claims ?? []).filter((c) => !contestGroup.value || c.group === contestGroup.value)
+const contestGroups = () => {
+  const seen = new Map<string, { label: string; n: number }>()
+  for (const c of contests.value?.claims ?? []) {
+    const g = seen.get(c.group) ?? { label: c.group_label, n: 0 }
+    g.n += 1
+    seen.set(c.group, g)
+  }
+  return [...seen.entries()].map(([value, g]) => ({ value, ...g }))
+}
+const contestPending = () => (contests.value?.claims ?? []).filter((c) => c.contest.status === 'pendente').length
 
 // Resposta na reclamação: vai para o Mercado Livre (o cartão já pediu a confirmação).
 async function reply(claimId: number, receiver: string, text: string) {
@@ -101,7 +138,7 @@ async function load(silent = false) {
     response.value = await $api('/api/claims', {
       query: {
         account_id: accountId, q: filters.q.trim() || undefined, page: filters.page, per_page: filters.per_page,
-        view: filters.view || undefined,
+        view: filters.view === 'contestar' ? undefined : filters.view || undefined,
         // na visão A atender/Abertas a ordem é pelo prazo e o período não se aplica
         ...(filters.view ? {} : { sort: filters.sort, dir: filters.dir, ...periodQuery() })
       }
@@ -132,6 +169,7 @@ watch(() => filters.q, () => {
   clearTimeout(timer)
   timer = setTimeout(() => { filters.page = 1; void load() }, 300)
 })
+watch(() => session.selectedAccountId, () => void loadContests())
 watch(() => [filters.page, filters.per_page, filters.sort, filters.dir, filters.period, filters.from, filters.to, filters.view, session.selectedAccountId], () => {
   if (filters.period === 'custom' && !(filters.from && filters.to)) return
   void load()
@@ -140,6 +178,7 @@ watch(() => [filters.page, filters.per_page, filters.sort, filters.dir, filters.
 let poll: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   void load()
+  void loadContests()
   poll = setInterval(() => void load(true), 60_000)
 })
 onBeforeUnmount(() => { clearInterval(poll); clearTimeout(timer) })
@@ -150,7 +189,7 @@ watchEffect(() => {
   header.state.sync = null
   header.state.generatedAt = null
   header.state.refreshing = loading.value
-  header.state.onRefresh = () => void load()
+  header.state.onRefresh = () => { void load(); void loadContests() }
 })
 
 const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total / response.value.per_page)) : 1)
@@ -236,10 +275,62 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
         </span>
         <span class="ml-auto text-[20px] font-bold">{{ int(response?.attention?.open ?? 0) }}</span>
       </button>
+      <button
+        type="button"
+        class="flex min-w-[220px] items-center gap-3 rounded-card border-2 px-4 py-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
+        :class="filters.view === 'contestar' ? 'border-danger bg-danger text-white' : (contestPending() ? 'border-danger bg-danger-soft text-danger' : 'border-line bg-surface text-ink-2')"
+        :aria-pressed="filters.view === 'contestar'"
+        data-test="botao-contestar"
+        @click="setView('contestar')"
+      >
+        <span>
+          <span class="block text-[16px] font-bold leading-tight">Contestar</span>
+          <span class="block text-[12px]">
+            {{ contests ? `afetam a reputação · ${contests.summary.due_7d} vencem em 7 dias` : 'carregando…' }}
+          </span>
+        </span>
+        <span class="ml-auto text-[20px] font-bold">{{ int(contestPending()) }}</span>
+      </button>
       <button v-if="filters.view" type="button" class="btn-link self-center text-[13px]" @click="setView(filters.view)">← Ver todas as reclamações</button>
     </div>
 
-    <div v-if="filters.view" class="space-y-3" data-test="lista-atender">
+    <div v-if="filters.view === 'contestar'" class="space-y-3" data-test="lista-contestar">
+      <p class="text-[13px] text-ink-2">
+        Reclamações que afetam a sua reputação e ainda estão dentro dos 60 dias para contestar, pelo prazo. Cada uma traz o
+        grupo do argumento, as provas tiradas dos dados do Mercado Livre e um texto para você revisar e colar na contestação.
+        O Lunna não envia a contestação; registre aqui o andamento.
+      </p>
+      <div v-if="contests?.claims.length" class="flex flex-wrap items-center gap-2" role="group" aria-label="Grupo">
+        <button
+          type="button"
+          class="rounded-full border px-3 py-1 text-[13px]"
+          :class="!contestGroup ? 'border-primary bg-primary text-white' : 'border-line bg-surface text-ink-2'"
+          @click="contestGroup = ''"
+        >Todas ({{ contests.claims.length }})</button>
+        <button
+          v-for="g in contestGroups()"
+          :key="g.value"
+          type="button"
+          class="rounded-full border px-3 py-1 text-[13px]"
+          :class="contestGroup === g.value ? 'border-primary bg-primary text-white' : 'border-line bg-surface text-ink-2'"
+          :data-test="`contestar-filtro-${g.value}`"
+          @click="contestGroup = g.value"
+        >{{ g.label }} ({{ g.n }})</button>
+      </div>
+      <p v-if="contests && !contests.claims.length" class="card p-6 text-center text-ink-3">
+        Nenhuma reclamação afetando a reputação dentro do prazo de contestação.
+      </p>
+      <ClaimContestCard
+        v-for="c in contestList()"
+        :key="c.claim_id"
+        :claim="c"
+        :can-edit="session.isAdmin"
+        :saving="savingContest"
+        @save="saveContest"
+      />
+    </div>
+
+    <div v-if="filters.view === 'atender' || filters.view === 'abertas'" class="space-y-3" data-test="lista-atender">
       <p class="text-[13px] text-ink-2">
         {{ filters.view === 'atender' ? 'Reclamações abertas em que o Mercado Livre aguarda uma ação sua' : 'Todas as reclamações abertas' }}, pelo prazo (as que aguardam você primeiro).
         A resposta vai direto para a reclamação no Mercado Livre.
