@@ -87,7 +87,7 @@ function save(next?: ContestStatus) {
           Texto sugerido <span class="font-normal text-ink-3">(revise antes de usar)</span>
           <button v-if="text !== claim.draft" type="button" class="btn-link ml-auto text-[11px]" @click="restore">Voltar ao sugerido</button>
         </p>
-        <textarea v-model="text" rows="9" class="input w-full text-[12px]" data-test="contestar-texto" />
+        <textarea v-model="text" rows="18" class="input w-full resize-y text-[12px] leading-relaxed" data-test="contestar-texto" />
         <div class="flex flex-wrap items-center gap-2">
           <button type="button" class="btn-secondary h-8" data-test="contestar-copiar" @click="copy">
             <ClipboardDocumentIcon class="h-4 w-4" aria-hidden="true" /> {{ copied ? 'Copiado!' : 'Copiar texto' }}
