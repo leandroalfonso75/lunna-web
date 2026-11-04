@@ -73,6 +73,22 @@ function askOffer(o: PromotionOffer) {
   pending.value = { text: `${what}. O preço muda no Mercado Livre na hora.`, run: (goNext) => emit('apply', target, { ...spread }, goNext), spreadable: true }
 }
 
+/** Oferta barrada por uma regra do Lunna (não pelo ML): pode ser aplicada mesmo assim, em qualquer anúncio. */
+function forceable(o: PromotionOffer) {
+  return !o.valid && !!o.reason && o.action !== 'manter' && JOINABLE.includes(o.type) && !HARD_REASONS.some((r) => (o.reason ?? '').startsWith(r))
+}
+const blockedOffers = computed(() => (props.detail?.offers ?? []).filter(forceable))
+
+function askForceOffer(o: PromotionOffer) {
+  const target: PromotionTarget = { promotion_id: o.promotion_id, promotion_type: o.type, action: o.action === 'editar_preco' ? 'editar_preco' : 'aderir' }
+  spread.alsoSku = false
+  spread.alsoVariations = false
+  pending.value = {
+    text: `Aplica ${describe(o)} mesmo ferindo a regra: ${o.reason}. Fica registrado no Histórico. O preço muda no Mercado Livre na hora.`,
+    run: (goNext) => emit('apply', { ...target, force: true }, { ...spread }, goNext), spreadable: true
+  }
+}
+
 function askLeave() {
   const c = props.detail?.current
   if (!c) return
@@ -402,6 +418,16 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
         </p>
         <button type="button" class="btn-primary mt-2 h-8 px-3 text-[12px]" :disabled="acting" data-test="aplicar-cabivel" @click="askFitting">Aplicar a cabível ({{ brl(detail.review.fitting.price) }})</button>
       </div>
+      <div v-if="!detail.review && blockedOffers.length" class="mb-4 rounded-card border border-line bg-surface-2 p-3 text-[12px]" data-test="barradas-resumo">
+        <p class="font-semibold text-ink">Ofertas barradas pelas suas regras ({{ blockedOffers.length }})</p>
+        <p class="text-ink-3">O anúncio está na melhor oferta dentro das regras. Estas ficaram de fora; na tabela abaixo, cada uma tem "Aplicar mesmo assim".</p>
+        <ul class="mt-1 space-y-0.5">
+          <li v-for="(o, i) in blockedOffers" :key="i">
+            <span class="font-medium text-ink">{{ o.name || o.label }}</span> · {{ o.price ? brl(o.price) : '—' }}<template v-if="o.margin_pct !== null"> · margem {{ pct(o.margin_pct) }}</template><template v-if="o.profit !== null"> · lucro {{ brl(o.profit) }}</template>
+            · <span class="text-danger">{{ o.reason }}</span>
+          </li>
+        </ul>
+      </div>
       <div v-if="isAdmin && blocked" class="mb-4 rounded-card border border-danger p-3 text-[12px]" data-test="forcar">
         <p class="font-semibold text-ink">Aplicar fora das regras</p>
         <p class="mt-0.5 text-ink-2">
@@ -479,7 +505,8 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
             </td>
             <td class="py-1.5 pr-2">
               {{ ACTION[o.action] }}
-              <span v-if="o.reason" class="block text-[11px]">{{ o.reason }}</span>
+              <span v-if="forceable(o)" class="mt-0.5 block text-[11px] font-semibold text-danger" data-test="oferta-barrada">Barrada pela regra: {{ o.reason }}</span>
+              <span v-else-if="o.reason" class="block text-[11px]">{{ o.reason }}</span>
             </td>
             <td class="py-1.5 pr-2 text-right" data-numeric>{{ o.price ? brl(o.price) : '—' }}</td>
             <td class="py-1.5 pr-2 text-right" data-numeric>{{ o.meli_amount ? brl(o.meli_amount) : '—' }}</td>
@@ -497,6 +524,14 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
                 :disabled="acting"
                 @click="askOffer(o)"
               >{{ o.action === 'editar_preco' ? 'Ajustar' : 'Entrar' }}</button>
+              <button
+                v-else-if="forceable(o)"
+                type="button"
+                class="btn-link text-[12px] text-danger"
+                :disabled="acting"
+                data-test="aplicar-mesmo-assim-oferta"
+                @click="askForceOffer(o)"
+              >Aplicar mesmo assim</button>
             </td>
           </tr>
         </tbody>
