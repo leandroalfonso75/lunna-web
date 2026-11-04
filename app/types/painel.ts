@@ -377,6 +377,24 @@ export interface AbcSuggestion {
   area: string
   title: string
   why: string
+  /** medidas concretas (ex.: Exposição) */
+  steps?: string[]
+  /** cenários com a conta da margem (Preço, Frete) */
+  options?: AbcPriceOption[]
+  /** ação disponível na tela (ex.: gerar fotos) */
+  action?: { kind: 'gerar_fotos'; suggested_count: number }
+}
+
+export interface AbcPriceOption {
+  label: string
+  price: number
+  fee: number
+  shipping: number
+  tax: number
+  cost: number | null
+  profit: number
+  margin_pct: number
+  low: boolean
 }
 
 /** `GET /api/items/:id/ai-plan` (DECISOES §10): plano gerado em background, lido por polling. */

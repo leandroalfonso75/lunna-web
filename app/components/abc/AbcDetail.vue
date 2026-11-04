@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import AbcPhotoGenerator from './AbcPhotoGenerator.vue'
 import AiPlanPanel from './AiPlanPanel.vue'
 import { brl, int, pct } from '../../lib/format'
 import { SUGGESTION_PRIORITY_CLASS, SUGGESTION_PRIORITY_LABEL } from '../../lib/suggestionPriority'
@@ -12,6 +14,9 @@ defineProps<{
 }>()
 
 defineEmits<{ retry: [] }>()
+
+/** Curva ABC > Fotos: janela de geração de imagens (aberta pela ação "Gerar fotos" da sugestão de fotos). */
+const photoCount = ref<number | null>(null)
 
 /** Classe de cor para as linhas de lucro/margem — só reflete `margin_state` e
  * `profit_state` (já decididos pela API); o front não decide se a margem está ruim. */
@@ -121,6 +126,48 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
             <p class="text-[11px] font-medium uppercase tracking-wide text-ink-3">{{ s.area }}</p>
             <p class="font-medium text-ink">{{ s.title }}</p>
             <p class="text-ink-2">{{ s.why }}</p>
+            <ul v-if="s.steps?.length" class="mt-1 list-disc space-y-0.5 pl-4 text-[13px] text-ink-2" data-test="sugestao-medidas">
+              <li v-for="(m, k) in s.steps" :key="k">{{ m }}</li>
+            </ul>
+            <div v-if="s.options?.length" class="mt-2 overflow-x-auto" data-test="sugestao-opcoes">
+              <table class="w-full min-w-[520px] text-[12px]">
+                <thead class="text-ink-3">
+                  <tr>
+                    <th class="py-1 pr-2 text-left font-medium">Cenário</th>
+                    <th class="px-2 py-1 text-right font-medium">Preço</th>
+                    <th class="px-2 py-1 text-right font-medium">Tarifa</th>
+                    <th class="px-2 py-1 text-right font-medium">Frete</th>
+                    <th class="px-2 py-1 text-right font-medium">Imposto</th>
+                    <th class="px-2 py-1 text-right font-medium">Custo</th>
+                    <th class="px-2 py-1 text-right font-medium">Lucro</th>
+                    <th class="py-1 pl-2 text-right font-medium">Margem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(o, k) in s.options" :key="k" class="border-t border-line">
+                    <td class="py-1 pr-2 text-ink">{{ o.label }}</td>
+                    <td class="px-2 py-1 text-right font-semibold text-ink" data-numeric>{{ brl(o.price) }}</td>
+                    <td class="px-2 py-1 text-right" data-numeric>− {{ brl(o.fee) }}</td>
+                    <td class="px-2 py-1 text-right" data-numeric>− {{ brl(o.shipping) }}</td>
+                    <td class="px-2 py-1 text-right" data-numeric>− {{ brl(o.tax) }}</td>
+                    <td class="px-2 py-1 text-right" data-numeric>{{ o.cost !== null ? `− ${brl(o.cost)}` : '—' }}</td>
+                    <td class="px-2 py-1 text-right" :class="o.profit < 0 ? 'text-danger' : 'text-ink'" data-numeric>{{ brl(o.profit) }}</td>
+                    <td class="py-1 pl-2 text-right font-semibold" :class="o.low ? 'text-danger' : 'text-success'" data-numeric>{{ pct(o.margin_pct) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="mt-1 text-[11px] text-ink-3">
+                Tarifa na mesma % de hoje; frete por unidade; imposto da empresa. Vermelho = abaixo da margem mínima.
+                <template v-if="s.options.some((o) => o.cost === null)"> Sem custo cadastrado para este anúncio: lucro e margem estão <strong>antes do custo</strong> (cadastre em Produtos para ver a margem real e os preços por margem).</template>
+              </p>
+            </div>
+            <button
+              v-if="s.action?.kind === 'gerar_fotos'"
+              type="button"
+              class="btn-secondary mt-2 h-8 text-[12px]"
+              data-test="sugestao-gerar-fotos"
+              @click="photoCount = s.action.suggested_count"
+            >Gerar fotos com IA</button>
           </div>
         </li>
       </ul>
@@ -187,4 +234,5 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
 
     <AiPlanPanel :item-id="row.id" />
   </div>
+  <AbcPhotoGenerator v-if="photoCount !== null && detail" :item-id="row.id" :title="row.title" :suggested-count="photoCount" @close="photoCount = null" />
 </template>
