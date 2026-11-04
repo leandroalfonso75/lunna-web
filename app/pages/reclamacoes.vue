@@ -78,6 +78,25 @@ const contestGroups = () => {
 }
 const contestPending = () => contestPendingRows().length
 
+// Resolver pelo Lunna (oferecer devolução, reembolsar, reembolso parcial, mediação): o cartão já pediu a confirmação.
+async function resolve(claimId: number, action: string, percentage: number | null) {
+  sending.value = true
+  try {
+    const res = await $api<{ message: string }>(`/api/claims/${claimId}/resolve`, {
+      method: 'POST',
+      query: { account_id: session.selectedAccountId },
+      body: { action_name: action, percentage: percentage ?? undefined, confirm: true }
+    })
+    toast.success(res.message)
+    cards.value.forEach((c) => c?.reset())
+    await load(true)
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'O Mercado Livre não aceitou a ação. Nada foi feito.'))
+  } finally {
+    sending.value = false
+  }
+}
+
 // Resposta na reclamação: vai para o Mercado Livre (o cartão já pediu a confirmação).
 async function reply(claimId: number, receiver: string, text: string) {
   sending.value = true
@@ -380,6 +399,7 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
         :can-reply="session.isAdmin"
         :sending="sending"
         @reply="reply"
+        @resolve="resolve"
       />
     </div>
 

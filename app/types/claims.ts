@@ -47,6 +47,8 @@ export interface ClaimRow {
   seller_actions?: { action: string; label: string; due_date: string | null; mandatory: boolean | null }[]
   /** para quem o vendedor pode mandar mensagem agora: complainant, mediator */
   reply_targets?: string[]
+  /** ações de resolução que o ML libera agora: allow_return, refund, partial_refund, open_dispute */
+  resolve_actions?: string[]
   buyer_wants?: string[]
   what_to_do?: { title: string | null; description: string | null } | null
   last_message?: ClaimMessage | null

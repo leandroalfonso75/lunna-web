@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ChatBubbleLeftEllipsisIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
+import { ArrowUturnLeftIcon, BanknotesIcon, ChatBubbleLeftEllipsisIcon, ClockIcon, ExclamationTriangleIcon, ScaleIcon } from '@heroicons/vue/24/outline'
 import { computed, ref } from 'vue'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { brl, dateTimeShort } from '../../lib/format'
+import { useSessionStore } from '../../stores/session'
 import type { ClaimRow } from '../../types/claims'
 
 /**
@@ -10,7 +12,49 @@ import type { ClaimRow } from '../../types/claims'
  * resposta, que vai para a reclamação no Mercado Livre (com confirmação: não se desfaz).
  */
 const props = defineProps<{ claim: ClaimRow; canReply: boolean; sending: boolean }>()
-const emit = defineEmits<{ reply: [claimId: number, receiver: string, text: string] }>()
+const emit = defineEmits<{ reply: [claimId: number, receiver: string, text: string]; resolve: [claimId: number, action: string, percentage: number | null] }>()
+
+// "Responder" abre as opções (como no ML): mensagem, oferecer devolução, reembolsar, reembolso parcial, mediação.
+// Cada uma pede confirmação; nada vai ao ML sem o segundo clique (pedido do usuário em 04/11/2026).
+const menu = ref(false)
+const pending = ref<string | null>(null)
+const percentage = ref<number | null>(null)
+const offers = ref<{ amount: number; percentage: number }[]>([])
+const offersError = ref('')
+const RESOLVE: Record<string, { label: string; text: string; danger: boolean }> = {
+  allow_return: { label: 'Oferecer devolução', danger: true, text: 'O Mercado Livre gera a etiqueta para o comprador devolver o produto; o dinheiro é devolvido quando a devolução for postada.' },
+  refund: { label: 'Reembolsar o dinheiro', danger: true, text: 'O Mercado Livre devolve todo o dinheiro ao comprador e encerra a reclamação. O produto fica com o comprador.' },
+  partial_refund: { label: 'Oferecer reembolso parcial', danger: true, text: 'O comprador recebe a oferta; se aceitar, recebe esse valor e a reclamação é encerrada.' },
+  open_dispute: { label: 'Falar com o Mercado Livre', danger: false, text: 'Pede a mediação do Mercado Livre. Depois disso, as mensagens vão para o mediador, não mais para o comprador.' }
+}
+const { $api } = useNuxtApp()
+const session = useSessionStore()
+const resolveActions = computed(() => (props.claim.resolve_actions ?? []).filter((a) => RESOLVE[a]))
+const hasOptions = computed(() => !!props.claim.reply_targets?.length || resolveActions.value.length > 0)
+
+async function choose(action: string) {
+  pending.value = action
+  confirming.value = false
+  open.value = false
+  if (action === 'partial_refund' && !offers.value.length) {
+    offersError.value = ''
+    try {
+      const res = await $api<{ available_offers: { amount: number; percentage: number }[] }>(`/api/claims/${props.claim.claim_id}/partial_refund_offers`, { query: { account_id: session.selectedAccountId } })
+      offers.value = res.available_offers ?? []
+    } catch (err) {
+      offersError.value = apiErrorMessage(err, 'O Mercado Livre não informou os valores de reembolso parcial.')
+    }
+  }
+}
+function runResolve() {
+  if (!pending.value) return
+  if (pending.value === 'partial_refund' && !percentage.value) return
+  if (!confirming.value) {
+    confirming.value = true
+    return
+  }
+  emit('resolve', props.claim.claim_id, pending.value, pending.value === 'partial_refund' ? percentage.value : null)
+}
 
 const open = ref(false)
 const confirming = ref(false)
@@ -47,6 +91,9 @@ function reset() {
   confirming.value = false
   text.value = ''
   open.value = false
+  menu.value = false
+  pending.value = null
+  percentage.value = null
 }
 defineExpose({ reset })
 </script>
@@ -116,19 +163,57 @@ defineExpose({ reset })
 
     <footer class="flex flex-wrap items-center gap-2 border-t border-line p-3">
       <button
-        v-if="canReply && claim.reply_targets?.length"
+        v-if="canReply && hasOptions"
         type="button"
         :class="claim.to_attend ? 'btn-primary h-9' : 'btn-secondary h-9'"
-        :title="claim.to_attend ? 'O Mercado Livre aguarda uma ação sua nesta reclamação' : 'Não há obrigação de responder agora; a mensagem é opcional'"
+        :title="claim.to_attend ? 'O Mercado Livre aguarda uma ação sua nesta reclamação' : 'Não há obrigação de responder agora'"
         data-test="atender-responder"
-        @click="open = !open; confirming = false"
+        @click="menu = !menu; open = false; pending = null; confirming = false"
       >
         <ChatBubbleLeftEllipsisIcon class="h-4 w-4" aria-hidden="true" /> {{ claim.to_attend ? 'Responder' : 'Responder (opcional)' }}
       </button>
-      <span v-else-if="!claim.reply_targets?.length" class="text-[12px] text-ink-3">O Mercado Livre não libera mensagem nesta etapa.</span>
-      <span v-else class="text-[12px] text-ink-3">Só administradores respondem.</span>
+      <a v-else-if="claim.link && !hasOptions" :href="claim.link" target="_blank" rel="noopener" class="btn-secondary h-9 text-[12px]">Resolver no Mercado Livre</a>
+      <span v-else-if="!canReply" class="text-[12px] text-ink-3">Só administradores respondem.</span>
       <a v-if="claim.link" :href="claim.link" target="_blank" rel="noopener" class="btn-link ml-auto text-[12px]">Abrir a venda no Mercado Livre</a>
     </footer>
+
+    <div v-if="menu" class="flex flex-wrap gap-2 border-t border-line bg-surface-2 p-3" data-test="atender-opcoes">
+      <button v-if="claim.reply_targets?.length" type="button" class="btn-secondary h-9" :class="open ? 'border-primary' : ''" data-test="opcao-mensagem" @click="open = true; pending = null; confirming = false">
+        <ChatBubbleLeftEllipsisIcon class="h-4 w-4" aria-hidden="true" /> {{ claim.reply_targets.includes('mediator') && !claim.reply_targets.includes('complainant') ? 'Mensagem ao mediador' : 'Enviar mensagem ao comprador' }}
+      </button>
+      <button v-for="a in resolveActions" :key="a" type="button" class="btn-secondary h-9" :class="pending === a ? 'border-primary' : ''" :data-test="`opcao-${a}`" @click="choose(a)">
+        <ArrowUturnLeftIcon v-if="a === 'allow_return'" class="h-4 w-4" aria-hidden="true" />
+        <BanknotesIcon v-else-if="a === 'refund' || a === 'partial_refund'" class="h-4 w-4" aria-hidden="true" />
+        <ScaleIcon v-else class="h-4 w-4" aria-hidden="true" />
+        {{ RESOLVE[a]?.label }}
+      </button>
+      <a v-if="claim.link" :href="claim.link" target="_blank" rel="noopener" class="btn-link self-center text-[12px]">Ver no Mercado Livre</a>
+    </div>
+
+    <div v-if="pending && RESOLVE[pending]" class="space-y-2 border-t border-line bg-surface-2 p-3 text-[13px]" data-test="atender-acao">
+      <p class="font-semibold text-ink">{{ RESOLVE[pending]?.label }}</p>
+      <p class="text-ink-2">{{ RESOLVE[pending]?.text }}</p>
+      <label v-if="pending === 'partial_refund'" class="flex flex-wrap items-center gap-2">
+        <span class="text-ink-2">Valor</span>
+        <select v-model.number="percentage" class="input h-9 w-auto" :disabled="sending" data-test="acao-percentual" @change="confirming = false">
+          <option :value="null" disabled>Escolha</option>
+          <option v-for="o in offers" :key="o.percentage" :value="o.percentage">{{ o.percentage }}% · {{ brl(o.amount) }}</option>
+        </select>
+        <span v-if="offersError" class="text-danger">{{ offersError }}</span>
+      </label>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          :class="confirming ? 'btn-danger' : 'btn-primary'"
+          class="h-9"
+          :disabled="sending || (pending === 'partial_refund' && !percentage)"
+          data-test="acao-confirmar"
+          @click="runResolve"
+        >{{ sending ? 'Enviando…' : confirming ? 'Confirmar no Mercado Livre' : RESOLVE[pending]?.label }}</button>
+        <button type="button" class="btn-link" :disabled="sending" @click="pending = null; confirming = false">Cancelar</button>
+        <span v-if="confirming" class="text-[12px] text-danger">Isso vai para o Mercado Livre na hora e não pode ser desfeito. Clique de novo para confirmar.</span>
+      </div>
+    </div>
 
     <form v-if="open" class="space-y-2 border-t border-line bg-surface-2 p-3 text-[13px]" data-test="atender-resposta" @submit.prevent="send">
       <label class="flex items-center gap-2">
