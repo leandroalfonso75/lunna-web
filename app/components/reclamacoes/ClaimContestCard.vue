@@ -96,9 +96,16 @@ function save(next?: ContestStatus) {
         </p>
         <p v-if="claim.model && !contested" class="rounded-card border border-blue-600 bg-blue-100 px-2 py-1 text-[11px] text-blue-800" data-test="contestar-modelo">
           Texto baseado na contestação <strong>aceita pelo ML</strong> #{{ claim.model.claim_id }}
-          (mesmo grupo e motivo). Revise os fatos deste caso.
+          (mesmo grupo e motivo), ajustado aos fatos deste caso.
           <button v-if="claim.generic_draft && text !== claim.generic_draft" type="button" class="btn-link text-[11px]" @click="text = claim.generic_draft">Usar o texto padrão</button>
         </p>
+        <div v-if="claim.model && !contested" class="rounded-card border border-warning bg-warning-soft px-2 py-1 text-[11px] text-ink" data-test="contestar-peculiaridades">
+          <p class="font-semibold">Peculiaridades deste caso (revise o texto)</p>
+          <ul v-if="claim.model.peculiarities?.length" class="list-disc pl-4">
+            <li v-for="(n, i) in claim.model.peculiarities" :key="i">{{ n }}</li>
+          </ul>
+          <p v-else>Os fatos que o Lunna compara são iguais aos do caso-modelo. Confira mesmo assim o relato do comprador e as provas ao lado.</p>
+        </div>
         <textarea v-model="text" class="input h-[114px] w-full resize-y py-2 text-[12px] leading-relaxed" data-test="contestar-texto" />
         <div class="flex flex-wrap items-center gap-2">
           <button type="button" class="btn-secondary h-8" data-test="contestar-copiar" @click="copy">

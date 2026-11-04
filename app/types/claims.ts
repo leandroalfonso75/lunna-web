@@ -123,7 +123,7 @@ export interface ContestClaim {
   evidence: string[]
   draft: string
   /** texto adaptado de uma contestação aceita pelo ML (mesmo grupo e motivo, ou mesmo motivo) */
-  model?: { claim_id: number; same_group: boolean }
+  model?: { claim_id: number; same_group: boolean; peculiarities?: string[] }
   /** o texto padrão do grupo, quando o sugerido veio de uma contestação aceita */
   generic_draft?: string
   contest: { status: ContestStatus; text: string | null; contested_at: string | null; user: string | null }
