@@ -128,5 +128,5 @@ export interface ContestClaim {
 
 export interface ContestsResponse {
   claims: ContestClaim[]
-  summary: { total: number; by_group: Record<string, number>; due_7d: number; by_status: Partial<Record<ContestStatus, number>> }
+  summary: { total: number; pending?: number; contested?: number; by_group: Record<string, number>; due_7d: number; by_status: Partial<Record<ContestStatus, number>> }
 }

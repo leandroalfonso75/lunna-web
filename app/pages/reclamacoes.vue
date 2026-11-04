@@ -56,17 +56,27 @@ async function saveContest(claimId: number, status: ContestStatus, text: string)
     savingContest.value = false
   }
 }
-const contestList = () => (contests.value?.claims ?? []).filter((c) => !contestGroup.value || c.group === contestGroup.value)
+// guias dentro de Contestar: "A contestar" (pendentes, pelo prazo) e "Contestadas" (já contestadas, mais recentes primeiro)
+const contestTab = ref<'pendentes' | 'contestadas'>('pendentes')
+const contestPendingRows = () => (contests.value?.claims ?? []).filter((c) => c.contest.status === 'pendente')
+const contestDoneRows = () => (contests.value?.claims ?? []).filter((c) => c.contest.status !== 'pendente')
+  .sort((a, b) => (b.contest.contested_at ?? '').localeCompare(a.contest.contested_at ?? ''))
+const contestTabRows = () => (contestTab.value === 'pendentes' ? contestPendingRows() : contestDoneRows())
+const contestList = () => contestTabRows().filter((c) => !contestGroup.value || c.group === contestGroup.value)
+function setContestTab(tab: 'pendentes' | 'contestadas') {
+  contestTab.value = tab
+  contestGroup.value = ''
+}
 const contestGroups = () => {
   const seen = new Map<string, { label: string; n: number }>()
-  for (const c of contests.value?.claims ?? []) {
+  for (const c of contestTabRows()) {
     const g = seen.get(c.group) ?? { label: c.group_label, n: 0 }
     g.n += 1
     seen.set(c.group, g)
   }
   return [...seen.entries()].map(([value, g]) => ({ value, ...g }))
 }
-const contestPending = () => (contests.value?.claims ?? []).filter((c) => c.contest.status === 'pendente').length
+const contestPending = () => contestPendingRows().length
 
 // Resposta na reclamação: vai para o Mercado Livre (o cartão já pediu a confirmação).
 async function reply(claimId: number, receiver: string, text: string) {
@@ -295,18 +305,42 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
     </div>
 
     <div v-if="filters.view === 'contestar'" class="space-y-3" data-test="lista-contestar">
-      <p class="text-[13px] text-ink-2">
+      <div class="flex flex-wrap items-end gap-1 border-b-2 border-line" role="tablist" aria-label="Contestações">
+        <button
+          type="button"
+          role="tab"
+          class="-mb-0.5 rounded-t-card border-b-4 px-5 py-2 text-[15px] font-semibold"
+          :class="contestTab === 'pendentes' ? 'border-danger bg-danger-soft text-danger' : 'border-transparent text-ink-2 hover:bg-surface-2'"
+          :aria-selected="contestTab === 'pendentes'"
+          data-test="guia-a-contestar"
+          @click="setContestTab('pendentes')"
+        >A contestar <span class="ml-1 rounded-full bg-surface px-2 text-[13px]">{{ contestPendingRows().length }}</span></button>
+        <button
+          type="button"
+          role="tab"
+          class="-mb-0.5 rounded-t-card border-b-4 px-5 py-2 text-[15px] font-bold"
+          :class="contestTab === 'contestadas' ? 'border-primary bg-primary text-white' : 'border-primary bg-primary-soft text-primary hover:brightness-95'"
+          :aria-selected="contestTab === 'contestadas'"
+          data-test="guia-contestadas"
+          @click="setContestTab('contestadas')"
+        >Contestadas <span class="ml-1 rounded-full px-2 text-[13px]" :class="contestTab === 'contestadas' ? 'bg-white text-primary' : 'bg-surface'">{{ contestDoneRows().length }}</span></button>
+      </div>
+      <p v-if="contestTab === 'pendentes'" class="text-[13px] text-ink-2">
         Reclamações que afetam a sua reputação e ainda estão dentro dos 60 dias para contestar, pelo prazo. Cada uma traz o
         grupo do argumento, as provas tiradas dos dados do Mercado Livre e um texto para você revisar e colar na contestação.
         O Lunna não envia a contestação; registre aqui o andamento.
       </p>
-      <div v-if="contests?.claims.length" class="flex flex-wrap items-center gap-2" role="group" aria-label="Grupo">
+      <p v-else class="text-[13px] text-ink-2">
+        Reclamações que você já contestou, das mais recentes para as mais antigas, com a situação no Mercado Livre. Quando o ML
+        responder, atualize a situação no card. Ficam aqui mesmo depois dos 60 dias.
+      </p>
+      <div v-if="contestTabRows().length" class="flex flex-wrap items-center gap-2" role="group" aria-label="Grupo">
         <button
           type="button"
           class="rounded-full border px-3 py-1 text-[13px]"
           :class="!contestGroup ? 'border-primary bg-primary text-white' : 'border-line bg-surface text-ink-2'"
           @click="contestGroup = ''"
-        >Todas ({{ contests.claims.length }})</button>
+        >Todas ({{ contestTabRows().length }})</button>
         <button
           v-for="g in contestGroups()"
           :key="g.value"
@@ -317,8 +351,8 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
           @click="contestGroup = g.value"
         >{{ g.label }} ({{ g.n }})</button>
       </div>
-      <p v-if="contests && !contests.claims.length" class="card p-6 text-center text-ink-3">
-        Nenhuma reclamação afetando a reputação dentro do prazo de contestação.
+      <p v-if="contests && !contestTabRows().length" class="card p-6 text-center text-ink-3">
+        {{ contestTab === 'pendentes' ? 'Nenhuma reclamação afetando a reputação dentro do prazo de contestação.' : 'Nenhuma reclamação contestada ainda. Ao marcar uma como contestada, ela vem para cá.' }}
       </p>
       <ClaimContestCard
         v-for="c in contestList()"

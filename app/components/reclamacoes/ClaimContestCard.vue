@@ -22,6 +22,14 @@ const copied = ref(false)
 const STATUS_LABEL: Record<ContestStatus, string> = {
   pendente: 'Pendente', contestada: 'Contestada (aguardando o ML)', aceita: 'Aceita pelo ML', negada: 'Negada pelo ML'
 }
+// Situação na guia Contestadas: azul = aceita, vermelho = negada, âmbar = aguardando o ML (pedido de 04/11/2026)
+const SITUATION: Record<ContestStatus, string> = {
+  pendente: 'border-line bg-surface-2 text-ink-2',
+  contestada: 'border-amber-500 bg-amber-100 text-amber-800',
+  aceita: 'border-blue-600 bg-blue-100 text-blue-800',
+  negada: 'border-danger bg-danger-soft text-danger'
+}
+const contested = computed(() => props.claim.contest.status !== 'pendente')
 const STRENGTH: Record<string, string> = { alta: 'pill-success', média: 'pill-warning', baixa: 'pill-neutral' }
 const urgency = computed(() => {
   if (props.claim.days_left <= 3) return 'border-danger bg-danger-soft text-danger'
@@ -58,20 +66,19 @@ function save(next?: ContestStatus) {
           <span class="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold uppercase text-white" data-test="contestar-grupo">{{ claim.group_label }}</span>
           <span class="pill" :class="STRENGTH[claim.strength] ?? 'pill-neutral'">argumento {{ claim.strength }}</span>
           <span class="text-[12px] text-ink-3">#{{ claim.claim_id }} · aberta em {{ dateShort(claim.opened_at) }}</span>
-          <span v-if="claim.contest.status !== 'pendente'" class="pill pill-neutral">{{ STATUS_LABEL[claim.contest.status] }}</span>
         </p>
         <p class="truncate text-[13px] text-ink" :title="claim.title ?? ''">{{ claim.title ?? 'Venda fora do Lunna' }}</p>
         <p class="text-[12px] text-ink-3">
           <template v-if="claim.order_id">Venda #{{ claim.order_id }} · </template>{{ claim.sku ?? 'sem SKU' }}<template v-if="claim.logistic"> · {{ claim.logistic }}</template> · motivo: {{ claim.reason }}
         </p>
       </div>
-      <div class="rounded-card border px-3 py-1.5 text-right" :class="urgency" data-test="contestar-prazo">
+      <div v-if="!contested" class="rounded-card border px-3 py-1.5 text-right" :class="urgency" data-test="contestar-prazo">
         <p class="flex items-center justify-end gap-1 text-[13px] font-bold"><ClockIcon class="h-4 w-4" aria-hidden="true" />{{ daysText }}</p>
         <p class="text-[11px]">até {{ dateShort(claim.deadline) }}</p>
       </div>
     </header>
 
-    <p v-if="claim.open_with_mediator" class="mx-3 mt-3 rounded-card bg-warning-soft p-2 text-[12px] text-warning">
+    <p v-if="claim.open_with_mediator && !contested" class="mx-3 mt-3 rounded-card bg-warning-soft p-2 text-[12px] text-warning">
       A mediação ainda está aberta. O Mercado Livre costuma analisar a contestação depois que ela termina; conteste quando encerrar, ainda dentro do prazo.
     </p>
 
@@ -97,7 +104,27 @@ function save(next?: ContestStatus) {
       </div>
     </div>
 
-    <footer class="flex flex-wrap items-center gap-2 border-t border-line p-3 text-[12px]">
+    <footer v-if="contested" class="flex flex-wrap items-center gap-3 border-t border-line p-3 text-[12px]" data-test="contestada-situacao">
+      <span class="text-[13px] font-semibold text-ink">Situação</span>
+      <span class="rounded-card border-2 px-3 py-1 text-[14px] font-bold" :class="SITUATION[claim.contest.status]">{{ STATUS_LABEL[claim.contest.status] }}</span>
+      <template v-if="canEdit">
+        <label class="ml-2 flex items-center gap-2">
+          <span class="text-ink-3">Atualizar</span>
+          <select v-model="status" class="input h-8 w-auto" :disabled="saving" data-test="contestar-status">
+            <option v-for="(label, k) in STATUS_LABEL" :key="k" :value="k">{{ label }}</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          class="btn-primary h-8"
+          :disabled="saving || (status === claim.contest.status && !edited)"
+          data-test="contestar-salvar"
+          @click="save()"
+        >{{ saving ? 'Salvando…' : 'Salvar' }}</button>
+      </template>
+      <span v-if="claim.contest.contested_at" class="ml-auto text-ink-3">contestada em {{ dateShort(claim.contest.contested_at) }}<template v-if="claim.contest.user"> por {{ claim.contest.user }}</template></span>
+    </footer>
+    <footer v-else class="flex flex-wrap items-center gap-2 border-t border-line p-3 text-[12px]">
       <template v-if="canEdit">
         <label class="flex items-center gap-2">
           <span class="text-ink-2">Andamento</span>
