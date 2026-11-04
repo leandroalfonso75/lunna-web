@@ -31,7 +31,8 @@ const form = reactive({
   abc_cut_b: '',
   group_up_pct: '',
   group_down_pct: '',
-  ai_model: ''
+  ai_model: '',
+  ai_image_model: ''
 })
 
 /** Snapshot do form logo após carregar/salvar — base da comparação de "há alterações". */
@@ -59,6 +60,7 @@ function fillForm(c: Company) {
   form.group_up_pct = String(c.group_up_pct)
   form.group_down_pct = String(c.group_down_pct)
   form.ai_model = c.ai_model ?? ''
+  form.ai_image_model = c.ai_image_model ?? ''
   savedAiModel.value = form.ai_model
   aiConfigured.value = c.ai_configured
   aiKeyHint.value = c.ai_key_hint
@@ -105,6 +107,7 @@ async function submit() {
       group_down_pct: parseDecimal(form.group_down_pct)
     }
     if (form.ai_model !== savedAiModel.value) payload.ai_model = form.ai_model || null
+    payload.ai_image_model = form.ai_image_model.trim() || null
     if (apiKeyInput.value) payload.openrouter_api_key = apiKeyInput.value
 
     const { company } = await props.settingsApi.updateCompany(payload)
@@ -281,6 +284,12 @@ async function removeKey() {
           <label for="ai-model" class="field-label">Modelo</label>
           <input id="ai-model" v-model="form.ai_model" type="text" placeholder="anthropic/claude-sonnet-4.5" class="input" />
           <p class="text-[13px] text-ink-3">Use o identificador da página de modelos da OpenRouter (fornecedor/modelo).</p>
+        </div>
+
+        <div class="space-y-1.5">
+          <label for="ai-image-model" class="field-label">Modelo imagens</label>
+          <input id="ai-image-model" v-model="form.ai_image_model" type="text" placeholder="google/gemini-2.5-flash-image" class="input" data-test="ai-image-model" />
+          <p class="text-[13px] text-ink-3">Modelo da OpenRouter que gera imagens (Curva ABC › Gerar fotos com IA). Vazio usa google/gemini-2.5-flash-image.</p>
         </div>
 
         <div v-if="aiConfigured">

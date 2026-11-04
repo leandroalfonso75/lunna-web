@@ -45,6 +45,8 @@ export interface Company {
   group_down_pct: number
   /** Plano de ação com IA via OpenRouter (DECISOES.md §10) — por empresa. */
   ai_model: string | null
+  /** modelo da OpenRouter para gerar imagens (Curva ABC › Gerar fotos) */
+  ai_image_model?: string | null
   /** `true` quando a empresa tem chave **e** modelo configurados. */
   ai_configured: boolean
   /** `"…" + últimos 4 caracteres da chave`, ou `null` sem chave. A chave em si nunca vem da API. */
