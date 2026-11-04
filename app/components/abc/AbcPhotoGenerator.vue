@@ -13,8 +13,8 @@ import { useSessionStore } from '../../stores/session'
 const props = defineProps<{ itemId: string; title: string; suggestedCount: number }>()
 const emit = defineEmits<{ close: [] }>()
 
-interface Photo { id: number; kind: 'gerada' | 'referencia'; position: number; approved: boolean; ml_picture_id: string | null }
-interface Job { id: number; status: 'gerando' | 'pronto' | 'erro' | 'publicado'; count: number; instructions: string | null; error: string | null; publish_error: string | null; published_at: string | null; created_at: string; photos: Photo[] }
+interface Photo { id: number; kind: 'gerada' | 'referencia'; position: number; approved: boolean; ml_picture_id: string | null; cost_usd: number | null; model: string | null }
+interface Job { id: number; status: 'gerando' | 'pronto' | 'erro' | 'publicado'; count: number; instructions: string | null; error: string | null; publish_error: string | null; published_at: string | null; created_at: string; cost_usd: number; photos: Photo[] }
 
 const { $api } = useNuxtApp()
 const session = useSessionStore()
@@ -212,6 +212,7 @@ onBeforeUnmount(() => {
           <span v-if="job.status === 'gerando'" class="flex items-center gap-1 text-ink-2"><ArrowPathIcon class="h-4 w-4 animate-spin" /> Gerando {{ generated.length }} de {{ job.count }}… (cada imagem leva até 40 s)</span>
           <span v-else-if="job.status === 'publicado'" class="font-semibold text-success">Publicadas no anúncio em {{ new Date(job.published_at ?? '').toLocaleString('pt-BR') }}.</span>
           <span v-else class="text-ink-2">Escolha as que quer publicar.</span>
+          <span v-if="job.cost_usd" class="text-ink-3">· custo na OpenRouter: US$ {{ job.cost_usd.toFixed(3) }}</span>
           <button type="button" class="btn-link ml-auto" @click="newRequest">Novo pedido</button>
         </div>
         <p v-if="job.error" class="rounded-card bg-danger-soft p-2 text-[13px] text-danger">{{ job.error }}</p>
@@ -225,6 +226,7 @@ onBeforeUnmount(() => {
               <button v-else-if="session.isAdmin" type="button" :class="p.approved ? 'btn-primary' : 'btn-secondary'" class="h-7 px-2 text-[12px]" data-test="foto-aprovar" @click="approve(p)">
                 {{ p.approved ? '✓ Aprovada' : 'Aprovar' }}
               </button>
+              <span v-if="p.cost_usd !== null" class="text-ink-3" :title="p.model ?? ''">US$ {{ p.cost_usd.toFixed(3) }}</span>
               <a v-if="images[p.id]" :href="images[p.id]" :download="`${itemId}-${p.position + 1}.png`" class="btn-link ml-auto">Baixar</a>
             </figcaption>
           </figure>
