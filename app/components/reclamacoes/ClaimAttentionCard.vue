@@ -21,6 +21,10 @@ const pending = ref<string | null>(null)
 const percentage = ref<number | null>(null)
 const offers = ref<{ amount: number; percentage: number }[]>([])
 const offersError = ref('')
+// "Oferecer devolução": o custo do frete da devolução para o vendedor (aviso antes de confirmar, como no ML)
+const returnCost = ref<{ amount: number; free: boolean } | null>(null)
+const returnCostError = ref('')
+const loadingCost = ref(false)
 const RESOLVE: Record<string, { label: string; text: string; danger: boolean }> = {
   allow_return: { label: 'Oferecer devolução', danger: true, text: 'O Mercado Livre gera a etiqueta para o comprador devolver o produto; o dinheiro é devolvido quando a devolução for postada.' },
   refund: { label: 'Reembolsar o dinheiro', danger: true, text: 'O Mercado Livre devolve todo o dinheiro ao comprador e encerra a reclamação. O produto fica com o comprador.' },
@@ -36,6 +40,17 @@ async function choose(action: string) {
   pending.value = action
   confirming.value = false
   open.value = false
+  if (action === 'allow_return' && !returnCost.value) {
+    returnCostError.value = ''
+    loadingCost.value = true
+    try {
+      returnCost.value = await $api<{ amount: number; free: boolean }>(`/api/claims/${props.claim.claim_id}/return_cost`, { query: { account_id: session.selectedAccountId } })
+    } catch (err) {
+      returnCostError.value = apiErrorMessage(err, 'O Mercado Livre não informou o custo do frete de devolução.')
+    } finally {
+      loadingCost.value = false
+    }
+  }
   if (action === 'partial_refund' && !offers.value.length) {
     offersError.value = ''
     try {
@@ -193,6 +208,14 @@ defineExpose({ reset })
     <div v-if="pending && RESOLVE[pending]" class="space-y-2 border-t border-line bg-surface-2 p-3 text-[13px]" data-test="atender-acao">
       <p class="font-semibold text-ink">{{ RESOLVE[pending]?.label }}</p>
       <p class="text-ink-2">{{ RESOLVE[pending]?.text }}</p>
+      <template v-if="pending === 'allow_return'">
+        <p v-if="loadingCost" class="text-ink-3">Consultando o custo do frete de devolução…</p>
+        <p v-else-if="returnCost?.free" class="rounded-card bg-success-soft p-2 font-semibold text-success" data-test="frete-devolucao">Frete da devolução: grátis para você.</p>
+        <p v-else-if="returnCost" class="rounded-card bg-warning-soft p-2 font-semibold text-warning" data-test="frete-devolucao">
+          Frete da devolução: será cobrado {{ brl(returnCost.amount) }} de você.
+        </p>
+        <p v-else-if="returnCostError" class="text-danger">{{ returnCostError }} Confira no Mercado Livre antes de confirmar.</p>
+      </template>
       <label v-if="pending === 'partial_refund'" class="flex flex-wrap items-center gap-2">
         <span class="text-ink-2">Valor</span>
         <select v-model.number="percentage" class="input h-9 w-auto" :disabled="sending" data-test="acao-percentual" @change="confirming = false">
