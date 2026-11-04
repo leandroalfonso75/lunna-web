@@ -14,7 +14,8 @@ const props = defineProps<{ itemId: string; title: string; suggestedCount: numbe
 const emit = defineEmits<{ close: [] }>()
 
 interface Photo { id: number; kind: 'gerada' | 'referencia'; position: number; approved: boolean; ml_picture_id: string | null; cost_usd: number | null; model: string | null }
-interface Job { id: number; status: 'gerando' | 'pronto' | 'erro' | 'publicado'; count: number; instructions: string | null; error: string | null; publish_error: string | null; published_at: string | null; created_at: string; cost_usd: number; photos: Photo[] }
+interface Job { id: number; status: 'gerando' | 'pronto' | 'erro' | 'publicado'; count: number; instructions: string | null; error: string | null; publish_error: string | null; published_at: string | null; published_item_id: string | null; created_at: string; cost_usd: number; photos: Photo[] }
+interface Alternative { item_id: string; status: string; pictures: number }
 
 const { $api } = useNuxtApp()
 const session = useSessionStore()
@@ -29,18 +30,27 @@ const form = reactive({ count: Math.min(Math.max(props.suggestedCount, 1), 6), i
 const sending = ref(false)
 const publishing = ref(false)
 const confirmPublish = ref(false)
+// anúncio de catálogo: o ML não deixa trocar as fotos; publica no tradicional do mesmo produto
+const catalogListing = ref(false)
+const alternatives = ref<Alternative[]>([])
+const publishTarget = ref(props.itemId)
 let poll: ReturnType<typeof setInterval> | undefined
 
 const generated = computed(() => (job.value?.photos ?? []).filter((p) => p.kind === 'gerada'))
-const approved = computed(() => generated.value.filter((p) => p.approved && !p.ml_picture_id))
+// já publicada = o pedido foi publicado e a imagem tem id no ML (ter id sozinho só quer dizer que subiu)
+const isPublished = (p: Photo) => job.value?.status === 'publicado' && !!p.ml_picture_id
+const approved = computed(() => generated.value.filter((p) => p.approved && !isPublished(p)))
 const query = () => ({ account_id: session.selectedAccountId })
 
 async function load() {
   loading.value = true
   try {
-    const res = await $api<{ pictures: { id: string; url: string }[]; jobs: Job[]; ai_configured: boolean }>(`/api/items/${props.itemId}/photos`, { query: query() })
+    const res = await $api<{ pictures: { id: string; url: string }[]; jobs: Job[]; ai_configured: boolean; catalog_listing: boolean; alternatives: Alternative[] }>(`/api/items/${props.itemId}/photos`, { query: query() })
     pictures.value = res.pictures
     aiConfigured.value = res.ai_configured
+    catalogListing.value = res.catalog_listing
+    alternatives.value = res.alternatives ?? []
+    publishTarget.value = (res.catalog_listing && res.alternatives?.[0]?.item_id) || props.itemId
     form.refs = res.pictures.map((p) => p.url)
     const last = res.jobs[0]
     if (last && last.status !== 'publicado') setJob(last)
@@ -120,7 +130,7 @@ async function publish() {
   }
   publishing.value = true
   try {
-    const res = await $api<{ message: string; job: Job }>(`/api/photo_jobs/${job.value.id}/publish`, { method: 'POST', query: query(), body: { confirm: true } })
+    const res = await $api<{ message: string; job: Job }>(`/api/photo_jobs/${job.value.id}/publish`, { method: 'POST', query: query(), body: { confirm: true, target_item_id: publishTarget.value } })
     toast.success(res.message)
     job.value = res.job
   } catch (err) {
@@ -210,7 +220,7 @@ onBeforeUnmount(() => {
       <template v-else>
         <div class="flex flex-wrap items-center gap-2 text-[13px]">
           <span v-if="job.status === 'gerando'" class="flex items-center gap-1 text-ink-2"><ArrowPathIcon class="h-4 w-4 animate-spin" /> Gerando {{ generated.length }} de {{ job.count }}… (cada imagem leva até 40 s)</span>
-          <span v-else-if="job.status === 'publicado'" class="font-semibold text-success">Publicadas no anúncio em {{ new Date(job.published_at ?? '').toLocaleString('pt-BR') }}.</span>
+          <span v-else-if="job.status === 'publicado'" class="font-semibold text-success">Publicadas no anúncio {{ job.published_item_id ?? itemId }} em {{ new Date(job.published_at ?? '').toLocaleString('pt-BR') }}.</span>
           <span v-else class="text-ink-2">Escolha as que quer publicar.</span>
           <span v-if="job.cost_usd" class="text-ink-3">· custo na OpenRouter: US$ {{ job.cost_usd.toFixed(3) }}</span>
           <button type="button" class="btn-link ml-auto" @click="newRequest">Novo pedido</button>
@@ -222,7 +232,7 @@ onBeforeUnmount(() => {
             <img v-if="images[p.id]" :src="images[p.id]" alt="" class="aspect-square w-full object-cover" />
             <div v-else class="aspect-square w-full animate-pulse bg-surface-2" />
             <figcaption class="flex items-center gap-2 p-2 text-[12px]">
-              <span v-if="p.ml_picture_id" class="font-semibold text-success">Publicada</span>
+              <span v-if="isPublished(p)" class="font-semibold text-success">Publicada</span>
               <button v-else-if="session.isAdmin" type="button" :class="p.approved ? 'btn-primary' : 'btn-secondary'" class="h-7 px-2 text-[12px]" data-test="foto-aprovar" @click="approve(p)">
                 {{ p.approved ? '✓ Aprovada' : 'Aprovar' }}
               </button>
@@ -231,9 +241,20 @@ onBeforeUnmount(() => {
             </figcaption>
           </figure>
         </div>
-        <div v-if="session.isAdmin && job.status !== 'gerando'" class="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+        <p v-if="catalogListing" class="rounded-card border border-warning bg-warning-soft p-2 text-[13px] text-ink" data-test="fotos-catalogo">
+          {{ itemId }} é <strong>anúncio de catálogo</strong>: o Mercado Livre mostra as fotos do produto do catálogo e não deixa trocá-las.
+          <template v-if="alternatives.length">As fotos vão para o anúncio tradicional do mesmo produto, escolhido abaixo.</template>
+          <template v-else>Não há anúncio tradicional deste produto para receber as fotos; você pode baixá-las.</template>
+        </p>
+        <div v-if="session.isAdmin && job.status !== 'gerando' && (!catalogListing || alternatives.length)" class="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+          <label v-if="alternatives.length" class="flex items-center gap-2 text-[13px]">
+            <span class="text-ink-2">Publicar em</span>
+            <select v-model="publishTarget" class="input h-9 w-auto" data-test="fotos-destino" @change="confirmPublish = false">
+              <option v-for="a in alternatives" :key="a.item_id" :value="a.item_id">{{ a.item_id }} (tradicional, {{ a.pictures }} fotos)</option>
+            </select>
+          </label>
           <button type="button" :class="confirmPublish ? 'btn-danger' : 'btn-primary'" class="h-9" :disabled="publishing || !approved.length" data-test="fotos-publicar" @click="publish">
-            {{ publishing ? 'Publicando…' : confirmPublish ? `Confirmar: publicar ${approved.length} no Mercado Livre` : `Publicar ${approved.length} imagem(ns) no anúncio` }}
+            {{ publishing ? 'Publicando…' : confirmPublish ? `Confirmar: publicar ${approved.length} em ${publishTarget}` : `Publicar ${approved.length} imagem(ns) no anúncio ${publishTarget}` }}
           </button>
           <span v-if="confirmPublish" class="text-[12px] text-danger">As fotos entram no fim da galeria do anúncio no Mercado Livre na hora. Clique de novo para confirmar.</span>
           <span v-else class="text-[12px] text-ink-3">As fotos atuais do anúncio continuam; as aprovadas entram no fim (limite de 10).</span>
