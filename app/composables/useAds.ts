@@ -19,7 +19,8 @@ export function useAds() {
   const session = useSessionStore()
   const toast = useToast()
 
-  const range = reactive<AdsRange>({ period: '30d', from: '', to: '' })
+  // ao entrar em Ads o período começa em Hoje (pedido do usuário em 04/11/2026)
+  const range = reactive<AdsRange>({ period: 'today', from: '', to: '' })
   const tab = ref<'campanhas' | 'anuncios' | 'analise'>('campanhas')
   const overview = ref<AdsResponse | null>(null)
   const itemsResponse = ref<AdsItemsResponse | null>(null)
