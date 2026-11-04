@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ArrowPathIcon, CheckCircleIcon, PhotoIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, CheckCircleIcon, PhotoIcon, StarIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useToast } from '../../composables/useToast'
 import { apiErrorMessage } from '../../lib/apiErrors'
 import { useSessionStore } from '../../stores/session'
@@ -34,6 +34,15 @@ const confirmPublish = ref(false)
 const catalogListing = ref(false)
 const alternatives = ref<Alternative[]>([])
 const publishTarget = ref(props.itemId)
+
+// Galeria final (pedido do usuário em 04/11/2026): a ordem das fotos no anúncio, a 1ª é a capa. Tokens "ml:<id>" (foto
+// atual do anúncio de destino) e "new:<id>" (imagem gerada aprovada).
+const targetPictures = ref<{ id: string; url: string }[]>([])
+const order = ref<string[]>([])
+const originalCover = ref<string | null>(null)
+const checkingCover = ref(false)
+const coverWarning = ref<{ token: string; previous: string[]; reasons: string[] } | null>(null)
+const coverOk = ref<string | null>(null)
 let poll: ReturnType<typeof setInterval> | undefined
 
 const generated = computed(() => (job.value?.photos ?? []).filter((p) => p.kind === 'gerada'))
@@ -51,6 +60,7 @@ async function load() {
     catalogListing.value = res.catalog_listing
     alternatives.value = res.alternatives ?? []
     publishTarget.value = (res.catalog_listing && res.alternatives?.[0]?.item_id) || props.itemId
+    await loadTargetPictures()
     form.refs = res.pictures.map((p) => p.url)
     const last = res.jobs[0]
     if (last && last.status !== 'publicado') setJob(last)
@@ -122,6 +132,80 @@ async function approve(p: Photo) {
   }
 }
 
+async function loadTargetPictures() {
+  const res = await $api<{ pictures: { id: string; url: string }[] }>(`/api/items/${publishTarget.value}/photos`, { query: query() }).catch(() => null)
+  targetPictures.value = res?.pictures ?? []
+  originalCover.value = targetPictures.value[0] ? `ml:${targetPictures.value[0].id}` : null
+  order.value = [...targetPictures.value.map((p) => `ml:${p.id}`), ...approved.value.map((p) => `new:${p.id}`)]
+  coverOk.value = null
+}
+
+// aprovou/reprovou: a nova entra no fim, a reprovada sai; o resto da ordem fica como o usuário deixou
+watch(() => approved.value.map((p) => p.id).join(','), () => {
+  const fresh = approved.value.map((p) => `new:${p.id}`)
+  order.value = [...order.value.filter((t) => t.startsWith('ml:') || fresh.includes(t)), ...fresh.filter((t) => !order.value.includes(t))]
+})
+watch(publishTarget, () => void loadTargetPictures())
+
+function thumb(token: string) {
+  if (token.startsWith('new:')) return images[Number(token.slice(4))] ?? ''
+  return targetPictures.value.find((p) => `ml:${p.id}` === token)?.url ?? ''
+}
+
+function move(index: number, delta: number) {
+  const to = index + delta
+  if (to < 0 || to >= order.value.length) return
+  const previous = [...order.value]
+  const next = [...order.value]
+  const [item] = next.splice(index, 1)
+  next.splice(to, 0, item as string)
+  order.value = next
+  confirmPublish.value = false
+  if (to === 0 || index === 0) void checkCover(previous)
+}
+
+function makeCover(index: number) {
+  if (index === 0) return
+  const previous = [...order.value]
+  const next = [...order.value]
+  const [item] = next.splice(index, 1)
+  order.value = [item as string, ...next]
+  confirmPublish.value = false
+  void checkCover(previous)
+}
+
+/** Capa nova (diferente da atual do anúncio): confere pela IA se segue o padrão do ML; fora dele, avisa. */
+async function checkCover(previous: string[]) {
+  const token = order.value[0]
+  coverOk.value = null
+  if (!token || token === originalCover.value || !job.value) return
+  checkingCover.value = true
+  try {
+    const res = await $api<{ ok: boolean; reasons: string[] }>(`/api/photo_jobs/${job.value.id}/check_cover`, {
+      method: 'POST', query: query(), body: { ref: token, item_id: publishTarget.value }
+    })
+    if (order.value[0] !== token) return
+    if (res.ok) coverOk.value = token
+    else coverWarning.value = { token, previous, reasons: res.reasons }
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível conferir a capa agora.'))
+  } finally {
+    checkingCover.value = false
+  }
+}
+
+function cancelCover() {
+  if (coverWarning.value) order.value = coverWarning.value.previous
+  coverWarning.value = null
+}
+
+/** "Publicar mesmo assim" no aviso da capa: é a confirmação; publica direto. */
+async function publishAnyway() {
+  coverWarning.value = null
+  confirmPublish.value = true
+  await publish()
+}
+
 async function publish() {
   if (!job.value) return
   if (!confirmPublish.value) {
@@ -130,7 +214,9 @@ async function publish() {
   }
   publishing.value = true
   try {
-    const res = await $api<{ message: string; job: Job }>(`/api/photo_jobs/${job.value.id}/publish`, { method: 'POST', query: query(), body: { confirm: true, target_item_id: publishTarget.value } })
+    const res = await $api<{ message: string; job: Job }>(`/api/photo_jobs/${job.value.id}/publish`, {
+      method: 'POST', query: query(), body: { confirm: true, target_item_id: publishTarget.value, order: order.value }
+    })
     toast.success(res.message)
     job.value = res.job
   } catch (err) {
@@ -246,6 +332,45 @@ onBeforeUnmount(() => {
           <template v-if="alternatives.length">As fotos vão para o anúncio tradicional do mesmo produto, escolhido abaixo.</template>
           <template v-else>Não há anúncio tradicional deste produto para receber as fotos; você pode baixá-las.</template>
         </p>
+        <div v-if="session.isAdmin && job.status !== 'gerando' && job.status !== 'publicado' && approved.length && (!catalogListing || alternatives.length)" class="space-y-2 border-t border-line pt-3" data-test="fotos-ordem">
+          <p class="text-[13px] font-semibold text-ink">
+            Ordem das fotos no anúncio {{ publishTarget }}
+            <span class="font-normal text-ink-3">· a 1ª é a capa; use as setas ou "Tornar capa" ({{ order.length }} de 10)</span>
+          </p>
+          <ol class="flex gap-2 overflow-x-auto pb-1">
+            <li v-for="(t, i) in order" :key="t" class="w-28 shrink-0 overflow-hidden rounded-card border-2" :class="i === 0 ? 'border-primary' : 'border-line'" data-test="fotos-ordem-item">
+              <div class="relative">
+                <img v-if="thumb(t)" :src="thumb(t)" alt="" class="aspect-square w-full object-cover" />
+                <div v-else class="aspect-square w-full animate-pulse bg-surface-2" />
+                <span class="absolute left-1 top-1 rounded-full bg-black/60 px-1.5 text-[11px] font-bold text-white">{{ i + 1 }}</span>
+                <span v-if="i === 0" class="absolute right-1 top-1 rounded-full bg-primary px-1.5 text-[10px] font-bold text-white">CAPA</span>
+                <span v-if="t.startsWith('new:')" class="absolute bottom-1 left-1 rounded-full bg-success px-1.5 text-[10px] font-bold text-white">NOVA</span>
+              </div>
+              <div class="flex items-center justify-between p-1">
+                <button type="button" class="btn-link p-0.5" :disabled="i === 0" aria-label="Mover para a esquerda" @click="move(i, -1)"><ChevronLeftIcon class="h-4 w-4" /></button>
+                <button v-if="i !== 0" type="button" class="btn-link p-0.5 text-[11px]" data-test="fotos-tornar-capa" @click="makeCover(i)"><StarIcon class="inline h-3.5 w-3.5" /> Capa</button>
+                <button type="button" class="btn-link p-0.5" :disabled="i === order.length - 1" aria-label="Mover para a direita" @click="move(i, 1)"><ChevronRightIcon class="h-4 w-4" /></button>
+              </div>
+            </li>
+          </ol>
+          <p v-if="checkingCover" class="flex items-center gap-1 text-[12px] text-ink-3"><ArrowPathIcon class="h-4 w-4 animate-spin" /> Conferindo se a nova capa segue o padrão do Mercado Livre…</p>
+          <p v-else-if="coverOk && order[0] === coverOk" class="text-[12px] font-semibold text-success">A nova capa segue o padrão do Mercado Livre (fundo branco, sem texto).</p>
+          <p v-if="order.length > 10" class="text-[12px] text-danger">O Mercado Livre aceita até 10 fotos: as que passarem do limite ficam de fora.</p>
+        </div>
+        <div v-if="coverWarning" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="alertdialog" aria-modal="true" data-test="capa-aviso">
+          <div class="card max-w-md space-y-3 p-5">
+            <p class="text-[16px] font-semibold text-danger">Capa fora dos padrões do Mercado Livre</p>
+            <img v-if="thumb(coverWarning.token)" :src="thumb(coverWarning.token)" alt="" class="mx-auto h-40 w-40 rounded object-cover" />
+            <p class="text-[13px] text-ink">A imagem escolhida para capa está fora dos padrões do Mercado Livre e o anúncio pode ser barrado:</p>
+            <ul class="list-disc pl-5 text-[13px] text-ink-2">
+              <li v-for="(r, k) in coverWarning.reasons" :key="k">{{ r }}</li>
+            </ul>
+            <div class="flex justify-end gap-2">
+              <button type="button" class="btn-secondary h-9" data-test="capa-cancelar" @click="cancelCover">Cancelar</button>
+              <button type="button" class="btn-danger h-9" :disabled="publishing" data-test="capa-publicar-mesmo-assim" @click="publishAnyway">Publicar mesmo assim</button>
+            </div>
+          </div>
+        </div>
         <div v-if="session.isAdmin && job.status !== 'gerando' && (!catalogListing || alternatives.length)" class="flex flex-wrap items-center gap-2 border-t border-line pt-3">
           <label v-if="alternatives.length" class="flex items-center gap-2 text-[13px]">
             <span class="text-ink-2">Publicar em</span>
@@ -256,8 +381,8 @@ onBeforeUnmount(() => {
           <button type="button" :class="confirmPublish ? 'btn-danger' : 'btn-primary'" class="h-9" :disabled="publishing || !approved.length" data-test="fotos-publicar" @click="publish">
             {{ publishing ? 'Publicando…' : confirmPublish ? `Confirmar: publicar ${approved.length} em ${publishTarget}` : `Publicar ${approved.length} imagem(ns) no anúncio ${publishTarget}` }}
           </button>
-          <span v-if="confirmPublish" class="text-[12px] text-danger">As fotos entram no fim da galeria do anúncio no Mercado Livre na hora. Clique de novo para confirmar.</span>
-          <span v-else class="text-[12px] text-ink-3">As fotos atuais do anúncio continuam; as aprovadas entram no fim (limite de 10).</span>
+          <span v-if="confirmPublish" class="text-[12px] text-danger">A galeria do anúncio no Mercado Livre muda na hora, na ordem acima. Clique de novo para confirmar.</span>
+          <span v-else class="text-[12px] text-ink-3">As fotos atuais do anúncio continuam; a ordem e a capa são as que estão acima.</span>
         </div>
       </template>
     </div>
