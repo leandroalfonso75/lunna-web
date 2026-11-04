@@ -158,7 +158,7 @@ onBeforeUnmount(() => {
       <p v-if="loading" class="text-ink-3">Carregando as fotos do anúncio…</p>
 
       <p v-else-if="!aiConfigured" class="rounded-card border border-warning bg-warning-soft p-3 text-[13px] text-ink">
-        Para gerar fotos, cadastre a chave da OpenRouter em <NuxtLink to="/configuracoes" class="btn-link">Configurações › Empresa</NuxtLink>.
+        Para gerar fotos, cadastre a chave da OpenRouter (campo "Chave da API") em <NuxtLink to="/configuracoes" class="btn-link">Configurações › Empresa</NuxtLink>.
       </p>
 
       <!-- pedido -->

@@ -285,7 +285,7 @@ async function removeKey() {
           <input id="ai-model" v-model="form.ai_model" type="text" placeholder="anthropic/claude-sonnet-4.5" class="input" />
           <p class="text-[13px] text-ink-3">Use o identificador da página de modelos da OpenRouter (fornecedor/modelo).</p>
           <p v-if="/^sk-or-|:\/\//.test(form.ai_model.trim())" class="text-[13px] font-semibold text-danger">
-            Isto não é um modelo. A chave (sk-or-…) vai no campo "Chave da OpenRouter", acima; aqui vai o nome, ex.: anthropic/claude-sonnet-4.5.
+            Isto não é um modelo. A chave (sk-or-…) vai no campo "Chave da API", acima; aqui vai o nome, ex.: anthropic/claude-sonnet-4.5.
           </p>
         </div>
 
@@ -294,7 +294,7 @@ async function removeKey() {
           <input id="ai-image-model" v-model="form.ai_image_model" type="text" placeholder="google/gemini-2.5-flash-image" class="input" data-test="ai-image-model" />
           <p class="text-[13px] text-ink-3">Modelo da OpenRouter que gera imagens (Curva ABC › Gerar fotos com IA). Vazio usa google/gemini-2.5-flash-image.</p>
           <p v-if="/^sk-or-|:\/\//.test(form.ai_image_model.trim())" class="text-[13px] font-semibold text-danger" data-test="ai-image-model-aviso">
-            Isto não é um modelo. A chave (sk-or-…) vai no campo "Chave da OpenRouter", acima; aqui vai o nome, ex.: google/gemini-2.5-flash-image.
+            Isto não é um modelo. A chave (sk-or-…) vai no campo "Chave da API", acima; aqui vai o nome, ex.: google/gemini-2.5-flash-image.
           </p>
         </div>
 
