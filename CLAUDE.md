@@ -8,9 +8,9 @@ Front-end do Lunna, painel para vendedores do Mercado Livre. A API fica em `lunn
 - Regras de negócio: `lunna-api/docs/DECISOES.md`.
 
 ## Mapa de pastas (`app/`)
-- `pages/`: uma página por item do menu (`index` = Visão geral, `produtos`, `anuncios`, `curva-abc`, `radar-ml`,
-  `configuracoes/`).
-- `components/`: por seção (`painel/`, `produtos/`, `abc/`, `settings/`).
+- `pages/`: uma página por item do menu (`index` = Visão geral, `produtos`, `anuncios`, `vendas`, `reclamacoes`, `ads`,
+  `promocoes`, `curva-abc`, `radar-ml`, `configuracoes/`).
+- `components/`: por seção (`painel/`, `produtos/`, `vendas/`, `reclamacoes/`, `ads/`, `promocoes/`, `abc/`, `settings/`).
 - `composables/`: estado e chamadas de cada tela (`usePainel`, `useItemsTable`, `useOlistProducts`, `useAbc`…).
 - `lib/`: clientes da API (`*Client.ts`), formatação (`format.ts`) e lógica pura (`radar.ts`, `itemsQuery.ts`).
 - `layouts/default.vue`: menu lateral. `stores/`, `middleware/`, `plugins/`, `types/`.
