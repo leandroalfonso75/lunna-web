@@ -314,6 +314,8 @@ export interface PromotionRunDetail extends PromotionRun {
   price_down: number
   gain_up: number
   gain_down: number
+  /** resumo em frases da rodada */
+  highlights?: string[]
   rows: PromotionRunRow[]
 }
 

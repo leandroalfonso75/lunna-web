@@ -139,6 +139,12 @@ function period(start?: string | null, finish?: string | null): string {
           <div class="mb-3 flex flex-wrap items-start gap-3">
             <div class="min-w-0 flex-1">
               <p class="font-semibold text-ink">{{ run.mode_label }} de {{ dateTimeShort(run.started_at) }}</p>
+              <div v-if="run.highlights?.length" class="my-2 rounded-card border border-line bg-surface-2 p-3" data-test="rotina-resumo">
+                <p class="mb-1 text-[12px] font-semibold uppercase tracking-wide text-ink-3">Resumo da rodada</p>
+                <ul class="list-disc space-y-0.5 pl-4 text-[13px] text-ink">
+                  <li v-for="(h, i) in run.highlights" :key="i">{{ h }}</li>
+                </ul>
+              </div>
               <p v-if="run.error" class="text-danger">{{ run.error }}</p>
               <p class="text-[12px] text-ink-2">
                 <template v-for="(n, k) in run.totals" :key="k"><template v-if="k !== 'anuncios' && TOTAL_LABELS[k]">{{ int(n) }} {{ TOTAL_LABELS[k] }} · </template></template>
