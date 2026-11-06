@@ -13,8 +13,7 @@ import {
   ShoppingBagIcon,
   SignalIcon,
   TagIcon,
-  XMarkIcon
-} from '@heroicons/vue/24/outline'
+  XMarkIcon, BanknotesIcon } from '@heroicons/vue/24/outline'
 import { ref, watch } from 'vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { usePageHeader } from '../composables/usePageHeader'
@@ -50,6 +49,7 @@ const NAV_SECTIONS = [
       { to: '/ads', label: 'Ads', icon: MegaphoneIcon },
       { to: '/promocoes', label: 'Promoções', icon: TagIcon },
       { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon },
+      { to: '/financeiro', label: 'Financeiro', icon: BanknotesIcon },
       { to: '/radar-ml', label: 'Radar Mercado Livre', icon: SignalIcon }
     ]
   },
