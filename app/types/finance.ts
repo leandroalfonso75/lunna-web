@@ -114,3 +114,60 @@ export interface FinanceResponse {
   coverage: { billing_from: string | null; billing_synced_at: string | null; orders_from: string; billing_covers: boolean; orders_cover: boolean }
   months: { value: string; label: string; current: boolean; partial: boolean }[]
 }
+
+/** Aba Repasses: conciliação com a conta do Mercado Pago (GET /api/finance/repasses). */
+export type RepasseStatus = 'conferido' | 'frete_liberacao' | 'cupom' | 'frete_nao_cobrado' | 'reembolso' | 'mediacao' | 'sem_pagamento' | 'diferenca'
+export type RepasseCredit = 'creditado' | 'a_liberar' | 'aguardando_relatorio' | 'nao_localizado' | 'sem_credito'
+
+export interface RepasseSale {
+  key: string
+  shipment_id: number | null
+  order_ids: number[]
+  pack_id: number | null
+  date: string
+  items: string[]
+  revenue: number
+  expected: number
+  lunna_fee: number
+  lunna_shipping: number
+  billed_fee: number
+  billed_shipping: number
+  billed: boolean
+  mp_gross: number
+  mp_fee: number
+  mp_shipping: number
+  buyer_paid: number
+  mp_coupon: number
+  mp_other: number
+  mp_net: number
+  diff: number
+  credited: number
+  release_date: string | null
+  payment_ids: number[]
+  payment_statuses: string[]
+  status: RepasseStatus
+  credit: RepasseCredit
+}
+
+export interface RepasseGroup { key: string; label: string; tone: string; count: number; expected: number; mp_net: number; diff: number; credited: number }
+
+export interface RepassesResponse {
+  period: { from: string; to: string; previous_from: string; previous_to: string; previous_label: string }
+  coverage: { payments_synced_at: string | null; releases_until: string | null; payments_from: string | null; releases_from: string | null; releases_cover_period: boolean }
+  totals: { sales: number; expected: number; mp_net: number; credited: number; diff: number; coupon: number; to_release: number }
+  by_status: RepasseGroup[]
+  by_credit: RepasseGroup[]
+  legs: { key: string; label: string; lunna: number; billed: number | null; mp: number; diff: number; sales: number; note: string }[]
+  divergent: RepasseSale[]
+  account: {
+    opening: number | null
+    closing: number | null
+    credits: number
+    debits: number
+    previous_credits: number
+    previous_debits: number
+    rows: { key: string; label: string; credit: number; debit: number; net: number; count: number; previous: number }[]
+    reserves: { key: string; label: string; amount: number }[]
+    note: string
+  }
+}

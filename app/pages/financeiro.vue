@@ -3,6 +3,7 @@ import { ArrowDownTrayIcon, ArrowTrendingDownIcon, ArrowTrendingUpIcon, ChevronD
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import FinanceDailyChart from '../components/financeiro/FinanceDailyChart.vue'
 import FinanceEntriesPanel from '../components/financeiro/FinanceEntriesPanel.vue'
+import FinanceRepassesTab from '../components/financeiro/FinanceRepassesTab.vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
 import { usePageHeader } from '../composables/usePageHeader'
@@ -12,8 +13,8 @@ import { useSessionStore } from '../stores/session'
 import type { Compare, FinanceResponse, StatementLine } from '../types/finance'
 
 /**
- * `/financeiro` (pedido do usuário em 05/11/2026): a saúde financeira da operação em três abas — "Visão geral e DRE",
- * "Receita" e "Despesas" — sempre comparando o período com o imediatamente anterior de mesmo tamanho. Mesmos filtros de
+ * `/financeiro` (pedido do usuário em 05/11/2026): a saúde financeira da operação em quatro abas — "Visão geral e DRE",
+ * "Receita", "Despesas" e "Repasses" (conciliação com o Mercado Pago, 06/11/2026) — sempre comparando o período com o imediatamente anterior de mesmo tamanho. Mesmos filtros de
  * Vendas, abrindo no mês atual. Tudo é calculado na API (Painel::FinanceQuery); aqui só exibimos e lançamos receitas e
  * despesas manuais.
  */
@@ -23,7 +24,7 @@ const header = usePageHeader()
 
 const currentMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date()).slice(0, 7)
 const filters = reactive({ period: 'month', month: currentMonth, from: '', to: '', logistic: '', q: '', basis: 'lunna' as 'lunna' | 'extrato' })
-const tab = ref<'geral' | 'receita' | 'despesas'>('geral')
+const tab = ref<'geral' | 'receita' | 'despesas' | 'repasses'>('geral')
 const data = ref<FinanceResponse | null>(null)
 const loading = ref(false)
 const error = ref('')
@@ -33,7 +34,8 @@ const openGroup = ref<string | null>(null)
 const categories = ref<{ receita: string[]; despesa: string[] }>({ receita: [], despesa: [] })
 
 const TABS = [
-  { key: 'geral', label: 'Visão geral e DRE' }, { key: 'receita', label: 'Receita' }, { key: 'despesas', label: 'Despesas' }
+  { key: 'geral', label: 'Visão geral e DRE' }, { key: 'receita', label: 'Receita' }, { key: 'despesas', label: 'Despesas' },
+  { key: 'repasses', label: 'Repasses' }
 ] as const
 const PERIODS = [
   { value: 'today', label: 'Hoje' }, { value: 'yesterday', label: 'Ontem' }, { value: '7d', label: '7 dias' },
@@ -186,7 +188,7 @@ function exportExpenses() {
       >{{ t.label }}</button>
     </div>
 
-    <!-- filtros (os mesmos de Vendas), valendo para as três abas -->
+    <!-- filtros (os mesmos de Vendas), valendo para todas as abas -->
     <div class="space-y-2" data-test="financeiro-filtros">
       <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Período">
         <select class="input h-8 w-auto rounded-full text-[13px]" :class="filters.month ? 'border-primary bg-primary text-white' : ''" aria-label="Mês" data-test="filtro-mes" :value="filters.month" @change="onMonth($event)">
@@ -404,7 +406,7 @@ function exportExpenses() {
       </template>
 
       <!-- ===== aba 3: despesas ===== -->
-      <template v-else>
+      <template v-else-if="tab === 'despesas'">
         <div class="card overflow-hidden" data-test="despesas-tabela">
           <div class="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
             <h2 class="section-title">Despesas do período</h2>
@@ -492,6 +494,9 @@ function exportExpenses() {
 
         <FinanceEntriesPanel kind="despesa" :entries="data.expenses.entries" :categories="categories.despesa" @changed="load" />
       </template>
+
+      <!-- ===== aba 4: repasses (conciliação com o Mercado Pago; carrega à parte) ===== -->
+      <FinanceRepassesTab v-else :query="query()" />
 
       <p class="text-[12px] text-ink-3">
         Vendas guardadas no Lunna desde {{ dateShort(data.coverage.orders_from) }}; extrato do ML desde {{ data.coverage.billing_from ? dateShort(data.coverage.billing_from) : '—' }}.
