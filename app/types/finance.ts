@@ -56,6 +56,12 @@ export interface ReconciliationItem {
   diff: number
   diff_pct: number | null
   note: string
+  /** vendas/envios do período ainda sem cobrança no extrato (ficam fora da comparação) */
+  pending?: number
+  /** cobrados com valor diferente do calculado */
+  different?: number
+  /** total do extrato pela data da cobrança (mistura outros períodos e canceladas) */
+  calendar?: number
 }
 
 /** Lançamento manual (abas Receita e Despesas). */

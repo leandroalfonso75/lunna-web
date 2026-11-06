@@ -452,15 +452,17 @@ function exportExpenses() {
           </div>
           <div class="card p-4" data-test="financeiro-conciliacao">
             <h2 class="section-title mb-1">Conciliação: Lunna x extrato do ML</h2>
-            <p class="mb-2 text-[12px] text-ink-3">O Lunna calcula por venda, pela data da venda; o extrato traz o que foi cobrado, pela data da cobrança. Diferenças pequenas são de calendário e de cancelamentos.</p>
+            <p class="mb-2 text-[12px] text-ink-3">Comparação pelas <strong>mesmas vendas e envios</strong> do período: o que o Lunna calculou x o que o extrato cobrou para elas. O que ainda não foi cobrado fica fora e aparece como pendente. "Calendário" é o total do extrato pela data da cobrança, que mistura vendas de outros períodos e canceladas.</p>
             <table class="w-full text-[12px]">
-              <thead><tr class="border-b border-line text-ink-2"><th class="py-1 text-left font-semibold">Item</th><th class="py-1 text-right font-semibold">Lunna</th><th class="py-1 text-right font-semibold">Extrato</th><th class="py-1 text-right font-semibold">Diferença</th></tr></thead>
+              <thead><tr class="border-b border-line text-ink-2"><th class="py-1 text-left font-semibold">Item</th><th class="py-1 text-right font-semibold">Lunna</th><th class="py-1 text-right font-semibold">Extrato</th><th class="py-1 text-right font-semibold">Diferença</th><th class="py-1 text-right font-semibold">Pend.</th><th class="py-1 text-right font-semibold">Calendário</th></tr></thead>
               <tbody>
                 <tr v-for="r in data.reconciliation" :key="r.key" class="border-b border-line" :title="r.note">
-                  <td class="py-1.5 text-ink">{{ r.label }}</td>
+                  <td class="py-1.5 text-ink">{{ r.label }}<span v-if="r.different" class="block text-[11px] text-ink-3">{{ r.different }} com valor diferente</span></td>
                   <td class="py-1.5 text-right" data-numeric>{{ brl(r.lunna) }}</td>
                   <td class="py-1.5 text-right" data-numeric>{{ brl(r.extrato) }}</td>
-                  <td class="py-1.5 text-right font-semibold" :class="Math.abs(r.diff_pct ?? 0) > 10 ? 'text-warning' : 'text-ink'" data-numeric>{{ r.diff > 0 ? '+' : '' }}{{ brl(r.diff) }}<span v-if="r.diff_pct !== null" class="text-ink-3"> ({{ r.diff_pct > 0 ? '+' : '' }}{{ r.diff_pct }}%)</span></td>
+                  <td class="py-1.5 text-right font-semibold" :class="Math.abs(r.diff_pct ?? 0) > 5 ? 'text-warning' : 'text-success'" data-numeric>{{ r.diff > 0 ? '+' : '' }}{{ brl(r.diff) }}<span v-if="r.diff_pct !== null" class="text-ink-3"> ({{ r.diff_pct > 0 ? '+' : '' }}{{ r.diff_pct }}%)</span></td>
+                  <td class="py-1.5 text-right text-ink-3" data-numeric>{{ r.pending ?? '—' }}</td>
+                  <td class="py-1.5 text-right text-ink-3" data-numeric>{{ r.calendar !== undefined ? brl(r.calendar) : '—' }}</td>
                 </tr>
               </tbody>
             </table>
