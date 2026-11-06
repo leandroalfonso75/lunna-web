@@ -43,6 +43,10 @@ export interface SaleEconomics {
   fee: number
   shipping_cost: number
   shipping_known: boolean
+  /** Parte do vendedor no cupom (coupon_fee), descontada no pagamento do Mercado Pago; entra no lucro. */
+  coupon_cost: number
+  /** Desconto total do cupom dado ao comprador. */
+  coupon_discount: number
   fixed_expenses: number
   tax: number
   net_profit: number | null
@@ -148,6 +152,9 @@ export interface SalesSummary {
   ticket: number | null
   fee: number
   shipping_cost: number
+  coupon_cost: number
+  coupon_discount: number
+  coupon_orders: number
   tax: number
   fixed_expenses: number
   cost: number

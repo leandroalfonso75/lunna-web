@@ -17,7 +17,9 @@ const cards = computed(() => [
   { key: 'orders', label: 'Vendas', value: int(props.summary.orders), hint: props.summary.cancelled ? `${int(props.summary.cancelled)} canceladas (fora dos totais)` : `${int(props.summary.units)} unidades` },
   { key: 'revenue', label: 'Faturamento', value: brl(props.summary.revenue), hint: `Ticket médio ${brl(props.summary.ticket)}` },
   { key: 'profit', label: 'Lucro líquido', value: brl(props.summary.net_profit), hint: props.summary.net_profit_pct === null ? 'Sem custo nos itens' : `${pct(props.summary.net_profit_pct)} do faturamento`, tone: props.summary.net_profit < 0 ? 'text-danger' : 'text-success' },
-  { key: 'fees', label: 'Tarifas + frete', value: brl(props.summary.fee + props.summary.shipping_cost), hint: `Tarifa ${brl(props.summary.fee)} · frete ${brl(props.summary.shipping_cost)}` },
+  props.summary.coupon_cost
+    ? { key: 'fees', label: 'Tarifas, frete e cupom', value: brl(props.summary.fee + props.summary.shipping_cost + props.summary.coupon_cost), hint: `Tarifa ${brl(props.summary.fee)} · frete ${brl(props.summary.shipping_cost)} · cupom ${brl(props.summary.coupon_cost)} (${int(props.summary.coupon_orders)} vendas, desconto ${brl(props.summary.coupon_discount)})` }
+    : { key: 'fees', label: 'Tarifas + frete', value: brl(props.summary.fee + props.summary.shipping_cost), hint: `Tarifa ${brl(props.summary.fee)} · frete ${brl(props.summary.shipping_cost)}` },
   { key: 'tax', label: 'Imposto + despesas', value: brl(props.summary.tax + props.summary.fixed_expenses), hint: `Imposto ${brl(props.summary.tax)} · fixas ${brl(props.summary.fixed_expenses)}` },
   { key: 'cost', label: 'Custo dos produtos', value: brl(props.summary.cost), hint: 'Do Olist (PEPS) pelo SKU' },
   { key: 'ads', label: 'Custo com Ads', value: brl(props.summary.ads_cost), hint: adsHint.value },

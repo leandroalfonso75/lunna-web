@@ -58,18 +58,19 @@ const LOGISTIC_TABS: { value: SalesFilters['logistic']; label: string }[] = [
 
 const COLUMNS = [
   { key: 'date', label: 'Data', sort: 'date', width: 'w-[7%]', align: 'left' },
-  { key: 'sale', label: 'Venda', width: 'w-[16%] max-xl:w-[24%]', align: 'left' },
+  { key: 'sale', label: 'Venda', width: 'w-[14%] max-xl:w-[24%]', align: 'left' },
   { key: 'buyer', label: 'Cliente', width: 'w-[11%] max-xl:w-[14%]', align: 'left' },
   { key: 'total', label: 'Valor', sort: 'total', width: 'w-[7%]', align: 'right' },
   { key: 'fee', label: 'Tarifa', width: 'w-[6%]', align: 'right', hide: true },
   { key: 'shipping_cost', label: 'Frete', width: 'w-[6%]', align: 'right', hide: true },
+  { key: 'coupon', label: 'Cupom', width: 'w-[5%]', align: 'right', hide: true },
   { key: 'tax', label: 'Imposto', width: 'w-[6%]', align: 'right', hide: true },
   { key: 'fixed_expenses', label: 'Desp. fixas', width: 'w-[6%]', align: 'right', hide: true },
   { key: 'cost', label: 'Custo', width: 'w-[6%]', align: 'right', hide: true },
   { key: 'profit', label: 'Lucro líquido', sort: 'profit_pct', width: 'w-[8%]', align: 'right' },
   { key: 'ads_cost', label: 'Custo Ads', sort: 'ads_cost', width: 'w-[7%]', align: 'right' },
   { key: 'profit_after_ads', label: 'Lucro pós Ads', sort: 'profit_after_ads_pct', width: 'w-[9%]', align: 'right' },
-  { key: 'shipping', label: 'Envio', width: 'w-[11%] max-xl:w-[14%]', align: 'left' }
+  { key: 'shipping', label: 'Envio', width: 'w-[10%] max-xl:w-[14%]', align: 'left' }
 ]
 
 const ADS_HINT: Record<string, string> = {
@@ -322,6 +323,13 @@ function onDate(which: 'from' | 'to', event: Event) {
                     <template v-else>…</template>
                   </template>
                   <template v-else>—</template>
+                </td>
+                <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric data-test="col-cupom">
+                  <span v-if="row.economics && (row.economics.coupon_discount || row.economics.coupon_cost)" :title="`Desconto de cupom dado ao comprador: ${money(row.economics.coupon_discount)}. Sua parte, descontada no pagamento do Mercado Pago: ${money(row.economics.coupon_cost)}`">
+                    <span class="block" :class="row.economics.coupon_cost ? 'text-danger' : 'text-ink-3'">{{ money(row.economics.coupon_cost) }}</span>
+                    <span class="block text-[11px] text-ink">desc. {{ money(row.economics.coupon_discount) }}</span>
+                  </span>
+                  <span v-else class="text-ink-3">—</span>
                 </td>
                 <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric data-test="col-imposto">
                   <span v-if="row.economics" :title="`${num(taxPct(row), 1)}% da receita dos itens`"><span class="block text-danger">{{ money(row.economics.tax) }}</span><span class="block text-[11px] text-ink">{{ share(row.economics.tax, row.economics.revenue) }}</span></span>

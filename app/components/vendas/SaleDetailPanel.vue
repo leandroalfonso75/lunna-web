@@ -75,6 +75,10 @@ const money = (v: number | null | undefined) => brl(v)
           <dt>Frete do vendedor<template v-if="detail.shipping.shared_with?.length"> (dividido)</template></dt>
           <dd data-numeric>{{ detail.economics.shipping_known ? `− ${money(detail.economics.shipping_cost)}` : 'ainda não lido' }}</dd>
         </div>
+        <div v-if="detail.economics.coupon_discount || detail.economics.coupon_cost" class="def-row" data-test="detalhe-cupom">
+          <dt>Cupom (sua parte)<span class="block text-[11px] font-normal text-ink-3">desconto ao comprador {{ money(detail.economics.coupon_discount) }}</span></dt>
+          <dd data-numeric>− {{ money(detail.economics.coupon_cost) }}</dd>
+        </div>
         <div class="def-row"><dt>Despesas fixas</dt><dd data-numeric>− {{ money(detail.economics.fixed_expenses) }}</dd></div>
         <div class="def-row"><dt>Imposto</dt><dd data-numeric>− {{ money(detail.economics.tax) }}</dd></div>
         <div class="def-row border-t border-line pt-1 font-semibold">
