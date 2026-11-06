@@ -62,6 +62,10 @@ export interface ReconciliationItem {
   different?: number
   /** total do extrato pela data da cobrança (mistura outros períodos e canceladas) */
   calendar?: number
+  /** fretes: parte paga pelos compradores nos envios já cobrados */
+  buyer_paid?: number
+  /** fretes cobrados fora da conta previsto + parte do comprador (até 50) */
+  divergent?: { shipment_id: number; order_id: number; date: string; logistic: string | null; expected: number; buyer_paid: number; billed: number; diff: number }[]
 }
 
 /** Lançamento manual (abas Receita e Despesas). */

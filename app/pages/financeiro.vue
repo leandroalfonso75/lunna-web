@@ -469,6 +469,23 @@ function exportExpenses() {
             <ul class="mt-2 space-y-0.5 text-[11px] text-ink-3">
               <li v-for="r in data.reconciliation" :key="`n-${r.key}`">{{ r.label }}: {{ r.note }}</li>
             </ul>
+            <div v-for="r in data.reconciliation.filter((x) => x.divergent?.length)" :key="`d-${r.key}`" class="mt-3 rounded-card border border-warning bg-warning-soft p-2 text-[12px]" data-test="fretes-divergentes">
+              <p class="font-semibold text-ink">Envios cobrados fora da conta "previsto + parte do comprador" ({{ r.different }})</p>
+              <p class="text-ink-2">São estes que valem um pedido de revisão ao Mercado Livre. Abra a venda e compare com Faturamento › Detalhe.</p>
+              <table class="mt-1 w-full">
+                <thead><tr class="text-ink-3"><th class="py-0.5 text-left font-medium">Venda</th><th class="py-0.5 text-left font-medium">Envio</th><th class="py-0.5 text-right font-medium">Previsto</th><th class="py-0.5 text-right font-medium">Comprador</th><th class="py-0.5 text-right font-medium">Cobrado</th><th class="py-0.5 text-right font-medium">Diferença</th></tr></thead>
+                <tbody>
+                  <tr v-for="d in r.divergent" :key="d.shipment_id" class="border-t border-line">
+                    <td class="py-0.5"><a :href="`https://www.mercadolivre.com.br/vendas/${d.order_id}/detalhe`" target="_blank" rel="noopener" class="btn-link">{{ d.order_id }}</a> <span class="text-ink-3">{{ dateShort(d.date) }}</span></td>
+                    <td class="py-0.5 text-ink-2">{{ d.shipment_id }}</td>
+                    <td class="py-0.5 text-right" data-numeric>{{ brl(d.expected) }}</td>
+                    <td class="py-0.5 text-right" data-numeric>{{ brl(d.buyer_paid) }}</td>
+                    <td class="py-0.5 text-right" data-numeric>{{ brl(d.billed) }}</td>
+                    <td class="py-0.5 text-right font-semibold" :class="d.diff > 0 ? 'text-danger' : 'text-success'" data-numeric>{{ d.diff > 0 ? '+' : '' }}{{ brl(d.diff) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <p class="mt-2 text-[12px] text-ink-2">Para ver as despesas com os valores cobrados, use <button type="button" class="btn-link" @click="filters.basis = 'extrato'">Extrato do ML</button> nos filtros.</p>
           </div>
         </div>
