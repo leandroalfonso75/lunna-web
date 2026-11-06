@@ -173,7 +173,7 @@ defineExpose({ reset })
 
     <div v-if="claim.last_message" class="mx-3 mb-3 rounded-card border border-line p-2 text-[12px]">
       <p class="text-ink-3">Última mensagem · {{ claim.last_message.sender_label }} · {{ dateTimeShort(claim.last_message.date) }}</p>
-      <p class="line-clamp-3 whitespace-pre-line text-ink">{{ claim.last_message.text }}</p>
+      <p class="mt-1 max-h-64 overflow-y-auto whitespace-pre-line break-words pr-1 text-ink" data-test="ultima-mensagem">{{ claim.last_message.text }}</p>
     </div>
 
     <footer class="flex flex-wrap items-center gap-2 border-t border-line p-3">
