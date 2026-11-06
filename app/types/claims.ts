@@ -136,3 +136,59 @@ export interface ContestsResponse {
   claims: ContestClaim[]
   summary: { total: number; pending?: number; contested?: number; by_group: Record<string, number>; due_7d: number; by_status: Partial<Record<ContestStatus, number>> }
 }
+
+/** Card Devoluções: devoluções liberadas pelo ML em quatro guias, com os custos itemizados. */
+export type ReturnsTab = 'expiradas' | 'sem_custo' | 'com_custos' | 'em_andamento'
+
+export interface ReturnCostItem {
+  key: 'frete_envio' | 'frete_devolucao' | 'tarifa_venda' | 'reembolso_parcial' | 'outro'
+  label: string
+  amount: number
+  detail: string | null
+}
+
+export interface ReturnStatementLine {
+  date: string | null
+  label: string | null
+  kind: 'CHARGE' | 'BONUS' | string
+  category: 'envio' | 'devolucao' | 'venda' | 'outro'
+  amount: number
+  period: string
+}
+
+export interface ReturnRow {
+  claim_id: number
+  order_id: number | null
+  opened_at: string
+  claim_status: string
+  closed_at: string | null
+  status: { key: string; label: string; tone: string; raw: string | null }
+  reason: string | null
+  reason_code: string | null
+  buyer: string | null
+  item: { item_id: string; title: string | null; sku: string | null; quantity: number; thumbnail: string | null } | null
+  order_total: number | null
+  logistic: string | null
+  refund: { key: string | null; label: string | null; amount: number | null; paid: number | null }
+  tracking: string | null
+  money: string | null
+  affects_reputation: boolean | null
+  coverage: boolean | null
+  costs: { items: ReturnCostItem[]; total: number; notes: string[]; statement: ReturnStatementLine[] }
+  tab: ReturnsTab
+  link: string | null
+}
+
+export interface ReturnsResponse {
+  tabs: Record<ReturnsTab, ReturnRow[]>
+  summary: {
+    counts: Record<ReturnsTab, number>
+    total_cost: number
+    by_kind: Partial<Record<ReturnCostItem['key'], number>>
+    by_reason: { reason: string | null; count: number; cost: number }[]
+    refunded_total: number
+    no_billing: number
+  }
+  billing: { synced_at: string | null; periods: string[] }
+  period: { preset: string; month: string | null; from: string | null; to: string | null }
+}

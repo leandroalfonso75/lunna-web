@@ -5,13 +5,14 @@ import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
 import ClaimAttentionCard from '../components/reclamacoes/ClaimAttentionCard.vue'
 import ClaimContestCard from '../components/reclamacoes/ClaimContestCard.vue'
+import ReturnsPanel from '../components/reclamacoes/ReturnsPanel.vue'
 import ClaimDetailPanel from '../components/reclamacoes/ClaimDetailPanel.vue'
 import { usePageHeader } from '../composables/usePageHeader'
 import { useToast } from '../composables/useToast'
 import { apiErrorMessage } from '../lib/apiErrors'
 import { brl, dateShort, dateTimeShort, int } from '../lib/format'
 import { useSessionStore } from '../stores/session'
-import type { ClaimDetail, ClaimsResponse, ContestStatus, ContestsResponse } from '../types/claims'
+import type { ClaimDetail, ClaimsResponse, ContestStatus, ContestsResponse, ReturnsResponse } from '../types/claims'
 
 /**
  * `/reclamacoes`: todas as reclamações do Mercado Livre (cancelamentos, mediações, devoluções) importadas pelo Lunna,
@@ -23,13 +24,29 @@ const session = useSessionStore()
 const header = usePageHeader()
 
 // período (como em Vendas: presets, mês ou datas; padrão: todas) e ordenação por coluna
-const filters = reactive({ q: '', page: 1, per_page: 50, period: 'all', from: '', to: '', sort: 'date', dir: 'desc' as 'asc' | 'desc', view: '' as '' | 'atender' | 'abertas' | 'contestar' })
+const filters = reactive({ q: '', page: 1, per_page: 50, period: 'all', from: '', to: '', sort: 'date', dir: 'desc' as 'asc' | 'desc', view: '' as '' | 'atender' | 'abertas' | 'contestar' | 'devolucoes' })
 const toast = useToast()
 const sending = ref(false)
 const cards = ref<InstanceType<typeof ClaimAttentionCard>[]>([])
 
-function setView(view: '' | 'atender' | 'abertas' | 'contestar') {
+function setView(view: '' | 'atender' | 'abertas' | 'contestar' | 'devolucoes') {
   Object.assign(filters, { view: filters.view === view ? '' : view, page: 1 })
+  if (filters.view === 'devolucoes') void loadReturns()
+}
+
+// Card Devoluções (pedido do usuário em 05/11/2026): segue o período escolhido acima.
+const returns = ref<ReturnsResponse | null>(null)
+const returnsLoading = ref(false)
+async function loadReturns() {
+  if (!session.selectedAccountId) return
+  returnsLoading.value = true
+  try {
+    returns.value = await $api('/api/claims/returns', { query: { account_id: session.selectedAccountId, ...periodQuery() } })
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível carregar as devoluções.'))
+  } finally {
+    returnsLoading.value = false
+  }
 }
 
 // Assistente de contestação (afetam a reputação, dentro dos 60 dias): o Lunna só guarda o andamento, não envia nada ao ML.
@@ -167,7 +184,7 @@ async function load(silent = false) {
     response.value = await $api('/api/claims', {
       query: {
         account_id: accountId, q: filters.q.trim() || undefined, page: filters.page, per_page: filters.per_page,
-        view: filters.view === 'contestar' ? undefined : filters.view || undefined,
+        view: filters.view === 'contestar' || filters.view === 'devolucoes' ? undefined : filters.view || undefined,
         // na visão A atender/Abertas a ordem é pelo prazo e o período não se aplica
         ...(filters.view ? {} : { sort: filters.sort, dir: filters.dir, ...periodQuery() })
       }
@@ -202,6 +219,7 @@ watch(() => session.selectedAccountId, () => void loadContests())
 watch(() => [filters.page, filters.per_page, filters.sort, filters.dir, filters.period, filters.from, filters.to, filters.view, session.selectedAccountId], () => {
   if (filters.period === 'custom' && !(filters.from && filters.to)) return
   void load()
+  if (filters.view === 'devolucoes') void loadReturns()
 })
 
 let poll: ReturnType<typeof setInterval> | undefined
@@ -320,8 +338,27 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
         </span>
         <span class="ml-auto text-[20px] font-bold">{{ int(contestPending()) }}</span>
       </button>
+      <button
+        type="button"
+        class="flex min-w-[220px] items-center gap-3 rounded-card border-2 px-4 py-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
+        :class="filters.view === 'devolucoes' ? 'border-primary bg-primary text-white' : 'border-line bg-surface text-ink-2'"
+        :aria-pressed="filters.view === 'devolucoes'"
+        data-test="botao-devolucoes"
+        @click="setView('devolucoes')"
+      >
+        <span>
+          <span class="block text-[16px] font-bold leading-tight">Devoluções</span>
+          <span class="block text-[12px]">
+            <template v-if="returns">{{ int(returns.summary.counts.com_custos) }} com custo · {{ brl(returns.summary.total_cost) }}</template>
+            <template v-else>expiradas, sem custo e com custos</template>
+          </span>
+        </span>
+        <span class="ml-auto text-[20px] font-bold">{{ returns ? int(returns.summary.counts.expiradas + returns.summary.counts.sem_custo + returns.summary.counts.com_custos + returns.summary.counts.em_andamento) : '' }}</span>
+      </button>
       <button v-if="filters.view" type="button" class="btn-link self-center text-[13px]" @click="setView(filters.view)">← Ver todas as reclamações</button>
     </div>
+
+    <ReturnsPanel v-if="filters.view === 'devolucoes'" :data="returns" :loading="returnsLoading" />
 
     <div v-if="filters.view === 'contestar'" class="space-y-3" data-test="lista-contestar">
       <div class="flex flex-wrap items-end gap-1 border-b-2 border-line" role="tablist" aria-label="Contestações">
