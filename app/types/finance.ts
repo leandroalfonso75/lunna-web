@@ -58,7 +58,37 @@ export interface ReconciliationItem {
   note: string
 }
 
+/** Lançamento manual (abas Receita e Despesas). */
+export interface FinanceEntry {
+  id: number
+  entry_type: 'receita' | 'despesa'
+  date: string
+  category: string
+  description: string
+  amount: number
+  notes: string | null
+  user?: string | null
+}
+
+export interface RevenueTab {
+  totals: Record<'revenue' | 'refunds' | 'net_revenue' | 'orders' | 'units' | 'ticket' | 'other_income' | 'cancelled', Compare>
+  by_logistic: (Compare & { label: string; orders: number; units: number; share: number | null })[]
+  by_product: (Compare & { item_id: string; title: string | null; sku: string | null; units: number; share: number | null })[]
+  ads_vs_organic: { ads: Compare; organic: Compare; ads_share: number | null }
+  weekly: { label: string; revenue: number; previous_revenue: number | null; orders: number }[]
+  entries: FinanceEntry[]
+}
+
+export interface ExpensesTab {
+  items: (Compare & { key: string; label: string; note: string; share: number | null })[]
+  total: Compare
+  total_share: number | null
+  entries: FinanceEntry[]
+}
+
 export interface FinanceResponse {
+  revenue: RevenueTab
+  expenses: ExpensesTab
   period: {
     from: string; to: string; preset: string; month: string | null
     previous_from: string; previous_to: string; previous_label: string; previous_partial: boolean
