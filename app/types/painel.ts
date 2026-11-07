@@ -381,6 +381,8 @@ export interface AbcSuggestion {
   steps?: string[]
   /** cenários com a conta da margem (Preço, Frete) */
   options?: AbcPriceOption[]
+  /** dados para simular outro preço na tela (mesma conta dos cenários) */
+  calculator?: AbcPriceCalculator | null
   /** identifica a sugestão para o "Ciente" */
   key: string
   /** ação disponível na tela (ex.: gerar fotos, alterar título/ficha, "Ciente") */
@@ -397,6 +399,10 @@ export interface AbcPriceOption {
   profit: number
   margin_pct: number
   low: boolean
+  /** cenário de hoje (sem botão de aplicar) */
+  today?: boolean
+  /** mesmo preço de hoje (ex.: só ligar o frete grátis) */
+  same_price?: boolean
 }
 
 /** `GET /api/items/:id/ai-plan` (DECISOES §10): plano gerado em background, lido por polling. */
@@ -418,4 +424,16 @@ export interface AbcItemDetail {
   links: ItemLinks
   /** se o ML deixa trocar o título (sem vendas e fora do catálogo) */
   title_rule?: { editable: boolean; reason?: string; mode?: 'family_name' | 'title' }
+}
+
+export interface AbcPriceCalculator {
+  current_price: number
+  fee_pct: number
+  tax_pct: number
+  cost: number | null
+  ship_below: number
+  ship_free_below: number | null
+  ship_tiers: Record<string, number>
+  free_shipping_min: number
+  min_margin_pct: number
 }

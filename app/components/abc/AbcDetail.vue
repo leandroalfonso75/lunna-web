@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import AbcPhotoGenerator from './AbcPhotoGenerator.vue'
+import AbcPriceScenarios from './AbcPriceScenarios.vue'
 import AbcSpecsEditor from './AbcSpecsEditor.vue'
 import AbcTitleEditor from './AbcTitleEditor.vue'
 import { useToast } from '../../composables/useToast'
@@ -158,38 +159,7 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
             <ul v-if="s.steps?.length" class="mt-1 list-disc space-y-0.5 pl-4 text-[13px] text-ink-2" data-test="sugestao-medidas">
               <li v-for="(m, k) in s.steps" :key="k">{{ m }}</li>
             </ul>
-            <div v-if="s.options?.length" class="mt-2 overflow-x-auto" data-test="sugestao-opcoes">
-              <table class="w-full min-w-[520px] text-[12px]">
-                <thead class="text-ink-3">
-                  <tr>
-                    <th class="py-1 pr-2 text-left font-medium">Cenário</th>
-                    <th class="px-2 py-1 text-right font-medium">Preço</th>
-                    <th class="px-2 py-1 text-right font-medium">Tarifa</th>
-                    <th class="px-2 py-1 text-right font-medium">Frete</th>
-                    <th class="px-2 py-1 text-right font-medium">Imposto</th>
-                    <th class="px-2 py-1 text-right font-medium">Custo</th>
-                    <th class="px-2 py-1 text-right font-medium">Lucro</th>
-                    <th class="py-1 pl-2 text-right font-medium">Margem</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(o, k) in s.options" :key="k" class="border-t border-line">
-                    <td class="py-1 pr-2 text-ink">{{ o.label }}</td>
-                    <td class="px-2 py-1 text-right font-semibold text-ink" data-numeric>{{ brl(o.price) }}</td>
-                    <td class="px-2 py-1 text-right" data-numeric>− {{ brl(o.fee) }}</td>
-                    <td class="px-2 py-1 text-right" data-numeric>− {{ brl(o.shipping) }}</td>
-                    <td class="px-2 py-1 text-right" data-numeric>− {{ brl(o.tax) }}</td>
-                    <td class="px-2 py-1 text-right" data-numeric>{{ o.cost !== null ? `− ${brl(o.cost)}` : '—' }}</td>
-                    <td class="px-2 py-1 text-right" :class="o.profit < 0 ? 'text-danger' : 'text-ink'" data-numeric>{{ brl(o.profit) }}</td>
-                    <td class="py-1 pl-2 text-right font-semibold" :class="o.low ? 'text-danger' : 'text-success'" data-numeric>{{ pct(o.margin_pct) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p class="mt-1 text-[11px] text-ink-3">
-                Tarifa na mesma % de hoje; frete por unidade; imposto da empresa. Vermelho = abaixo da margem mínima.
-                <template v-if="s.options.some((o) => o.cost === null)"> Sem custo cadastrado para este anúncio: lucro e margem estão <strong>antes do custo</strong> (cadastre em Produtos para ver a margem real e os preços por margem).</template>
-              </p>
-            </div>
+            <AbcPriceScenarios v-if="s.options?.length" :item-id="row.id" :options="s.options" :calculator="s.calculator" @changed="emit('changed')" />
             <button
               v-if="s.action?.kind === 'gerar_fotos'"
               type="button"
