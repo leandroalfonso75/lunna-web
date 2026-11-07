@@ -1,19 +1,48 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import AbcPhotoGenerator from './AbcPhotoGenerator.vue'
+import AbcSpecsEditor from './AbcSpecsEditor.vue'
+import AbcTitleEditor from './AbcTitleEditor.vue'
+import { useToast } from '../../composables/useToast'
+import { apiErrorMessage } from '../../lib/apiErrors'
+import { useSessionStore } from '../../stores/session'
 import AiPlanPanel from './AiPlanPanel.vue'
 import { brl, int, pct } from '../../lib/format'
 import { SUGGESTION_PRIORITY_CLASS, SUGGESTION_PRIORITY_LABEL } from '../../lib/suggestionPriority'
-import type { AbcItemDetail, AbcRow, ThreeState } from '../../types/painel'
+import type { AbcItemDetail, AbcRow, AbcSuggestion, ThreeState } from '../../types/painel'
 
-defineProps<{
+const props = defineProps<{
   row: AbcRow
   detail: AbcItemDetail | undefined
   loading: boolean
   loadError: boolean
 }>()
 
-defineEmits<{ retry: [] }>()
+const emit = defineEmits<{ retry: []; changed: [] }>()
+
+const { $api } = useNuxtApp()
+const session = useSessionStore()
+const toast = useToast()
+
+/** Janelas de "Alterar título AGORA" e "Alterar ficha técnica AGORA" (pedido do usuário em 07/11/2026). */
+const editing = ref<'titulo' | 'ficha' | null>(null)
+const acking = ref<string | null>(null)
+
+/** "Ciente" em Vídeo, Tipo de anúncio e Qualidade: aplicada no ML ou aguardar (some e volta em 15 dias se nada mudar). */
+async function ack(s: AbcSuggestion, kind: 'aplicada' | 'aguardar') {
+  acking.value = s.key
+  try {
+    const res = await $api<{ message: string }>(`/api/items/${props.row.id}/suggestion_acks`, {
+      method: 'POST', query: { account_id: session.selectedAccountId }, body: { key: s.key, kind }
+    })
+    toast.success(res.message)
+    emit('changed')
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível registrar agora.'))
+  } finally {
+    acking.value = null
+  }
+}
 
 /** Curva ABC > Fotos: janela de geração de imagens (aberta pela ação "Gerar fotos" da sugestão de fotos). */
 const photoCount = ref<number | null>(null)
@@ -168,6 +197,24 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
               data-test="sugestao-gerar-fotos"
               @click="photoCount = s.action.suggested_count"
             >Gerar fotos com IA</button>
+            <button
+              v-else-if="s.action?.kind === 'alterar_titulo'"
+              type="button" class="btn-primary mt-2 h-8 text-[12px]" data-test="sugestao-alterar-titulo"
+              @click="editing = 'titulo'"
+            >Alterar título AGORA</button>
+            <button
+              v-else-if="s.action?.kind === 'alterar_ficha'"
+              type="button" class="btn-primary mt-2 h-8 text-[12px]" data-test="sugestao-alterar-ficha"
+              @click="editing = 'ficha'"
+            >Alterar ficha técnica AGORA</button>
+            <div v-else-if="s.action?.kind === 'ciente'" class="mt-2 flex flex-wrap gap-2" data-test="sugestao-ciente">
+              <button type="button" class="btn-secondary h-8 text-[12px]" :disabled="acking === s.key" @click="ack(s, 'aplicada')">Ciente, sugestão aplicada no Mercado Livre</button>
+              <button
+                type="button" class="btn-secondary h-8 text-[12px]" :disabled="acking === s.key"
+                title="A sugestão deixa de aparecer; se nada mudar em 15 dias, ela volta"
+                @click="ack(s, 'aguardar')"
+              >Ciente, aguardar</button>
+            </div>
           </div>
         </li>
       </ul>
@@ -234,5 +281,7 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
 
     <AiPlanPanel :item-id="row.id" />
   </div>
+  <AbcTitleEditor v-if="editing === 'titulo'" :item-id="row.id" @close="editing = null" @changed="emit('changed')" />
+  <AbcSpecsEditor v-if="editing === 'ficha'" :item-id="row.id" @close="editing = null" @changed="emit('changed')" />
   <AbcPhotoGenerator v-if="photoCount !== null && detail" :item-id="row.id" :title="row.title" :suggested-count="photoCount" @close="photoCount = null" />
 </template>

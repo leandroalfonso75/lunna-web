@@ -26,6 +26,7 @@ const {
   detailLoadingId,
   detailErrorId,
   loadDetail,
+  refreshDetail,
   start,
   stop,
   refreshNow
@@ -199,6 +200,7 @@ function profitLabel(): string {
                       :loading="detailLoadingId === row.id"
                       :load-error="detailErrorId === row.id"
                       @retry="loadDetail(row.id)"
+                      @changed="refreshDetail(row.id)"
                     />
                   </td>
                 </tr>

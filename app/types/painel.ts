@@ -381,8 +381,10 @@ export interface AbcSuggestion {
   steps?: string[]
   /** cenários com a conta da margem (Preço, Frete) */
   options?: AbcPriceOption[]
-  /** ação disponível na tela (ex.: gerar fotos) */
-  action?: { kind: 'gerar_fotos'; suggested_count: number }
+  /** identifica a sugestão para o "Ciente" */
+  key: string
+  /** ação disponível na tela (ex.: gerar fotos, alterar título/ficha, "Ciente") */
+  action?: { kind: 'gerar_fotos'; suggested_count: number } | { kind: 'alterar_titulo' | 'alterar_ficha' | 'ciente' }
 }
 
 export interface AbcPriceOption {
@@ -414,4 +416,6 @@ export interface AbcItemDetail {
   price: AbcPrice
   suggestions: AbcSuggestion[]
   links: ItemLinks
+  /** se o ML deixa trocar o título (sem vendas e fora do catálogo) */
+  title_rule?: { editable: boolean; reason?: string; mode?: 'family_name' | 'title' }
 }

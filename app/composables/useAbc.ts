@@ -83,6 +83,12 @@ export function useAbc() {
       if (detailLoadingId.value === itemId) detailLoadingId.value = null
     }
   }
+  /** Relê o detalhe (depois de alterar título/ficha ou marcar "Ciente"). */
+  async function refreshDetail(itemId: string) {
+    detailCache.delete(itemId)
+    await loadDetail(itemId)
+  }
+
 
   return {
     curve,
@@ -98,6 +104,7 @@ export function useAbc() {
     detailLoadingId,
     detailErrorId,
     loadDetail,
+    refreshDetail,
     ...polling
   }
 }
