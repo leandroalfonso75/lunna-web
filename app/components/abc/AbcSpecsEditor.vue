@@ -13,7 +13,7 @@ import { useSessionStore } from '../../stores/session'
 const props = defineProps<{ itemId: string }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
 
-interface Field { id: string; name: string; value_type: string; required: boolean; hint: string | null; values: { id: string; name: string }[]; free_text: boolean; units: { id: string; name: string }[]; default_unit: string | null; max_length: number | null; not_applicable: boolean }
+interface Field { id: string; name: string; value_type: string; required: boolean; hint: string | null; values: { id: string; name: string }[]; free_text: boolean; units: { id: string; name: string }[]; default_unit: string | null; max_length: number | null; not_applicable: boolean; multivalued?: boolean }
 interface Info { title: string; fields: Field[] }
 interface Suggestion { value_id: string | null; value_name: string; why: string }
 
@@ -162,6 +162,7 @@ async function publish() {
                 <input type="checkbox" :checked="!!values[f.id]?.not_applicable" @change="toggleNA(f, ($event.target as HTMLInputElement).checked)">
                 Não se aplica
               </label>
+              <p v-if="f.multivalued" class="mt-1 text-[12px] text-ink-3">Aceita mais de um valor: separe por vírgula.</p>
               <p v-if="f.hint" class="mt-1 text-[12px] text-ink-3">{{ f.hint }}</p>
               <p v-if="f.units.length" class="mt-1 text-[12px] text-ink-3">Unidades: {{ f.units.map((u) => u.id).join(', ') }}</p>
             </li>
