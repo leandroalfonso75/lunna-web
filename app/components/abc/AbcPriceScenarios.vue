@@ -19,7 +19,7 @@ const session = useSessionStore()
 const toast = useToast()
 
 const custom = ref('')
-const pending = ref<number | null>(null) // preço aguardando confirmação
+const pending = ref<number | null>(null) // linha aguardando confirmação
 const applying = ref(false)
 
 const BANDS = ['200', '150', '120', '100', '79']
@@ -45,13 +45,14 @@ const customOption = computed<AbcPriceOption | null>(() => {
   }
 })
 
-const canApply = (o: AbcPriceOption) => !o.today && !o.same_price && session.isAdmin
+// todo cenário menos o de hoje; no "com frete grátis" do mesmo preço, aplicar = ligar o frete grátis
+const canApply = (o: AbcPriceOption) => !o.today && session.isAdmin
 
-async function apply(price: number) {
+async function apply(o: AbcPriceOption) {
   applying.value = true
   try {
     const res = await $api<{ message: string }>(`/api/items/${props.itemId}/price`, {
-      method: 'POST', query: { account_id: session.selectedAccountId }, body: { price, confirm: true }
+      method: 'POST', query: { account_id: session.selectedAccountId }, body: { price: o.price, free_shipping: !!o.free_shipping, confirm: true }
     })
     toast.success(res.message)
     pending.value = null
@@ -93,11 +94,15 @@ async function apply(price: number) {
           <td class="px-2 py-1 text-right font-semibold" :class="o.low ? 'text-danger' : 'text-success'" data-numeric>{{ pct(o.margin_pct) }}</td>
           <td class="whitespace-nowrap py-1 pl-2 text-right">
             <template v-if="canApply(o)">
-              <span v-if="pending === o.price" class="inline-flex items-center gap-1">
-                <button type="button" class="btn-primary h-7 px-2 text-[11px]" :disabled="applying" data-test="preco-confirmar" @click="apply(o.price)">{{ applying ? 'Aplicando…' : 'Confirmar no ML' }}</button>
+              <span v-if="pending === k" class="inline-flex items-center gap-1">
+                <button type="button" class="btn-primary h-7 px-2 text-[11px]" :disabled="applying" data-test="preco-confirmar" @click="apply(o)">{{ applying ? 'Aplicando…' : 'Confirmar no ML' }}</button>
                 <button type="button" class="btn-secondary h-7 px-2 text-[11px]" :disabled="applying" @click="pending = null">Cancelar</button>
               </span>
-              <button v-else type="button" class="btn-secondary h-7 px-2 text-[11px]" data-test="preco-aplicar" @click="pending = o.price">Aplicar novo preço sugerido</button>
+              <button
+                v-else type="button" class="btn-secondary h-7 px-2 text-[11px]" data-test="preco-aplicar"
+                :title="o.same_price ? 'Mantém o preço e liga o frete grátis no Mercado Livre' : ''"
+                @click="pending = k"
+              >Aplicar novo preço sugerido</button>
             </template>
           </td>
         </tr>

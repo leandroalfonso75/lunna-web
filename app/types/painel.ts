@@ -403,6 +403,8 @@ export interface AbcPriceOption {
   today?: boolean
   /** mesmo preço de hoje (ex.: só ligar o frete grátis) */
   same_price?: boolean
+  /** cenário com frete grátis: aplicar também liga o frete grátis */
+  free_shipping?: boolean
 }
 
 /** `GET /api/items/:id/ai-plan` (DECISOES §10): plano gerado em background, lido por polling. */
