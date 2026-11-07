@@ -13,7 +13,7 @@ import { useSessionStore } from '../../stores/session'
 const props = defineProps<{ itemId: string }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
 
-interface Field { id: string; name: string; value_type: string; required: boolean; hint: string | null; values: { id: string; name: string }[]; free_text: boolean; units: { id: string; name: string }[]; default_unit: string | null; max_length: number | null }
+interface Field { id: string; name: string; value_type: string; required: boolean; hint: string | null; values: { id: string; name: string }[]; free_text: boolean; units: { id: string; name: string }[]; default_unit: string | null; max_length: number | null; not_applicable: boolean }
 interface Info { title: string; fields: Field[] }
 interface Suggestion { value_id: string | null; value_name: string; why: string }
 
@@ -24,13 +24,14 @@ const query = () => ({ account_id: session.selectedAccountId })
 
 const loading = ref(true)
 const info = ref<Info | null>(null)
-const values = reactive<Record<string, { value_id: string | null; value_name: string }>>({})
+type Value = { value_id: string | null; value_name: string; not_applicable?: boolean }
+const values = reactive<Record<string, Value>>({})
 const suggestions = ref<Record<string, Suggestion>>({})
 const suggesting = ref(false)
 const confirming = ref(false)
 const publishing = ref(false)
 
-const filledCount = computed(() => Object.values(values).filter((v) => v.value_id || v.value_name.trim()).length)
+const filledCount = computed(() => Object.values(values).filter((v) => v.not_applicable || v.value_id || v.value_name.trim()).length)
 const missingCount = computed(() => (info.value?.fields.length ?? 0) - filledCount.value)
 
 onMounted(async () => {
@@ -69,7 +70,7 @@ async function suggest() {
     // já preenche os campos vazios com as sugestões
     for (const [id, s] of Object.entries(res.values)) {
       const cur = values[id]
-      if (cur && !cur.value_id && !cur.value_name.trim()) values[id] = { value_id: s.value_id, value_name: s.value_name }
+      if (cur && !cur.not_applicable && !cur.value_id && !cur.value_name.trim()) values[id] = { value_id: s.value_id, value_name: s.value_name }
     }
     const n = Object.keys(res.values).length
     if (n) toast.success(`${n} característica(s) sugerida(s). Confira antes de publicar.`)
@@ -79,6 +80,11 @@ async function suggest() {
   } finally {
     suggesting.value = false
   }
+}
+
+/** "Não se aplica" (o ML guarda como value_id -1): limpa e trava o campo. */
+function toggleNA(f: Field, on: boolean) {
+  values[f.id] = { value_id: null, value_name: '', not_applicable: on }
 }
 
 function apply(id: string) {
@@ -132,13 +138,13 @@ async function publish() {
               <div class="flex flex-wrap items-end gap-2">
                 <label class="min-w-0 flex-1">
                   <span class="mb-1 block font-semibold text-ink">{{ f.name }}<span v-if="f.required" class="ml-1 text-danger" title="Obrigatório">*</span></span>
-                  <select v-if="isSelect(f)" class="input w-full" :value="values[f.id]?.value_id ?? ''" @change="onSelect(f, ($event.target as HTMLSelectElement).value)">
+                  <select v-if="isSelect(f)" class="input w-full" :disabled="values[f.id]?.not_applicable" :value="values[f.id]?.value_id ?? ''" @change="onSelect(f, ($event.target as HTMLSelectElement).value)">
                     <option value="">— escolha —</option>
                     <option v-for="v in f.values" :key="v.id" :value="v.id">{{ v.name }}</option>
                   </select>
                   <template v-else>
                     <input
-                      class="input w-full" type="text" :list="f.values.length ? `opts-${f.id}` : undefined"
+                      class="input w-full" type="text" :disabled="values[f.id]?.not_applicable" :list="f.values.length ? `opts-${f.id}` : undefined"
                       :value="values[f.id]?.value_name ?? ''"
                       :placeholder="unitHint(f)"
                       @input="onText(f, ($event.target as HTMLInputElement).value)"
@@ -147,11 +153,15 @@ async function publish() {
                   </template>
                 </label>
                 <button
-                  v-if="suggestions[f.id]" type="button" class="btn-secondary h-9 shrink-0 text-[12px]" data-test="ficha-aplicar"
+                  v-if="suggestions[f.id] && !values[f.id]?.not_applicable" type="button" class="btn-secondary h-9 shrink-0 text-[12px]" data-test="ficha-aplicar"
                   @click="apply(f.id)"
                 >Aplicar sugestão</button>
               </div>
               <p v-if="suggestions[f.id]" class="mt-1 text-[12px] text-ink-3">Sugestão: <strong class="text-ink">{{ suggestions[f.id]?.value_name }}</strong><template v-if="suggestions[f.id]?.why"> · {{ suggestions[f.id]?.why }}</template></p>
+              <label v-if="f.not_applicable" class="mt-2 inline-flex items-center gap-2 text-ink-2" data-test="ficha-nao-se-aplica">
+                <input type="checkbox" :checked="!!values[f.id]?.not_applicable" @change="toggleNA(f, ($event.target as HTMLInputElement).checked)">
+                Não se aplica
+              </label>
               <p v-if="f.hint" class="mt-1 text-[12px] text-ink-3">{{ f.hint }}</p>
               <p v-if="f.units.length" class="mt-1 text-[12px] text-ink-3">Unidades: {{ f.units.map((u) => u.id).join(', ') }}</p>
             </li>
