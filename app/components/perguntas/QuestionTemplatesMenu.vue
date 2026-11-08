@@ -11,14 +11,17 @@ import type { QuestionTemplate } from '../../types/questions'
  * (quando usado numa pergunta) e o menu "…" de cada uma (Editar, Excluir); no topo, "Incluir resposta padrão".
  * `draft`: texto já escrito na pergunta, oferecido como corpo ao incluir uma nova.
  */
-const props = defineProps<{ templates: QuestionTemplate[]; canApply?: boolean; draft?: string }>()
+const props = withDefaults(defineProps<{ templates: QuestionTemplate[]; canApply?: boolean; draft?: string; kind?: 'pergunta' | 'mensagem' }>(), {
+  canApply: false, draft: '', kind: 'pergunta'
+})
 const emit = defineEmits<{ apply: [t: QuestionTemplate]; changed: [] }>()
 
-const MAX = 2000
+// limite do Mercado Livre: resposta de pergunta 2000, mensagem de pós-venda 350
+const MAX = props.kind === 'mensagem' ? 350 : 2000
 const { $api } = useNuxtApp()
 const session = useSessionStore()
 const toast = useToast()
-const query = () => ({ account_id: session.selectedAccountId })
+const query = () => ({ account_id: session.selectedAccountId, kind: props.kind })
 
 const open = ref(false)
 const menuFor = ref<number | null>(null)
@@ -42,7 +45,7 @@ async function save() {
   try {
     const { id, title, body } = editing.value
     if (id) await $api(`/api/question_templates/${id}`, { method: 'PATCH', query: query(), body: { title, body } })
-    else await $api('/api/question_templates', { method: 'POST', query: query(), body: { title, body } })
+    else await $api('/api/question_templates', { method: 'POST', query: query(), body: { title, body, kind: props.kind } })
     toast.success(id ? 'Resposta padrão atualizada.' : 'Resposta padrão incluída.')
     editing.value = null
     emit('changed')
