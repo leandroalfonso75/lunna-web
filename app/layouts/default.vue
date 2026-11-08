@@ -18,6 +18,7 @@ import {
   XMarkIcon, BanknotesIcon } from '@heroicons/vue/24/outline'
 import { ref, watch } from 'vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
+import { useAttention } from '../composables/useAttention'
 import { usePageHeader } from '../composables/usePageHeader'
 import { useToast } from '../composables/useToast'
 import { useSessionStore } from '../stores/session'
@@ -38,6 +39,8 @@ const auth = useAuth()
 const route = useRoute()
 const toast = useToast()
 const header = usePageHeader()
+// ponto vermelho piscante em Reclamações, Perguntas e Mensagens quando há algo a atender
+const attention = useAttention()
 
 const NAV_SECTIONS = [
   {
@@ -150,6 +153,10 @@ watch(() => route.fullPath, closeDrawer)
             >
               <component :is="item.icon" class="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
               {{ item.label }}
+              <span v-if="attention.pending(item.to)" class="relative ml-auto flex h-2.5 w-2.5" :title="`${attention.pending(item.to)} a atender`" data-test="menu-pendente">
+                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger opacity-75" />
+                <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-danger" />
+              </span>
             </NuxtLink>
           </div>
         </div>
@@ -261,6 +268,10 @@ watch(() => route.fullPath, closeDrawer)
                   >
                     <component :is="item.icon" class="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
                     {{ item.label }}
+                    <span v-if="attention.pending(item.to)" class="relative ml-auto flex h-2.5 w-2.5" :title="`${attention.pending(item.to)} a atender`" data-test="menu-pendente">
+                      <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger opacity-75" />
+                      <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-danger" />
+                    </span>
                   </NuxtLink>
                 </div>
               </div>
