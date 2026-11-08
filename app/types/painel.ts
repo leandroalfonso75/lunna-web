@@ -284,6 +284,10 @@ export interface AbcRow {
   margin_state: ThreeState | null
   suggestions_count: number
   urgent_count: number
+  /** todos os SKUs do anúncio e o nome do produto no Olist (busca da tela) */
+  skus?: string[]
+  products?: string[]
+  catalog?: boolean
 }
 
 export interface AbcResponse {

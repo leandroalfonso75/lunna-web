@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
+import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
+import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import AbcDetail from './AbcDetail.vue'
 import { useAbc } from '../../composables/useAbc'
 import { usePageHeader } from '../../composables/usePageHeader'
@@ -59,6 +60,22 @@ function tabCount(value: CurveFilter): number {
 
 const expandedId = ref<string | null>(null)
 
+/**
+ * Busca (pedido do usuário em 08/11/2026): por produto (nome no Olist), SKU, anúncio (MLB) ou palavra-chave do título.
+ * Vale em todas as abas (o texto fica ao trocar de curva). Várias palavras: o anúncio precisa ter todas.
+ */
+const search = ref('')
+const normalize = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+const rows = computed(() => {
+  const all = data.value?.rows ?? []
+  const words = normalize(search.value.trim()).split(/\s+/).filter(Boolean)
+  if (!words.length) return all
+  return all.filter((r) => {
+    const hay = normalize([r.id, r.title, r.sku, ...(r.skus ?? []), ...(r.products ?? [])].filter(Boolean).join(' '))
+    return words.every((w) => hay.includes(w))
+  })
+})
+
 function toggleRow(row: AbcRow) {
   expandedId.value = expandedId.value === row.id ? null : row.id
   if (expandedId.value) loadDetail(row.id)
@@ -101,6 +118,14 @@ function profitLabel(): string {
           <p class="mt-1 text-[20px] font-semibold text-ink">{{ int(row.count) }} anúncios</p>
           <p class="text-[13px] text-ink-3">{{ brl(row.revenue) }} · {{ pct(row.share_pct) }} do total</p>
         </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <label class="relative w-full max-w-md">
+          <MagnifyingGlassIcon class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" aria-hidden="true" />
+          <input v-model="search" type="search" class="input h-9 w-full pl-8 text-[13px]" placeholder="Filtrar por produto, SKU, anúncio (MLB) ou palavra-chave" data-test="abc-busca">
+        </label>
+        <span v-if="search.trim()" class="text-[13px] text-ink-3" data-test="abc-busca-total">{{ int(rows.length) }} de {{ int(data.rows.length) }} anúncios nesta aba</span>
       </div>
 
       <nav class="tab-bar" aria-label="Abas de curva">
@@ -146,11 +171,11 @@ function profitLabel(): string {
               </tr>
             </thead>
             <tbody>
-              <tr v-if="!data.rows.length">
-                <td colspan="11" class="px-3 py-10 text-center text-ink-3">Nenhum anúncio nesta curva.</td>
+              <tr v-if="!rows.length">
+                <td colspan="11" class="px-3 py-10 text-center text-ink-3">{{ search.trim() ? 'Nenhum anúncio com esse filtro nesta aba.' : 'Nenhum anúncio nesta curva.' }}</td>
               </tr>
 
-              <template v-for="row in data.rows" :key="row.id">
+              <template v-for="row in rows" :key="row.id">
                 <tr class="group cursor-pointer border-b border-line hover:bg-surface-2" @click="toggleRow(row)">
                   <td class="px-3 py-2 font-semibold text-ink">{{ row.curve }}</td>
                   <td class="sticky left-0 z-10 max-w-[280px] bg-surface px-3 py-2 group-hover:bg-surface-2">
