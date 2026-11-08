@@ -75,10 +75,10 @@ async function send() {
         Ver as {{ conversation.messages.length - 4 }} mensagens anteriores
       </button>
       <div v-for="m in shown" :key="m.id" class="flex" :class="m.mine ? 'justify-end' : 'justify-start'">
-        <div class="max-w-[80%] rounded-card px-3 py-2" :class="m.mine ? 'bg-primary text-white' : 'bg-surface text-ink'">
+        <div class="max-w-[80%] rounded-card px-3 py-2" :class="m.mine ? 'bg-primary text-white' : m.from === 'mercado_livre' ? 'border border-line bg-warning-soft text-ink' : 'bg-surface text-ink'">
           <p class="whitespace-pre-line break-words">{{ m.text }}</p>
           <p v-if="m.attachments?.length" class="mt-1 text-[11px] opacity-80">📎 {{ m.attachments.map((a) => a.original_filename || a.filename).join(', ') }}</p>
-          <p class="mt-1 text-[10px] opacity-70">{{ m.mine ? 'Você' : 'Comprador' }} · {{ dateTimeShort(m.date) }}</p>
+          <p class="mt-1 text-[10px] opacity-70">{{ m.mine ? 'Você' : m.from === 'mercado_livre' ? 'Mercado Livre' : 'Comprador' }} · {{ dateTimeShort(m.date) }}</p>
         </div>
       </div>
     </div>

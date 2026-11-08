@@ -2,6 +2,8 @@
 export interface ConversationMessage {
   id: string
   mine: boolean
+  /** quem escreveu: você, o comprador ou o Mercado Livre (assistente/mediação) */
+  from?: 'voce' | 'comprador' | 'mercado_livre'
   text: string
   date: string | null
   read: string | null
