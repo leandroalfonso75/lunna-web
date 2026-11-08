@@ -26,7 +26,7 @@ const sending = ref(false)
 const tooLong = computed(() => text.value.length > MAX)
 const confirmingDelete = ref(false)
 const suggesting = ref(false)
-const suggestion = ref<{ answer: string; sources: string[]; confidence: string | null; used: { same_item: number; same_sku: number; sku_items: number; skus: string[] } } | null>(null)
+const suggestion = ref<{ answer: string; sources: string[]; confidence: string | null; used: { same_item: number; same_sku: number; sku_items: number; skus: string[]; pictures?: number } } | null>(null)
 
 /** Resposta sugerida pela IA (dados do anúncio + respostas do mesmo anúncio e do mesmo SKU); preenche o campo para revisar. */
 async function suggest() {
@@ -127,7 +127,7 @@ async function send() {
         />
         <p class="mt-1 text-[11px]" :class="tooLong ? 'text-danger' : 'text-ink-3'" data-numeric>{{ text.length }}/{{ MAX }}</p>
         <p v-if="suggestion" class="mt-1 text-[11px] text-ink-3" data-test="pergunta-sugestao-base">
-          Sugestão da IA (confiança {{ suggestion.confidence ?? '—' }}) com base em: dados do anúncio
+          Sugestão da IA (confiança {{ suggestion.confidence ?? '—' }}) com base em: dados do anúncio<template v-if="suggestion.used.pictures"> e {{ suggestion.used.pictures }} foto(s)</template>
           · {{ suggestion.used.same_item }} resposta(s) deste anúncio
           · {{ suggestion.used.same_sku }} de outros anúncios do mesmo SKU<template v-if="suggestion.used.skus.length"> ({{ suggestion.used.skus.join(', ') }})</template>.
           <template v-if="suggestion.sources.length"> Fontes: {{ suggestion.sources.join('; ') }}.</template>
