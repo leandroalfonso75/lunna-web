@@ -134,6 +134,8 @@ export interface AdsAnalysisSignal {
   value: number | null
   detail: string
   item_ids?: string[]
+  /** anúncio e todos os SKUs dele (nunca abreviar) */
+  items_skus?: { item_id: string; skus: string[] }[]
   campaign_id?: number
 }
 
@@ -217,6 +219,7 @@ export interface AdsAnalysisQueueItem {
   reassess: string
   /** Códigos dos anúncios envolvidos (vazio em item de campanha) e as campanhas em que estão. */
   item_ids: string[]
+  items_skus?: { item_id: string; skus: string[] }[]
   campaigns: string[]
   /** perdido = dinheiro gasto sem retorno (vermelho); deixou_de_ganhar = receita que não veio (preto). */
   value_kind: 'perdido' | 'deixou_de_ganhar'
@@ -289,6 +292,7 @@ export interface AdsStructureSuggestion {
   title: string | null
   key: string
   item_ids: string[]
+  items_skus?: { item_id: string; skus: string[] }[]
   from_campaign: string | null
   to_campaign: string | null
   daily_budget: number

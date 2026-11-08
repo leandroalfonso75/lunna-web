@@ -152,13 +152,20 @@ function value(q: AdsAnalysisQueueItem) {
               <span class="text-[15px] font-semibold text-ink">#{{ q.n }}</span>
               <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="CLASS_TONE[q.class]">{{ q.class_label }}</span>
               <span class="font-medium text-ink">{{ q.title }}</span>
-              <span v-if="q.item_ids?.length" class="text-[11px] text-ink-3" data-test="acao-codigos">{{ q.item_ids.join(', ') }}<template v-if="q.campaigns?.length"> · campanha {{ q.campaigns.join(', ') }}</template></span>
+              <span v-if="q.campaigns?.length" class="text-[11px] text-ink-3">campanha {{ q.campaigns.join(', ') }}</span>
               <span class="ml-auto max-w-[260px] text-right" data-test="valor-em-jogo">
                 <span class="block text-[15px] font-semibold" :class="q.value_kind === 'perdido' ? 'text-danger' : 'text-ink'" data-numeric :title="q.value_how ?? 'não estimável'">{{ value(q) }}</span>
                 <span class="block text-[11px]" :class="q.value_kind === 'perdido' ? 'text-danger' : 'text-ink-2'">{{ q.value_kind === 'perdido' ? 'Perdido' : 'Deixou de ganhar' }}: {{ q.value_label }}</span>
                 <span class="block text-[11px] text-ink-3">de {{ dateShort(data.period.from) }} a {{ dateShort(data.period.to) }}</span>
               </span>
             </div>
+            <ul v-if="q.items_skus?.length" class="mt-1 space-y-0.5 text-[12px]" data-test="acao-codigos">
+              <li v-for="it in q.items_skus" :key="it.item_id" class="break-all text-ink-2">
+                <span class="font-medium text-ink">{{ it.item_id }}</span>
+                <template v-if="it.skus.length"> · SKU {{ it.skus.join(', ') }}</template>
+                <span v-else class="text-ink-3"> · sem SKU cadastrado</span>
+              </li>
+            </ul>
             <p class="mt-1 text-[12px] text-ink-3"><span class="font-medium text-ink-2">Valor em jogo:</span> {{ q.value_how ?? 'não estimável' }}</p>
             <p class="text-[12px] text-ink-2"><span class="font-medium">Evidência:</span> {{ q.evidence }}</p>
             <p class="mt-1 text-ink"><span class="font-medium">Ação:</span> {{ q.action }}</p>
@@ -262,13 +269,20 @@ function value(q: AdsAnalysisQueueItem) {
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="rounded-full px-2 py-0.5 font-semibold" :class="STRUCTURE_TYPE[s.type].tone">{{ STRUCTURE_TYPE[s.type].label }}</span>
                     <span class="font-medium text-ink">{{ s.title }}</span>
-                    <span v-if="s.item_ids.length" class="text-ink-3">{{ s.item_ids.slice(0, 3).join(', ') }}<template v-if="s.item_ids.length > 3"> +{{ s.item_ids.length - 3 }}</template></span>
+
                     <span class="ml-auto text-right">
                       <span v-if="s.daily_budget" class="font-semibold" :class="s.daily_budget < 0 ? 'text-danger' : 'text-ink'">{{ s.daily_budget < 0 ? '−' : '+' }}{{ brl(Math.abs(s.daily_budget)) }}/dia</span>
                       <span v-if="s.roas_target" class="block text-[11px] text-ink-3">ROAS Objetivo: começar em {{ num(s.roas_target, 1) }}<template v-if="s.roas_floor && s.roas_floor !== s.roas_target"> · mínimo {{ num(s.roas_floor, 1) }}</template></span>
                       <span v-else-if="s.keep_origin_roas && s.type === 'ativar'" class="block text-[11px] text-ink-3">vale o ROAS Objetivo da campanha ({{ num(s.keep_origin_roas, 1) }})</span>
                     </span>
                   </div>
+                  <ul v-if="s.items_skus?.length" class="mt-1 space-y-0.5" data-test="estrutura-skus">
+                    <li v-for="it in s.items_skus" :key="it.item_id" class="break-all text-ink-2">
+                      <span class="font-medium text-ink">{{ it.item_id }}</span>
+                      <template v-if="it.skus.length"> · SKU {{ it.skus.join(', ') }}</template>
+                      <span v-else class="text-ink-3"> · sem SKU cadastrado</span>
+                    </li>
+                  </ul>
                   <p class="mt-1 text-ink-2">
                     <template v-if="s.from_campaign && s.to_campaign">De <strong>{{ s.from_campaign }}</strong> para <strong>{{ s.to_campaign }}</strong>.</template>
                     <template v-else-if="s.to_campaign">Para <strong>{{ s.to_campaign }}</strong>.</template>
