@@ -1,0 +1,98 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import QuestionTemplatesMenu from './QuestionTemplatesMenu.vue'
+import { useToast } from '../../composables/useToast'
+import { apiErrorMessage } from '../../lib/apiErrors'
+import { brl, dateTimeShort } from '../../lib/format'
+import { useSessionStore } from '../../stores/session'
+import type { Question, QuestionTemplate } from '../../types/questions'
+
+/**
+ * Uma pergunta do Mercado Livre (pedido do usuário em 08/11/2026): campo de resposta, "Respostas padrão" (com
+ * "Aplicar", que preenche o campo) e "Enviar resposta" (vai ao ML, que entrega ao comprador; com confirmação).
+ */
+const props = defineProps<{ question: Question; templates: QuestionTemplate[] }>()
+const emit = defineEmits<{ answered: [q: Question]; templatesChanged: [] }>()
+
+const MAX = 2000
+const { $api } = useNuxtApp()
+const session = useSessionStore()
+const toast = useToast()
+
+const text = ref('')
+const confirming = ref(false)
+const sending = ref(false)
+const tooLong = computed(() => text.value.length > MAX)
+
+async function send() {
+  sending.value = true
+  try {
+    const res = await $api<{ message: string; question: Question }>(`/api/questions/${props.question.id}/answer`, {
+      method: 'POST', query: { account_id: session.selectedAccountId }, body: { text: text.value.trim(), confirm: true }
+    })
+    toast.success(res.message)
+    text.value = ''
+    emit('answered', res.question)
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'O Mercado Livre não aceitou a resposta.'))
+  } finally {
+    sending.value = false
+    confirming.value = false
+  }
+}
+</script>
+
+<template>
+  <article class="card space-y-3 p-4 text-[13px]" data-test="pergunta">
+    <header class="flex items-start gap-3">
+      <img v-if="question.item?.thumbnail" :src="question.item.thumbnail" alt="" class="h-12 w-12 shrink-0 rounded object-contain">
+      <div class="min-w-0 flex-1">
+        <p class="truncate font-medium text-ink" :title="question.item?.title ?? ''">{{ question.item?.title ?? question.item_id }}</p>
+        <p class="text-ink-3">
+          {{ question.item_id }}<template v-if="question.item?.price"> · {{ brl(question.item.price) }}</template>
+          <template v-if="question.item?.stock !== null && question.item?.stock !== undefined"> · estoque {{ question.item.stock }}</template>
+          <a v-if="question.item?.permalink" :href="question.item.permalink" target="_blank" rel="noopener" class="btn-link ml-1">ver anúncio</a>
+        </p>
+      </div>
+      <span
+        class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+        :class="{ 'bg-warning-soft text-warning': question.status_tone === 'warn', 'bg-success-soft text-success': question.status_tone === 'success',
+                  'bg-danger-soft text-danger': question.status_tone === 'danger', 'bg-surface-2 text-ink-2': question.status_tone === 'neutral' }"
+      >{{ question.status_label }}</span>
+    </header>
+
+    <div class="rounded-card bg-surface-2 p-3">
+      <p class="text-[11px] text-ink-3">Pergunta · {{ dateTimeShort(question.date_created) }}</p>
+      <p class="whitespace-pre-line text-ink" data-test="pergunta-texto">{{ question.text }}</p>
+    </div>
+
+    <div v-if="question.answer" class="rounded-card border border-line p-3">
+      <p class="text-[11px] text-ink-3">Sua resposta<template v-if="question.answer.date"> · {{ dateTimeShort(question.answer.date) }}</template></p>
+      <p class="whitespace-pre-line text-ink">{{ question.answer.text }}</p>
+    </div>
+
+    <template v-if="question.answerable">
+      <div>
+        <textarea
+          v-model="text" rows="3" class="input w-full py-2" :maxlength="MAX + 100"
+          placeholder="Escreva a resposta ou aplique uma resposta padrão" data-test="pergunta-resposta"
+        />
+        <p class="mt-1 text-[11px]" :class="tooLong ? 'text-danger' : 'text-ink-3'" data-numeric>{{ text.length }}/{{ MAX }}</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <QuestionTemplatesMenu :templates="templates" can-apply :draft="text" @apply="(t) => (text = t.body)" @changed="emit('templatesChanged')" />
+
+        <template v-if="!confirming">
+          <button type="button" class="btn-primary h-9" :disabled="!text.trim() || tooLong || !session.isAdmin" data-test="pergunta-enviar" @click="confirming = true">Enviar resposta</button>
+          <span v-if="!session.isAdmin" class="text-[12px] text-ink-3">Só administradores respondem no Mercado Livre.</span>
+        </template>
+        <template v-else>
+          <span class="text-ink">A resposta vai para o comprador agora. Confirmar?</span>
+          <button type="button" class="btn-primary h-9" :disabled="sending" data-test="pergunta-confirmar" @click="send">{{ sending ? 'Enviando…' : 'Sim, enviar' }}</button>
+          <button type="button" class="btn-secondary h-9" :disabled="sending" @click="confirming = false">Cancelar</button>
+        </template>
+      </div>
+    </template>
+  </article>
+</template>
