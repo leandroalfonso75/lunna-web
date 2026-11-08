@@ -64,6 +64,15 @@ function onSent(c: Conversation) {
   if (!c.awaiting && response.value.counts.aguardando > 0) response.value.counts.aguardando--
 }
 
+function onDeleted(pack: number) {
+  if (!response.value) return
+  const c = response.value.conversations.find((x) => x.pack_id === pack)
+  response.value.conversations = response.value.conversations.filter((x) => x.pack_id !== pack)
+  response.value.total--
+  response.value.counts.todas--
+  if (c?.awaiting && c.can_send) response.value.counts.aguardando--
+}
+
 watch(() => [filters.view, filters.page], load)
 watch(() => filters.q, () => {
   clearTimeout(searchTimer)
@@ -117,7 +126,7 @@ watchEffect(() => {
       <div v-else class="space-y-3">
         <ConversationCard
           v-for="c in response.conversations" :key="c.pack_id" :conversation="c" :templates="templates"
-          @sent="onSent" @templates-changed="loadTemplates"
+          @sent="onSent" @templates-changed="loadTemplates" @deleted="onDeleted"
         />
       </div>
 

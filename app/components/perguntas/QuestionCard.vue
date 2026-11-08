@@ -12,7 +12,7 @@ import type { Question, QuestionTemplate } from '../../types/questions'
  * "Aplicar", que preenche o campo) e "Enviar resposta" (vai ao ML, que entrega ao comprador; com confirmação).
  */
 const props = defineProps<{ question: Question; templates: QuestionTemplate[] }>()
-const emit = defineEmits<{ answered: [q: Question]; templatesChanged: [] }>()
+const emit = defineEmits<{ answered: [q: Question]; templatesChanged: []; deleted: [id: number] }>()
 
 const MAX = 2000
 const { $api } = useNuxtApp()
@@ -23,6 +23,25 @@ const text = ref('')
 const confirming = ref(false)
 const sending = ref(false)
 const tooLong = computed(() => text.value.length > MAX)
+const confirmingDelete = ref(false)
+const deleting = ref(false)
+
+/** Apaga a pergunta no Mercado Livre (some do anúncio para todos; não dá para desfazer). */
+async function remove() {
+  deleting.value = true
+  try {
+    const res = await $api<{ message: string }>(`/api/questions/${props.question.id}`, {
+      method: 'DELETE', query: { account_id: session.selectedAccountId, confirm: true }
+    })
+    toast.success(res.message)
+    emit('deleted', props.question.id)
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível apagar a pergunta.'))
+  } finally {
+    deleting.value = false
+    confirmingDelete.value = false
+  }
+}
 
 async function send() {
   sending.value = true
@@ -62,7 +81,17 @@ async function send() {
     </header>
 
     <div class="rounded-card bg-surface-2 p-3">
-      <p class="text-[11px] text-ink-3">Pergunta · {{ dateTimeShort(question.date_created) }}</p>
+      <div class="flex items-start justify-between gap-2">
+        <p class="text-[11px] text-ink-3">Pergunta · {{ dateTimeShort(question.date_created) }}</p>
+        <template v-if="session.isAdmin">
+          <button v-if="!confirmingDelete" type="button" class="btn-link text-[12px] text-danger" data-test="pergunta-excluir" @click="confirmingDelete = true">Excluir pergunta</button>
+          <span v-else class="flex flex-wrap items-center justify-end gap-2 text-[12px]">
+            <span class="text-ink">Apaga no Mercado Livre para todos e não dá para desfazer. Confirmar?</span>
+            <button type="button" class="btn-danger h-7 px-2 text-[11px]" :disabled="deleting" data-test="pergunta-excluir-confirmar" @click="remove">{{ deleting ? 'Apagando…' : 'Sim, apagar' }}</button>
+            <button type="button" class="btn-secondary h-7 px-2 text-[11px]" :disabled="deleting" @click="confirmingDelete = false">Cancelar</button>
+          </span>
+        </template>
+      </div>
       <p class="whitespace-pre-line text-ink" data-test="pergunta-texto">{{ question.text }}</p>
     </div>
 

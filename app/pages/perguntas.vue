@@ -65,6 +65,16 @@ function onAnswered(q: Question) {
   if (response.value.counts.sem_resposta > 0) { response.value.counts.sem_resposta--; response.value.counts.respondidas++ }
 }
 
+function onDeleted(id: number) {
+  if (!response.value) return
+  const q = response.value.questions.find((x) => x.id === id)
+  response.value.questions = response.value.questions.filter((x) => x.id !== id)
+  response.value.total--
+  response.value.counts.todas--
+  if (q?.status === 'UNANSWERED') response.value.counts.sem_resposta--
+  else if (q?.status === 'ANSWERED') response.value.counts.respondidas--
+}
+
 function setView(v: QuestionsResponse['view']) {
   Object.assign(filters, { view: v, page: 1 })
 }
@@ -122,7 +132,7 @@ watchEffect(() => {
       <div v-else class="space-y-3">
         <QuestionCard
           v-for="q in response.questions" :key="q.id" :question="q" :templates="templates"
-          @answered="onAnswered" @templates-changed="loadTemplates"
+          @answered="onAnswered" @templates-changed="loadTemplates" @deleted="onDeleted"
         />
       </div>
 

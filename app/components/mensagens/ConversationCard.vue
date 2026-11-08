@@ -14,7 +14,7 @@ import type { QuestionTemplate } from '../../types/questions'
  * (com confirmação). Conversa bloqueada pelo ML (pedido cancelado, reclamação, prazo) mostra o motivo e não envia.
  */
 const props = defineProps<{ conversation: Conversation; templates: QuestionTemplate[] }>()
-const emit = defineEmits<{ sent: [c: Conversation]; templatesChanged: [] }>()
+const emit = defineEmits<{ sent: [c: Conversation]; templatesChanged: []; deleted: [pack: number] }>()
 
 const { $api } = useNuxtApp()
 const session = useSessionStore()
@@ -26,6 +26,25 @@ const sending = ref(false)
 const expanded = ref(false)
 const max = computed(() => props.conversation.max_length || 350)
 const tooLong = computed(() => text.value.length > max.value)
+const confirmingDelete = ref(false)
+const deleting = ref(false)
+
+/** Exclui a conversa do Lunna (o ML não apaga mensagens de pós-venda); volta se o comprador escrever de novo. */
+async function remove() {
+  deleting.value = true
+  try {
+    const res = await $api<{ message: string }>(`/api/messages/${props.conversation.pack_id}`, {
+      method: 'DELETE', query: { account_id: session.selectedAccountId }
+    })
+    toast.success(res.message)
+    emit('deleted', props.conversation.pack_id)
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível excluir a conversa.'))
+  } finally {
+    deleting.value = false
+    confirmingDelete.value = false
+  }
+}
 const shown = computed(() => (expanded.value ? props.conversation.messages : props.conversation.messages.slice(-4)))
 
 async function send() {
@@ -67,6 +86,12 @@ async function send() {
         <span v-else class="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-ink-2">Respondida</span>
         <span v-if="!conversation.can_send" class="rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-semibold text-danger">Bloqueada: {{ conversation.block_reason }}</span>
         <span v-if="conversation.claim_ids.length" class="text-[11px] text-ink-3">tem reclamação (veja em Reclamações)</span>
+        <button v-if="!confirmingDelete" type="button" class="btn-link text-[12px] text-danger" data-test="conversa-excluir" @click="confirmingDelete = true">Excluir conversa</button>
+        <span v-else class="flex flex-wrap items-center justify-end gap-2 text-[12px]">
+          <span class="text-ink">Sai da lista do Lunna (o ML não apaga mensagens). Volta se o comprador escrever de novo.</span>
+          <button type="button" class="btn-danger h-7 px-2 text-[11px]" :disabled="deleting" data-test="conversa-excluir-confirmar" @click="remove">{{ deleting ? 'Excluindo…' : 'Sim, excluir' }}</button>
+          <button type="button" class="btn-secondary h-7 px-2 text-[11px]" :disabled="deleting" @click="confirmingDelete = false">Cancelar</button>
+        </span>
       </div>
     </header>
 
