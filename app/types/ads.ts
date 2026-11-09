@@ -136,6 +136,9 @@ export interface AdsAnalysisSignal {
   item_ids?: string[]
   /** anúncio e todos os SKUs dele (nunca abreviar) */
   items_skus?: { item_id: string; skus: string[] }[]
+  /** explicação simples e passo a passo da ação */
+  situation?: string
+  steps?: string[]
   campaign_id?: number
 }
 
@@ -206,6 +209,9 @@ export interface AdsAnalysisCampaign {
 
 export interface AdsAnalysisQueueItem {
   n?: number
+  /** explicação simples e passo a passo da ação */
+  situation?: string
+  steps?: string[]
   key: string
   class: 'destravar' | 'desperdicio' | 'alocacao' | 'orcamento' | 'posicao' | 'ajuste'
   class_label: string

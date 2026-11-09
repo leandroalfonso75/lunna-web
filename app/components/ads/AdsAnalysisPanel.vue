@@ -166,10 +166,31 @@ function value(q: AdsAnalysisQueueItem) {
                 <span v-else class="text-ink-3"> · sem SKU cadastrado</span>
               </li>
             </ul>
-            <p class="mt-1 text-[12px] text-ink-3"><span class="font-medium text-ink-2">Valor em jogo:</span> {{ q.value_how ?? 'não estimável' }}</p>
-            <p class="text-[12px] text-ink-2"><span class="font-medium">Evidência:</span> {{ q.evidence }}</p>
-            <p class="mt-1 text-ink"><span class="font-medium">Ação:</span> {{ q.action }}</p>
-            <p class="text-[12px] text-ink-2"><span class="font-medium">Antes de aplicar:</span> {{ q.check_before }} · <span class="font-medium">Reavaliar:</span> {{ q.reassess }}</p>
+            <template v-if="q.situation">
+              <div class="mt-2 rounded-card bg-surface-2 p-3" data-test="acao-situacao">
+                <p class="text-[12px] font-semibold uppercase tracking-wide text-ink-3">O que está acontecendo</p>
+                <p class="mt-1 text-ink">{{ q.situation }}</p>
+              </div>
+              <div v-if="q.steps?.length" class="mt-2" data-test="acao-passos">
+                <p class="text-[12px] font-semibold uppercase tracking-wide text-ink-3">O que fazer, passo a passo</p>
+                <ol class="mt-1 list-decimal space-y-1 pl-5 text-ink">
+                  <li v-for="(st, k) in q.steps" :key="k">{{ st }}</li>
+                </ol>
+              </div>
+              <details class="mt-2 text-[12px] text-ink-3">
+                <summary class="cursor-pointer select-none">Detalhes técnicos</summary>
+                <p class="mt-1"><span class="font-medium text-ink-2">Valor em jogo:</span> {{ q.value_how ?? 'não estimável' }}</p>
+                <p><span class="font-medium text-ink-2">Evidência:</span> {{ q.evidence }}</p>
+                <p><span class="font-medium text-ink-2">Ação resumida:</span> {{ q.action }}</p>
+                <p><span class="font-medium text-ink-2">Antes de aplicar:</span> {{ q.check_before }} · <span class="font-medium text-ink-2">Reavaliar:</span> {{ q.reassess }}</p>
+              </details>
+            </template>
+            <template v-else>
+              <p class="mt-1 text-[12px] text-ink-3"><span class="font-medium text-ink-2">Valor em jogo:</span> {{ q.value_how ?? 'não estimável' }}</p>
+              <p class="text-[12px] text-ink-2"><span class="font-medium">Evidência:</span> {{ q.evidence }}</p>
+              <p class="mt-1 text-ink"><span class="font-medium">Ação:</span> {{ q.action }}</p>
+              <p class="text-[12px] text-ink-2"><span class="font-medium">Antes de aplicar:</span> {{ q.check_before }} · <span class="font-medium">Reavaliar:</span> {{ q.reassess }}</p>
+            </template>
             <div class="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
               <template v-if="q.decided">
                 <span class="rounded-full px-2 py-0.5 font-semibold" :class="q.decided.status === 'feito' ? 'bg-success-soft text-success' : 'bg-surface-2 text-ink-2'">
