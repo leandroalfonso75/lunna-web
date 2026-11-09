@@ -8,7 +8,7 @@ import { useToast } from '../../composables/useToast'
 import { apiErrorMessage } from '../../lib/apiErrors'
 import { useSessionStore } from '../../stores/session'
 import AiPlanPanel from './AiPlanPanel.vue'
-import { brl, int, pct } from '../../lib/format'
+import { brl, dateShort, int, pct } from '../../lib/format'
 import { SUGGESTION_PRIORITY_CLASS, SUGGESTION_PRIORITY_LABEL } from '../../lib/suggestionPriority'
 import type { AbcItemDetail, AbcRow, AbcSuggestion, ThreeState } from '../../types/painel'
 
@@ -146,6 +146,10 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
 
     <div>
       <p class="mb-2 font-semibold text-ink">O que fazer para vender mais</p>
+      <p v-if="detail.price_hold" class="mb-2 rounded-card border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-2" data-test="preco-em-maturacao">
+        {{ detail.price_hold.kind === 'aplicada' ? 'Preço sugerido aplicado' : 'Você escolheu não aplicar nenhum preço sugerido' }}:
+        sem novas sugestões de preço até {{ dateShort(detail.price_hold.until) }} (tempo de maturação de 15 dias).
+      </p>
       <p v-if="!detail.suggestions.length" class="text-ink-3">Nada pendente para este anúncio.</p>
       <ul v-else class="space-y-2">
         <li v-for="(s, i) in detail.suggestions" :key="i" class="flex items-start gap-3 rounded-card border border-line p-3">
@@ -160,6 +164,12 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
               <li v-for="(m, k) in s.steps" :key="k">{{ m }}</li>
             </ul>
             <AbcPriceScenarios v-if="s.options?.length" :item-id="row.id" :options="s.options" :calculator="s.calculator" @changed="emit('changed')" />
+            <button
+              v-if="s.options?.length && ['preço', 'frete'].includes(s.area)" type="button" class="btn-secondary mt-2 h-8 text-[12px]"
+              :disabled="acking === 'preço:*'" data-test="preco-nao-aplicar"
+              title="As sugestões de preço deixam de aparecer por 15 dias"
+              @click="ack({ ...s, key: 'preço:*' }, 'aguardar')"
+            >Não aplicar nenhum preço sugerido</button>
             <button
               v-if="s.action?.kind === 'gerar_fotos'"
               type="button"

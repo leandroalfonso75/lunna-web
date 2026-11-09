@@ -430,6 +430,8 @@ export interface AbcItemDetail {
   links: ItemLinks
   /** se o ML deixa trocar o título (sem vendas e fora do catálogo) */
   title_rule?: { editable: boolean; reason?: string; mode?: 'family_name' | 'title' }
+  /** preço em maturação: aplicado ou "não aplicar nenhum" — sem sugestões de preço até `until` */
+  price_hold?: { kind: 'aplicada' | 'aguardar'; until: string } | null
 }
 
 export interface AbcPriceCalculator {
