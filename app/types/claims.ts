@@ -47,8 +47,8 @@ export interface ClaimRow {
   seller_actions?: { action: string; label: string; due_date: string | null; mandatory: boolean | null }[]
   /** para quem o vendedor pode mandar mensagem agora: complainant, mediator */
   reply_targets?: string[]
-  /** campo liberado sem a ação aparecer na API do ML (reclamação recém-aberta); o envio pode ser recusado */
-  reply_unconfirmed?: boolean
+  /** aguarda o vendedor, mas o ML não libera ações pela integração: responder no painel do ML */
+  ml_only?: boolean
   /** ações de resolução que o ML libera agora: allow_return, refund, partial_refund, open_dispute */
   resolve_actions?: string[]
   buyer_wants?: string[]
