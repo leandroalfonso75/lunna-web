@@ -82,6 +82,9 @@ export interface MlAccount {
   status: MlAccountStatus
   last_error: string | null
   connected_at: string
+  /** ROAS Objetivo do Ads desta conta (Configurações › Ads) */
+  ads_roas_target_enabled?: boolean
+  ads_roas_target?: number | null
   last_sync: SyncRun | null
 }
 
