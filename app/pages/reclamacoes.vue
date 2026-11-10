@@ -107,10 +107,31 @@ async function resolve(claimId: number, action: string, percentage: number | nul
     toast.success(res.message)
     cards.value.forEach((c) => c?.reset())
     await load(true)
+    reloadSoon()
   } catch (err) {
     toast.error(apiErrorMessage(err, 'O Mercado Livre não aceitou a ação. Nada foi feito.'))
   } finally {
     sending.value = false
+  }
+}
+
+// Depois de responder/resolver, a API relê a reclamação em 10 s (o ML processa a resposta): a lista volta a ser lida
+// em 12 s para ela sair de "A atender" sem esperar a sincronização (pedido do usuário em 10/11/2026).
+let reloadTimer: ReturnType<typeof setTimeout> | undefined
+function reloadSoon() {
+  clearTimeout(reloadTimer)
+  reloadTimer = setTimeout(() => { void load(true) }, 12_000)
+}
+
+// "Já respondi no Mercado Livre": relê a reclamação no ML agora (e de novo em 10 s).
+async function refreshClaim(claimId: number) {
+  try {
+    const res = await $api<{ to_attend: boolean }>(`/api/claims/${claimId}/refresh`, { method: 'POST', query: { account_id: session.selectedAccountId } })
+    toast.success(res.to_attend ? 'Reclamação relida no Mercado Livre: ainda aguarda você. O Lunna confere de novo em alguns segundos.' : 'Reclamação atualizada: não aguarda mais você.')
+    await load(true)
+    reloadSoon()
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível reler a reclamação agora.'))
   }
 }
 
@@ -126,6 +147,7 @@ async function reply(claimId: number, receiver: string, text: string) {
     toast.success('Resposta enviada na reclamação no Mercado Livre.')
     cards.value.forEach((c) => c?.reset())
     await load(true)
+    reloadSoon()
   } catch (err) {
     toast.error(apiErrorMessage(err, 'O Mercado Livre não aceitou a resposta. Nada foi enviado.'))
   } finally {
@@ -437,6 +459,7 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
         :sending="sending"
         @reply="reply"
         @resolve="resolve"
+        @refresh="refreshClaim"
       />
     </div>
 

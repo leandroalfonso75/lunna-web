@@ -12,7 +12,7 @@ import type { ClaimRow } from '../../types/claims'
  * resposta, que vai para a reclamação no Mercado Livre (com confirmação: não se desfaz).
  */
 const props = defineProps<{ claim: ClaimRow; canReply: boolean; sending: boolean }>()
-const emit = defineEmits<{ reply: [claimId: number, receiver: string, text: string]; resolve: [claimId: number, action: string, percentage: number | null] }>()
+const emit = defineEmits<{ reply: [claimId: number, receiver: string, text: string]; resolve: [claimId: number, action: string, percentage: number | null]; refresh: [claimId: number] }>()
 
 // "Responder" abre as opções (como no ML): mensagem, oferecer devolução, reembolsar, reembolso parcial, mediação.
 // Cada uma pede confirmação; nada vai ao ML sem o segundo clique (pedido do usuário em 04/11/2026).
@@ -182,6 +182,11 @@ defineExpose({ reset })
     </p>
 
     <footer class="flex flex-wrap items-center gap-2 border-t border-line p-3">
+      <button
+        v-if="claim.to_attend" type="button" class="btn-secondary h-9 text-[12px]" data-test="ja-respondi-no-ml"
+        title="Relê a reclamação no Mercado Livre agora"
+        @click="emit('refresh', claim.claim_id)"
+      >Já respondi no Mercado Livre</button>
       <button
         v-if="canReply && hasOptions"
         type="button"
