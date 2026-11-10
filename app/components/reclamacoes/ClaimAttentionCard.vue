@@ -245,6 +245,10 @@ defineExpose({ reset })
           <option v-for="r in claim.reply_targets" :key="r" :value="r">{{ RECEIVER_LABEL[r] ?? r }}</option>
         </select>
       </label>
+      <p v-if="claim.reply_unconfirmed" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[12px] text-ink" data-test="atender-nao-confirmado">
+        O Mercado Livre ainda não liberou as ações desta reclamação pela integração (costuma acontecer logo depois de aberta).
+        Você pode escrever e enviar; se ele recusar, o Lunna mostra o motivo e você responde pelo botão "Atender reclamação" no Mercado Livre.
+      </p>
       <textarea v-model="text" rows="4" maxlength="3500" class="input w-full" placeholder="Escreva a resposta. Ela aparece na reclamação no Mercado Livre." :disabled="sending" @input="confirming = false" />
       <div class="flex flex-wrap items-center gap-2">
         <button type="submit" :class="confirming ? 'btn-danger' : 'btn-primary'" :disabled="sending || !text.trim()" data-test="atender-enviar">
