@@ -340,6 +340,7 @@ function value(q: AdsAnalysisQueueItem) {
               <span class="rounded-full px-2 py-0.5 font-semibold" :class="d.status === 'feito' ? 'bg-success-soft text-success' : 'bg-surface-2 text-ink-2'">{{ d.status === 'feito' ? 'Feito' : 'Ignorado' }}</span>
               <span class="rounded-full px-1.5 text-[10px] font-semibold" :class="CLASS_TONE[d.class]">{{ d.class_label }}</span>
               <span class="font-medium text-ink">{{ d.title }}</span>
+              <span v-if="d.campaigns_now?.length" class="rounded-full bg-primary-soft px-2 py-0.5 font-semibold text-primary">hoje na campanha {{ d.campaigns_now.join(', ') }}</span>
               <span class="text-ink-3">{{ dateTimeShort(d.decided_at) }}<template v-if="d.user"> · {{ d.user }}</template></span>
               <button v-if="isAdmin" type="button" class="btn-link ml-auto" @click="emit('undecide', d.id)">desfazer</button>
             </div>

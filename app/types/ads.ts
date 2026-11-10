@@ -236,6 +236,8 @@ export interface AdsAnalysisQueueItem {
 
 /** Uma decisão da fila, com o "antes" (gravado na hora) e o "depois" (7 dias fechados seguintes; parcial até completar). */
 export interface AdsDecision {
+  /** campanha(s) em que os anúncios da decisão estão hoje */
+  campaigns_now?: string[]
   id: number
   key: string
   signal: string
