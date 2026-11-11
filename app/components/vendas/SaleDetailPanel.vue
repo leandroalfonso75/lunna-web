@@ -79,10 +79,10 @@ const money = (v: number | null | undefined) => brl(v)
           <dt>Cupom (sua parte)<span class="block text-[11px] font-normal text-ink-3">desconto ao comprador {{ money(detail.economics.coupon_discount) }}</span></dt>
           <dd data-numeric>− {{ money(detail.economics.coupon_cost) }}</dd>
         </div>
-        <div class="def-row"><dt>Despesas fixas</dt><dd data-numeric>− {{ money(detail.economics.fixed_expenses) }}</dd></div>
+        <div class="def-row"><dt>Despesas Operacionais</dt><dd data-numeric>− {{ money(detail.economics.fixed_expenses) }}</dd></div>
         <div class="def-row"><dt>Imposto</dt><dd data-numeric>− {{ money(detail.economics.tax) }}</dd></div>
         <div class="def-row border-t border-line pt-1 font-semibold">
-          <dt>Lucro líquido</dt>
+          <dt>Lucro antes Ads</dt>
           <dd data-numeric :class="(detail.economics.net_profit ?? 0) < 0 ? 'text-danger' : 'text-success'">
             {{ detail.economics.net_profit === null ? '—' : `${money(detail.economics.net_profit)} (${pct(detail.economics.net_profit_pct)})` }}
           </dd>
@@ -92,7 +92,7 @@ const money = (v: number | null | undefined) => brl(v)
           <dd data-numeric>{{ detail.economics.ads_state === 'sem_ads' ? 'sem Ads' : `− ${money(detail.economics.ads_cost)}` }}</dd>
         </div>
         <div class="def-row border-t border-line pt-1 font-semibold">
-          <dt>Lucro líquido pós Ads</dt>
+          <dt>Lucro pós Ads</dt>
           <dd data-numeric :class="(detail.economics.net_profit_after_ads ?? 0) < 0 ? 'text-danger' : 'text-success'">
             {{ detail.economics.net_profit_after_ads === null ? '—' : `${money(detail.economics.net_profit_after_ads)} (${pct(detail.economics.net_profit_after_ads_pct)})` }}
           </dd>

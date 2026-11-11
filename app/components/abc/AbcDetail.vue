@@ -103,7 +103,7 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
           <div class="def-row"><dt>Imposto</dt><dd data-numeric>{{ brl(detail.month.tax) }}</dd></div>
           <div class="def-row"><dt>Custo</dt><dd data-numeric>{{ detail.month.cost !== null ? brl(detail.month.cost) : '—' }}</dd></div>
           <div class="def-row mt-1 border-t border-line pt-2 text-[14px] font-semibold" :class="marginClass(detail.month.margin_state, detail.month.profit_state)">
-            <dt>{{ detail.month.profit_is_before_cost ? 'Lucro antes do custo' : 'Lucro líquido do mês' }}</dt>
+            <dt>{{ detail.month.profit_is_before_cost ? 'Lucro antes do custo' : 'Lucro antes Ads do mês' }}</dt>
             <dd data-numeric>{{ brl(detail.month.profit) }} <span class="font-normal">({{ detail.month.margin_pct !== null ? pct(detail.month.margin_pct) : '—' }})</span></dd>
           </div>
         </dl>

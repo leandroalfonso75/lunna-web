@@ -41,9 +41,9 @@ const COLUMNS: { key: string; label: string; sort?: string; filter?: 'text' | 'n
   { key: 'cost', label: 'Custo', width: 'w-[8%]' },
   { key: 'commission', label: 'Comissão', width: 'w-[8%]' },
   { key: 'shipping_fees', label: 'Frete/taxas', width: 'w-[8%]' },
-  { key: 'fixed_expenses', label: 'Desp. fixas', width: 'w-[7%]' },
+  { key: 'fixed_expenses', label: 'Desp. Oper.', width: 'w-[7%]' },
   { key: 'tax', label: 'Imposto', width: 'w-[7%]' },
-  { key: 'net_profit', label: 'Lucro líquido', sort: 'net_profit_pct', width: 'w-[9%]' },
+  { key: 'net_profit', label: 'Lucro antes Ads', sort: 'net_profit_pct', width: 'w-[9%]' },
   { key: 'ads', label: 'Custo Ads', width: 'w-[7%]' },
   { key: 'net_profit_after_ads', label: 'Lucro pós Ads', sort: 'net_profit_after_ads_pct', width: 'w-[9%]' },
   { key: 'coverage_days', label: 'Cobertura', sort: 'coverage_days', filter: 'numeric', placeholder: '<14', width: 'w-[7%]', hide: true },
@@ -402,11 +402,11 @@ function totalPages(): number {
                         </div>
                         <div v-if="item.economics.fees_known" class="def-row"><dt>Comissão</dt><dd data-numeric>− {{ brl(item.economics.commission) }}</dd></div>
                         <div class="def-row"><dt>Frete/taxas</dt><dd data-numeric>− {{ brl(item.economics.shipping_fees) }}</dd></div>
-                        <div class="def-row"><dt>Despesas fixas ({{ num(item.economics.fixed_expenses_pct, 1) }}%)</dt><dd data-numeric>− {{ brl(item.economics.fixed_expenses) }}</dd></div>
+                        <div class="def-row"><dt>Despesas Operacionais ({{ num(item.economics.fixed_expenses_pct, 1) }}%)</dt><dd data-numeric>− {{ brl(item.economics.fixed_expenses) }}</dd></div>
                         <div class="def-row"><dt>Imposto ({{ num(item.economics.tax_pct, 1) }}%)</dt><dd data-numeric>− {{ brl(item.economics.tax) }}</dd></div>
                         <div class="def-row"><dt>Custo Ads por unidade ({{ item.economics.ads_days }} dias)</dt><dd data-numeric>− {{ brl(item.economics.ads_unit) }}</dd></div>
                         <div class="def-row border-t border-line pt-1">
-                          <dt class="font-semibold text-ink">Lucro líquido</dt>
+                          <dt class="font-semibold text-ink">Lucro antes Ads</dt>
                           <dd v-if="item.economics.net_profit !== null" data-numeric class="font-semibold" :class="item.economics.net_profit < 0 ? 'text-danger' : 'text-success'">
                             {{ brl(item.economics.net_profit) }} ({{ pct(item.economics.net_profit_pct) }})
                           </dd>

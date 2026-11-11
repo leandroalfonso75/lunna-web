@@ -176,14 +176,14 @@ async function removeKey() {
             <p class="text-[13px] text-ink-3">Percentual de imposto descontado do preço de venda no cálculo de lucro.</p>
           </div>
           <div class="space-y-1.5">
-            <label for="fixed-expenses-pct" class="field-label">Despesas fixas (padrão)</label>
+            <label for="fixed-expenses-pct" class="field-label">Despesas Operacionais (padrão)</label>
             <div class="relative">
-              <input id="fixed-expenses-pct" v-model="form.fixed_expenses_pct" type="text" inputmode="decimal" class="input pr-8" data-test="despesas-fixas-padrao" />
+              <input id="fixed-expenses-pct" v-model="form.fixed_expenses_pct" type="text" inputmode="decimal" class="input pr-8" data-test="desp-oper-padrao" />
               <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-ink-3">%</span>
             </div>
             <p class="text-[13px] text-ink-3">
-              Percentual do preço de venda descontado como despesa fixa. Vale para o mês corrente, para os meses sem despesas lançadas e para Anúncios, Curva ABC e Promoções.
-              Mês fechado com despesas lançadas em <NuxtLink to="/financeiro/despesas-fixas" class="btn-link">Financeiro › Despesas › Incluir Despesas</NuxtLink> usa o percentual real daquele mês.
+              Percentual do preço de venda descontado como despesa operacional. Vale para o mês corrente, para os meses sem despesas lançadas e para Anúncios, Curva ABC e Promoções.
+              Mês fechado com despesas lançadas em <NuxtLink to="/financeiro/despesas-operacionais" class="btn-link">Financeiro › Despesas › Incluir Despesas</NuxtLink> usa o percentual real daquele mês.
             </p>
           </div>
           <div class="space-y-1.5">

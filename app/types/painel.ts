@@ -134,7 +134,7 @@ export interface ItemLinks {
   seller_panel: string
 }
 
-/** Resultado por unidade de um anúncio: lucro líquido = preço − custo − comissão − frete/taxas − despesas fixas. */
+/** Resultado por unidade de um anúncio: lucro antes Ads = preço − custo − comissão − frete/taxas − despesas operacionais. */
 export interface ItemEconomics {
   price: number
   /** Custo unitário do Olist (ou manual); null = sem custo. */

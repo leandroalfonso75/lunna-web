@@ -65,9 +65,9 @@ const COLUMNS = [
   { key: 'shipping_cost', label: 'Frete', width: 'w-[6%]', align: 'right', hide: true },
   { key: 'coupon', label: 'Cupom', width: 'w-[5%]', align: 'right', hide: true },
   { key: 'tax', label: 'Imposto', width: 'w-[6%]', align: 'right', hide: true },
-  { key: 'fixed_expenses', label: 'Desp. fixas', width: 'w-[6%]', align: 'right', hide: true },
+  { key: 'fixed_expenses', label: 'Desp. Oper.', width: 'w-[6%]', align: 'right', hide: true },
   { key: 'cost', label: 'Custo', width: 'w-[6%]', align: 'right', hide: true },
-  { key: 'profit', label: 'Lucro líquido', sort: 'profit_pct', width: 'w-[8%]', align: 'right' },
+  { key: 'profit', label: 'Lucro antes Ads', sort: 'profit_pct', width: 'w-[8%]', align: 'right' },
   { key: 'ads_cost', label: 'Custo Ads', sort: 'ads_cost', width: 'w-[7%]', align: 'right' },
   { key: 'profit_after_ads', label: 'Lucro pós Ads', sort: 'profit_after_ads_pct', width: 'w-[9%]', align: 'right' },
   { key: 'shipping', label: 'Envio', width: 'w-[10%] max-xl:w-[14%]', align: 'left' }

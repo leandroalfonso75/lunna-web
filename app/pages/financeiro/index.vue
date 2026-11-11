@@ -48,7 +48,7 @@ const LOGISTICS = [
 ]
 const KPIS: { key: keyof FinanceResponse['kpis']; label: string; fmt: 'brl' | 'pct' | 'int'; hint: string }[] = [
   { key: 'revenue', label: 'Receita bruta', fmt: 'brl', hint: 'Vendas pagas do período' },
-  { key: 'net', label: 'Lucro líquido pós Ads', fmt: 'brl', hint: 'O que sobra depois de tudo, inclusive Ads' },
+  { key: 'net', label: 'Lucro pós Ads', fmt: 'brl', hint: 'O que sobra depois de tudo, inclusive Ads' },
   { key: 'net_margin', label: 'Margem líquida', fmt: 'pct', hint: 'Lucro pós Ads ÷ receita' },
   { key: 'gross_margin', label: 'Margem bruta', fmt: 'pct', hint: '(Receita líquida − custo dos produtos) ÷ receita líquida' },
   { key: 'orders', label: 'Vendas', fmt: 'int', hint: 'Carrinho conta como uma venda' },
@@ -412,7 +412,7 @@ function exportExpenses() {
           <div class="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
             <h2 class="section-title">Despesas do período</h2>
             <span class="text-[13px] text-ink-2">total <strong data-numeric>{{ brl(data.expenses.total.value) }}</strong> ({{ data.expenses.total_share ?? 0 }}% da receita) · <span :class="deltaClass(data.expenses.total)">{{ deltaText(data.expenses.total, 'brl') }}</span></span>
-            <NuxtLink to="/financeiro/despesas-fixas" class="btn-primary ml-auto h-8 text-[12px]" data-test="incluir-despesas-fixas">Incluir Despesas</NuxtLink>
+            <NuxtLink to="/financeiro/despesas-operacionais" class="btn-primary ml-auto h-8 text-[12px]" data-test="incluir-despesas-operacionais">Incluir Despesas</NuxtLink>
             <button type="button" class="btn-link text-[12px]" @click="exportExpenses"><ArrowDownTrayIcon class="inline h-4 w-4" aria-hidden="true" /> Exportar (CSV)</button>
           </div>
           <table class="w-full table-fixed text-[13px]">
@@ -502,7 +502,7 @@ function exportExpenses() {
 
       <p class="text-[12px] text-ink-3">
         Vendas guardadas no Lunna desde {{ dateShort(data.coverage.orders_from) }}; extrato do ML desde {{ data.coverage.billing_from ? dateShort(data.coverage.billing_from) : '—' }}.
-        Impostos e despesas fixas são as porcentagens de Configurações › Empresa. Custo dos produtos: Olist (PEPS) ou custo manual.
+        Impostos e despesas operacionais são as porcentagens de Configurações › Empresa. Custo dos produtos: Olist (PEPS) ou custo manual.
       </p>
     </template>
   </div>

@@ -167,7 +167,7 @@ const COST_ROWS: { key: keyof PromotionCosts; label: string }[] = [
   { key: 'fee', label: 'Tarifa do ML' },
   { key: 'shipping', label: 'Frete' },
   { key: 'tax', label: 'Imposto' },
-  { key: 'fixed_expenses', label: 'Despesas fixas' },
+  { key: 'fixed_expenses', label: 'Despesas Operacionais' },
   { key: 'ads', label: 'Ads (15 dias)' }
 ]
 

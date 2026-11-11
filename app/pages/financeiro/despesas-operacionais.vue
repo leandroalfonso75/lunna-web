@@ -10,9 +10,9 @@ import { useSessionStore } from '../../stores/session'
 import type { FixedExpense, FixedExpenseMonth, FixedExpensesResponse } from '../../types/finance'
 
 /**
- * `/financeiro/despesas-fixas` (pedido do usuário em 11/11/2026): despesas fixas lançadas por mês (aluguel, salários,
- * FGTS, INSS...). A cada inclusão a lista é relida. No fim, o comparativo Faturamento x Despesas Fixas: o percentual do
- * mês passa a valer nas despesas fixas das vendas daquele mês (Vendas e DRE) depois que o mês fecha; o mês corrente
+ * `/financeiro/despesas-operacionais` (pedido do usuário em 11/11/2026): despesas operacionais lançadas por mês (aluguel, salários,
+ * FGTS, INSS...). A cada inclusão a lista é relida. No fim, o comparativo Faturamento x Despesas Operacionais: o percentual do
+ * mês passa a valer nas despesas operacionais das vendas daquele mês (Vendas e DRE) depois que o mês fecha; o mês corrente
  * segue o padrão de Configurações › Empresa. Regra e contas na API (Painel::FixedExpenseRate); aqui só exibimos.
  */
 const { $api } = useNuxtApp()
@@ -56,7 +56,7 @@ async function load() {
     error.value = ''
     if (!form.category) form.category = data.value.categories[0] ?? ''
   } catch (err) {
-    error.value = apiErrorMessage(err, 'Não foi possível carregar as despesas fixas.')
+    error.value = apiErrorMessage(err, 'Não foi possível carregar as despesas operacionais.')
   } finally {
     loading.value = false
   }
@@ -122,7 +122,7 @@ async function copyPrevious() {
 /** Explicação do comparativo, conforme a situação do mês. */
 function stateText(s: FixedExpenseMonth) {
   const def = `${num(s.default_pct, 2)}%`
-  if (s.state === 'aplicado') return `Mês fechado: todas as vendas de ${monthLabel(s.month)} usam ${num(s.applied_pct, 2)}% de despesas fixas (no lugar do padrão de ${def}), em Vendas e no DRE.`
+  if (s.state === 'aplicado') return `Mês fechado: todas as vendas de ${monthLabel(s.month)} usam ${num(s.applied_pct, 2)}% de despesas operacionais (no lugar do padrão de ${def}), em Vendas e no DRE.`
   if (s.state === 'mes_corrente') return `Mês em andamento: as vendas de ${monthLabel(s.month)} seguem com o padrão de ${def} (Configurações › Empresa). O percentual lançado passa a valer quando o mês fechar.`
   if (s.state === 'sem_faturamento') return `Não há faturamento em ${monthLabel(s.month)}; as vendas seguem com o padrão de ${def}.`
   return `Sem despesas lançadas em ${monthLabel(s.month)}: as vendas usam o padrão de ${def} (Configurações › Empresa).`
@@ -136,7 +136,7 @@ const STATE_LABEL: Record<FixedExpenseMonth['state'], { label: string; tone: str
 
 onMounted(() => void load())
 watchEffect(() => {
-  header.state.title = 'Despesas fixas mensais'
+  header.state.title = 'Despesas Operacionais mensais'
   header.state.subtitle = 'Financeiro › Despesas'
   header.state.sync = null
   header.state.generatedAt = null
@@ -146,7 +146,7 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div class="page space-y-5" data-test="despesas-fixas">
+  <div class="page space-y-5" data-test="despesas-operacionais">
     <PageHeader />
     <NuxtLink to="/financeiro?tab=despesas" class="btn-link inline-flex items-center gap-1 text-[13px]"><ArrowLeftIcon class="h-4 w-4" aria-hidden="true" /> Voltar para Financeiro › Despesas</NuxtLink>
 
@@ -157,8 +157,8 @@ watchEffect(() => {
         </select>
       </label>
       <p class="max-w-[720px] text-[12px] text-ink-3">
-        Lance aqui as despesas fixas do mês (aluguel, salários, FGTS, INSS, bonificações, transporte, material de expediente e outras).
-        O total sobre o faturamento do mês vira o percentual de despesas fixas de cada venda daquele mês.
+        Lance aqui as despesas operacionais do mês (aluguel, salários, FGTS, INSS, bonificações, transporte, material de expediente e outras).
+        O total sobre o faturamento do mês vira o percentual de despesas operacionais de cada venda daquele mês.
       </p>
     </div>
 
@@ -178,15 +178,15 @@ watchEffect(() => {
         </div>
       </form>
 
-      <div class="card p-4" data-test="lista-despesas-fixas">
+      <div class="card p-4" data-test="lista-despesas-operacionais">
         <div class="mb-2 flex flex-wrap items-center gap-3">
-          <h2 class="section-title">Despesas fixas de {{ monthLabel(month) }}</h2>
+          <h2 class="section-title">Despesas Operacionais de {{ monthLabel(month) }}</h2>
           <span class="text-[12px] text-ink-3">{{ data.entries.length }} lançamento(s) · total <strong class="text-ink" data-numeric>{{ brl(total) }}</strong></span>
           <button v-if="session.isAdmin && !data.entries.length" type="button" class="btn-secondary ml-auto h-8 text-[12px]" data-test="copiar-mes" @click="copyPrevious">
             <DocumentDuplicateIcon class="h-4 w-4" aria-hidden="true" /> Copiar de {{ monthLabel(previousMonth(month)) }}
           </button>
         </div>
-        <p v-if="!data.entries.length" class="text-[13px] text-ink-3">Nenhuma despesa fixa lançada neste mês.</p>
+        <p v-if="!data.entries.length" class="text-[13px] text-ink-3">Nenhuma despesa operacional lançada neste mês.</p>
         <table v-else class="w-full text-[13px]">
           <thead><tr class="border-b border-line text-ink-2"><th class="py-1 text-left font-semibold">Despesa</th><th class="py-1 text-left font-semibold">Descrição</th><th class="py-1 text-right font-semibold">Valor</th><th class="py-1 text-right font-semibold">% do total</th><th v-if="session.isAdmin" class="w-44 py-1" /></tr></thead>
           <tbody>
@@ -207,7 +207,7 @@ watchEffect(() => {
 
       <div class="card p-4" data-test="comparativo">
         <div class="mb-3 flex flex-wrap items-center gap-2">
-          <h2 class="section-title">Faturamento x Despesas Fixas · {{ monthLabel(data.summary.month) }}</h2>
+          <h2 class="section-title">Faturamento x Despesas Operacionais · {{ monthLabel(data.summary.month) }}</h2>
           <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="STATE_LABEL[data.summary.state].tone">{{ STATE_LABEL[data.summary.state].label }}</span>
         </div>
         <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -217,12 +217,12 @@ watchEffect(() => {
             <p class="text-[11px] text-ink-3">vendas não canceladas, pela data da venda</p>
           </div>
           <div class="rounded-card border border-line p-3">
-            <p class="text-[12px] font-medium text-ink-2">Despesas fixas do mês</p>
+            <p class="text-[12px] font-medium text-ink-2">Despesas Operacionais do mês</p>
             <p class="mt-1 text-[20px] font-semibold text-danger" data-numeric>{{ brl(data.summary.total) }}</p>
             <p class="text-[11px] text-ink-3">soma dos lançamentos acima</p>
           </div>
           <div class="rounded-card border border-line p-3">
-            <p class="text-[12px] font-medium text-ink-2">Despesas fixas ÷ faturamento</p>
+            <p class="text-[12px] font-medium text-ink-2">Despesas Operacionais ÷ faturamento</p>
             <p class="mt-1 text-[20px] font-semibold text-ink" data-numeric data-test="percentual">{{ data.summary.pct === null ? '—' : `${num(data.summary.pct, 2)}%` }}</p>
             <p class="text-[11px] text-ink-3">padrão da empresa: {{ num(data.summary.default_pct, 2) }}%</p>
           </div>
@@ -236,7 +236,7 @@ watchEffect(() => {
       <div v-if="data.months.length" class="card p-4" data-test="meses-lancados">
         <h2 class="section-title mb-2">Meses com despesas lançadas</h2>
         <table class="w-full text-[13px]">
-          <thead><tr class="border-b border-line text-ink-2"><th class="py-1 text-left font-semibold">Mês</th><th class="py-1 text-right font-semibold">Faturamento</th><th class="py-1 text-right font-semibold">Despesas fixas</th><th class="py-1 text-right font-semibold">%</th><th class="py-1 text-right font-semibold">Usado nas vendas</th><th class="py-1 text-left font-semibold pl-3">Situação</th></tr></thead>
+          <thead><tr class="border-b border-line text-ink-2"><th class="py-1 text-left font-semibold">Mês</th><th class="py-1 text-right font-semibold">Faturamento</th><th class="py-1 text-right font-semibold">Despesas Operacionais</th><th class="py-1 text-right font-semibold">%</th><th class="py-1 text-right font-semibold">Usado nas vendas</th><th class="py-1 text-left font-semibold pl-3">Situação</th></tr></thead>
           <tbody>
             <tr v-for="m in data.months" :key="m.month" class="border-b border-line">
               <td class="py-1.5"><button type="button" class="btn-link" @click="selectMonth(m.month)">{{ monthLabel(m.month) }}</button></td>

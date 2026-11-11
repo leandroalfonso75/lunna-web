@@ -18,7 +18,7 @@ export interface Company {
   id: string
   name: string
   tax_pct: number
-  /** Despesas fixas padrão (% do preço de venda). */
+  /** Despesas Operacionais padrão (% do preço de venda). */
   fixed_expenses_pct?: number
   min_margin_pct: number
   /** Margem máxima geral das promoções (opcional; null = sem teto). */

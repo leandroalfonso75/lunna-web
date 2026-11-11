@@ -2,7 +2,7 @@
 
 type Tone = 'ok' | 'warn' | 'bad' | 'neutral'
 
-/** Custos por unidade num preço: custo do produto, tarifa, frete, imposto, despesas fixas e Ads (15 dias). */
+/** Custos por unidade num preço: custo do produto, tarifa, frete, imposto, despesas operacionais e Ads (15 dias). */
 export interface PromotionCosts {
   cost: number
   fee: number
