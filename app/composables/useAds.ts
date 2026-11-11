@@ -128,15 +128,32 @@ export function useAds() {
   }
 
   /** Feito/ignorado num item da fila; a análise volta relida com o item marcado. */
-  async function decide(key: string, signal: string, status: 'feito' | 'ignorado') {
+  async function decide(key: string, signal: string, status: 'feito' | 'ignorado', parentId?: number) {
     const accountId = session.selectedAccountId
     if (!accountId) return
     // Falha ao registrar não derruba a aba: avisa e relê a análise (a sugestão pode ter mudado desde que a tela abriu).
     try {
-      await client.decide(accountId, key, signal, status)
-      toast.success(status === 'feito' ? 'Marcado como feito.' : 'Marcado como ignorado.')
+      await client.decide(accountId, key, signal, status, parentId)
+      toast.success(status === 'feito' ? 'Marcado como feito: vai para o Histórico de Ações.' : 'Ignorado: sai da Análise por 15 dias.')
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Não foi possível registrar a decisão. A análise foi atualizada; tente de novo.'))
+    }
+    try {
+      analysis.value = await client.analysis(accountId)
+      analysisError.value = ''
+    } catch {
+      // mantém a análise que já está na tela
+    }
+  }
+  /** Histórico de Ações: "Aguardar mais 7 dias" ou "Arquivar". */
+  async function review(id: number, op: 'aguardar' | 'arquivar') {
+    const accountId = session.selectedAccountId
+    if (!accountId) return
+    try {
+      await client.review(accountId, id, op)
+      toast.success(op === 'aguardar' ? 'A revisão volta em 7 dias.' : 'Arquivado.')
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível registrar. O histórico foi atualizado; tente de novo.'))
     }
     try {
       analysis.value = await client.analysis(accountId)
@@ -230,7 +247,7 @@ export function useAds() {
 
   return {
     range, tab, overview, itemsResponse, loading, itemsLoading, loadError, stale, syncing, syncMessage, filters,
-    analysis, analysisLoading, analysisError, loadAnalysis, diagnosis, diagnosisLoading, diagnosisError, diagnose, decide, undecide,
+    analysis, analysisLoading, analysisError, loadAnalysis, diagnosis, diagnosisLoading, diagnosisError, diagnose, decide, review, undecide,
     setPeriod, setCustomRange, changeFilters, sortBy, setPage, showCampaignItems, syncNow, ...polling
   }
 }

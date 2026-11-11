@@ -111,6 +111,7 @@ const TABS = [
           {{ t.label }}
           <span v-if="t.value !== 'analise'" class="ml-1 text-[12px] text-ink-3">{{ t.value === 'campanhas' ? int(overview?.campaigns.length ?? 0) : int(overview?.sync.ads ?? 0) }}</span>
           <span v-else-if="analysis?.queue.length" class="ml-1 rounded-full bg-danger-soft px-1.5 text-[11px] font-semibold text-danger">{{ analysis.queue.length }} ações</span>
+          <span v-if="t.value === 'analise' && analysis?.history?.some((h) => h.due)" class="ml-1 rounded-full bg-primary-soft px-1.5 text-[11px] font-semibold text-primary">{{ analysis.history.filter((h) => h.due).length }} para revisar</span>
         </button>
       </div>
 
@@ -118,7 +119,7 @@ const TABS = [
       <CampaignsTable v-if="tab === 'campanhas' && overview" :campaigns="overview.campaigns" @show-items="ads.showCampaignItems" />
       <AdsAnalysisPanel v-if="tab === 'analise'" :data="analysis" :loading="analysisLoading" :error="analysisError" :is-admin="session.isAdmin"
         :diagnosis="diagnosis" :diagnosis-loading="diagnosisLoading" :diagnosis-error="diagnosisError"
-        @diagnose="ads.diagnose" @decide="ads.decide" @undecide="ads.undecide" @refresh="ads.loadAnalysis" />
+        @diagnose="ads.diagnose" @decide="ads.decide" @review="ads.review" @undecide="ads.undecide" @refresh="ads.loadAnalysis" />
       <p v-if="tab === 'anuncios' && itemsResponse?.live_error" role="status" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning">
         Não foi possível consultar os números dos anúncios deste período no Mercado Livre agora. Tente de novo em instantes.
       </p>

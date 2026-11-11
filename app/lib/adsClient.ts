@@ -35,8 +35,12 @@ export function createAdsClient(api: ApiFn) {
       return api('/api/ads/diagnosis', { query: { account_id: accountId, ...target } })
     },
     /** Marca um item da fila como feito ou ignorado. Só administradores. */
-    decide(accountId: string, key: string, signal: string, status: 'feito' | 'ignorado'): Promise<AdsDecision> {
-      return api('/api/ads/decisions', { method: 'POST', query: { account_id: accountId }, body: { key, signal, status } })
+    decide(accountId: string, key: string, signal: string, status: 'feito' | 'ignorado', parentId?: number): Promise<AdsDecision> {
+      return api('/api/ads/decisions', { method: 'POST', query: { account_id: accountId }, body: { key, signal, status, parent_id: parentId } })
+    },
+    /** Histórico de Ações: aguardar mais 7 dias ou arquivar. Só administradores. */
+    review(accountId: string, id: number, op: 'aguardar' | 'arquivar'): Promise<AdsDecision> {
+      return api(`/api/ads/decisions/${id}`, { method: 'PATCH', query: { account_id: accountId }, body: { op } })
     },
     undecide(accountId: string, id: number): Promise<unknown> {
       return api(`/api/ads/decisions/${id}`, { method: 'DELETE', query: { account_id: accountId } })

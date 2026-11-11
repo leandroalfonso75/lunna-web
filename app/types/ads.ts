@@ -250,7 +250,23 @@ export interface AdsDecision {
   decided_at: string
   user: string | null
   before: { cost?: number; revenue?: number; roas?: number | null; clicks?: number; prints?: number; tacos?: number | null; period?: { from: string; to: string } }
-  after: { cost: number; revenue: number; roas: number | null; clicks: number; prints: number; from: string; to: string; days: number; partial: boolean } | null
+  after: AdsMetricsWindow | null
+  /** Histórico de Ações: dia da revisão (8º dia) e quando foi arquivada */
+  review_at?: string | null
+  archived_at?: string | null
+  follow_ups: { type: 'feito' | 'aguardar'; at: string; signal?: string; title?: string | null; action?: string | null; value?: number | null; user?: string | null }[]
+}
+
+/** Métricas de Ads de uma janela (soma dos dias). */
+export interface AdsMetricsWindow { cost: number; revenue: number; roas: number | null; clicks: number; prints: number; from: string; to: string; days: number; partial: boolean }
+
+/** Ação "Feito" no Histórico de Ações: espera até a revisão; na revisão traz a evolução e as sugestões atuais do item. */
+export interface AdsHistoryItem extends AdsDecision {
+  review_at: string
+  due: boolean
+  days_left: number
+  evolution: { since: AdsMetricsWindow | null; last_week: AdsMetricsWindow | null }
+  suggestions: (AdsAnalysisQueueItem & { persists: boolean })[]
 }
 
 /** `GET /api/ads/diagnosis`: veredito de uma família ou campanha, no formato do plugin. */
@@ -288,8 +304,10 @@ export interface AdsAnalysis {
   untouchables: { key: string; name: string | null; reason: string; until: string | null }[]
   closing: { tacos: number | null; previous_tacos: number | null; target: number[]; direction: string; text: string }
   decisions: AdsDecision[]
-  /** ações decididas nos últimos 7 dias que saíram da fila */
-  decided_hidden?: number
+  /** quantas sugestões saíram da Análise: no Histórico de Ações (feitas) ou ignoradas (15 dias) */
+  routed: { history: number; ignored: number }
+  history: AdsHistoryItem[]
+  ignored: (AdsDecision & { back_on: string })[]
   structure: AdsStructure
   generated_at: string
 }

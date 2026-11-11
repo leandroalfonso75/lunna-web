@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { brl, dateShort, dateTimeShort, int, num, pct } from '../../lib/format'
+import AdsHistoryPanel from './AdsHistoryPanel.vue'
 import type { AdsAnalysis, AdsAnalysisFamily, AdsAnalysisQueueItem, AdsDiagnosis, AdsStructureSuggestion, AdsStructureType } from '../../types/ads'
 
 /**
@@ -19,10 +20,15 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   diagnose: [target: { family?: string; campaign_id?: number }]
-  decide: [key: string, signal: string, status: 'feito' | 'ignorado']
+  decide: [key: string, signal: string, status: 'feito' | 'ignorado', parentId?: number]
+  review: [id: number, op: 'aguardar' | 'arquivar']
   undecide: [id: number]
   refresh: []
 }>()
+
+/** Guias da Análise: a análise da semana e o Histórico de Ações (o que já foi feito, com a revisão no 8º dia). */
+const view = ref<'analise' | 'historico'>('analise')
+const dueCount = computed(() => props.data?.history?.filter((h) => h.due).length ?? 0)
 
 /** Data sem hora ("2026-11-09") em dd/mm, sem passar por fuso (new Date leria como UTC e voltaria um dia). */
 const dayOnly = (iso: string) => iso.slice(0, 10).split('-').reverse().slice(0, 2).join('/')
@@ -69,12 +75,6 @@ const SYMPTOM_LABEL: Record<string, string> = {
   roas_caiu: 'ROAS caiu de repente', abaixo_do_equilibrio: 'Abaixo do equilíbrio', multiplos_ativos: 'Vários anúncios ativos',
   canibalizacao: 'Possível canibalização', perde_por_orcamento: 'Perde por orçamento', perde_por_ad_rank: 'Perde por classificação',
   nao_gasta: 'Não gasta o orçamento', sem_sintoma: 'Sem sintoma claro'
-}
-function afterText(d: AdsAnalysis['decisions'][number]) {
-  if (!d.after) return 'ainda sem dia fechado depois da decisão'
-  const b = d.before
-  const roas = (v: number | null | undefined) => (v === null || v === undefined ? '—' : num(v, 2))
-  return `${d.after.partial ? `parcial (${d.after.days} de 7 dias)` : '7 dias depois'}: investimento ${brl(d.after.cost)} (antes ${brl(b.cost ?? 0)}), receita ${brl(d.after.revenue)} (antes ${brl(b.revenue ?? 0)}), ROAS ${roas(d.after.roas)} (antes ${roas(b.roas)})`
 }
 
 const CLASS_TONE: Record<string, string> = {
@@ -127,6 +127,18 @@ function value(q: AdsAnalysisQueueItem) {
     <p v-if="loading && !data" class="text-ink-3">Analisando os últimos 7 dias…</p>
     <p v-else-if="error" class="text-danger" role="alert">{{ error }}</p>
     <template v-else-if="data">
+      <div class="flex gap-1 border-b border-line" role="tablist" data-test="analise-guias">
+        <button type="button" role="tab" :aria-selected="view === 'analise'" class="-mb-px border-b-2 px-3 py-1.5"
+          :class="view === 'analise' ? 'border-primary font-semibold text-primary' : 'border-transparent text-ink-2 hover:text-ink'" @click="view = 'analise'">Análise</button>
+        <button type="button" role="tab" :aria-selected="view === 'historico'" class="-mb-px border-b-2 px-3 py-1.5" data-test="guia-historico"
+          :class="view === 'historico' ? 'border-primary font-semibold text-primary' : 'border-transparent text-ink-2 hover:text-ink'" @click="view = 'historico'">
+          Histórico de Ações <span class="text-[12px] text-ink-3">{{ data.history.length }}</span>
+          <span v-if="dueCount" class="ml-1 rounded-full bg-primary-soft px-1.5 text-[11px] font-semibold text-primary">{{ dueCount }} para revisar</span>
+        </button>
+      </div>
+      <AdsHistoryPanel v-if="view === 'historico'" :data="data" :is-admin="isAdmin"
+        @decide="(k, sg, st, pid) => emit('decide', k, sg, st, pid)" @review="(id, op) => emit('review', id, op)" @undecide="(id) => emit('undecide', id)" />
+      <template v-else>
       <p class="text-[12px] text-ink-3">
         Janela: {{ dateShort(data.period.from) }} a {{ dateShort(data.period.to) }} (7 dias fechados), comparada com {{ dateShort(data.period.prev_from) }} a {{ dateShort(data.period.prev_to) }}.
         A análise só recomenda; a execução é no Seller Center. {{ data.rules.note }}
@@ -145,8 +157,10 @@ function value(q: AdsAnalysisQueueItem) {
           <p class="font-semibold text-ink">O que mexer agora</p>
           <p class="text-[12px] text-ink-3">até {{ data.rules.max_actions }} ações, por dinheiro em jogo; {{ data.next_round.length }} na próxima rodada, {{ data.watch.length }} para observar</p>
         </div>
-        <p v-if="data.decided_hidden" class="mt-1 text-[12px] text-ink-3" data-test="fila-decididas">
-          {{ data.decided_hidden }} {{ data.decided_hidden === 1 ? 'ação decidida nos últimos 7 dias saiu' : 'ações decididas nos últimos 7 dias saíram' }} da fila e {{ data.decided_hidden === 1 ? 'está' : 'estão' }} em "Decisões dos últimos 30 dias", com o antes e depois. Volta para cá se o problema seguir depois de 7 dias.
+        <p v-if="data.routed.history || data.routed.ignored" class="mt-1 text-[12px] text-ink-3" data-test="fila-decididas">
+          <template v-if="data.routed.history">{{ data.routed.history }} {{ data.routed.history === 1 ? 'sugestão já feita está' : 'sugestões já feitas estão' }} no
+            <button type="button" class="btn-link" @click="view = 'historico'">Histórico de Ações</button>, aguardando a revisão do 8º dia.</template>
+          <template v-if="data.routed.ignored"> {{ data.routed.ignored }} {{ data.routed.ignored === 1 ? 'ignorada saiu' : 'ignoradas saíram' }} da Análise por 15 dias (voltam só se o problema seguir).</template>
         </p>
         <p v-if="!data.queue.length" class="mt-2 text-ink-3">Nenhuma ação com valor estimável nesta janela.</p>
         <ol class="mt-3 space-y-3">
@@ -335,25 +349,6 @@ function value(q: AdsAnalysisQueueItem) {
         </ul>
       </div>
 
-      <div class="card p-4" data-test="historico-decisoes">
-        <p class="font-semibold text-ink">Decisões dos últimos 30 dias <span class="text-[12px] font-normal text-ink-3">({{ data.decisions.length }}) · o "depois" são os 7 dias fechados seguintes</span></p>
-        <ul class="mt-2 space-y-2 text-[12px]">
-          <li v-for="d in data.decisions" :key="d.id" class="rounded-card border border-line p-2">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="rounded-full px-2 py-0.5 font-semibold" :class="d.status === 'feito' ? 'bg-success-soft text-success' : 'bg-surface-2 text-ink-2'">{{ d.status === 'feito' ? 'Feito' : 'Ignorado' }}</span>
-              <span class="rounded-full px-1.5 text-[10px] font-semibold" :class="CLASS_TONE[d.class]">{{ d.class_label }}</span>
-              <span class="font-medium text-ink">{{ d.title }}</span>
-              <span v-if="d.campaigns_now?.length" class="rounded-full bg-primary-soft px-2 py-0.5 font-semibold text-primary">hoje na campanha {{ d.campaigns_now.join(', ') }}</span>
-              <span class="text-ink-3">{{ dateTimeShort(d.decided_at) }}<template v-if="d.user"> · {{ d.user }}</template></span>
-              <button v-if="isAdmin" type="button" class="btn-link ml-auto" @click="emit('undecide', d.id)">desfazer</button>
-            </div>
-            <p class="mt-1 text-ink-2">{{ d.action }}</p>
-            <p class="mt-1 text-ink-3">{{ afterText(d) }}</p>
-          </li>
-          <li v-if="!data.decisions.length" class="text-ink-3">Nenhuma decisão registrada ainda. Marque os itens da fila como feitos ou ignorados para acompanhar o efeito.</li>
-        </ul>
-      </div>
-
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div class="card p-4" data-test="proxima-rodada">
           <p class="font-semibold text-ink">Próxima rodada <span class="text-[12px] font-normal text-ink-3">({{ data.next_round.length }})</span></p>
@@ -486,6 +481,7 @@ function value(q: AdsAnalysisQueueItem) {
           </tbody>
         </table>
       </div>
+      </template>
     </template>
   </div>
 </template>
