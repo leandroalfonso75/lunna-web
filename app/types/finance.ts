@@ -171,3 +171,22 @@ export interface RepassesResponse {
     note: string
   }
 }
+
+/** Despesa fixa mensal da empresa (Financeiro › Despesas › Incluir Despesas). */
+export interface FixedExpense { id: number; month: string; category: string; description: string | null; amount: number; user: string | null; created_at: string }
+
+/** Comparativo Faturamento x Despesas Fixas de um mês e o percentual que vale nas vendas dele. */
+export interface FixedExpenseMonth {
+  month: string
+  revenue: number
+  total: number
+  /** despesas fixas ÷ faturamento (null sem lançamento ou sem faturamento) */
+  pct: number | null
+  default_pct: number
+  /** o que as vendas do mês usam: o percentual lançado (mês fechado) ou o padrão da empresa */
+  applied_pct: number
+  state: 'aplicado' | 'mes_corrente' | 'sem_lancamentos' | 'sem_faturamento'
+}
+
+/** `GET /api/finance/fixed_expenses?month=AAAA-MM` */
+export interface FixedExpensesResponse { month: string; entries: FixedExpense[]; categories: string[]; summary: FixedExpenseMonth; months: FixedExpenseMonth[] }
