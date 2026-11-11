@@ -25,6 +25,7 @@ const saveError = ref('')
 const form = reactive({
   name: '',
   tax_pct: '',
+  fixed_expenses_pct: '',
   min_margin_pct: '',
   max_margin_pct: '',
   abc_cut_a: '',
@@ -53,6 +54,7 @@ const removingKey = ref(false)
 function fillForm(c: Company) {
   form.name = c.name
   form.tax_pct = String(c.tax_pct)
+  form.fixed_expenses_pct = String(c.fixed_expenses_pct ?? 0)
   form.min_margin_pct = String(c.min_margin_pct)
   form.max_margin_pct = c.max_margin_pct === null || c.max_margin_pct === undefined ? '' : String(c.max_margin_pct)
   form.abc_cut_a = String(c.abc_cut_a)
@@ -99,6 +101,7 @@ async function submit() {
     const payload: CompanyUpdatePayload = {
       name: form.name,
       tax_pct: parseDecimal(form.tax_pct),
+      fixed_expenses_pct: parseDecimal(form.fixed_expenses_pct),
       min_margin_pct: parseDecimal(form.min_margin_pct),
       max_margin_pct: form.max_margin_pct.trim() ? parseDecimal(form.max_margin_pct) : null,
       abc_cut_a: parseDecimal(form.abc_cut_a),
@@ -171,6 +174,17 @@ async function removeKey() {
               <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-ink-3">%</span>
             </div>
             <p class="text-[13px] text-ink-3">Percentual de imposto descontado do preço de venda no cálculo de lucro.</p>
+          </div>
+          <div class="space-y-1.5">
+            <label for="fixed-expenses-pct" class="field-label">Despesas fixas (padrão)</label>
+            <div class="relative">
+              <input id="fixed-expenses-pct" v-model="form.fixed_expenses_pct" type="text" inputmode="decimal" class="input pr-8" data-test="despesas-fixas-padrao" />
+              <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-ink-3">%</span>
+            </div>
+            <p class="text-[13px] text-ink-3">
+              Percentual do preço de venda descontado como despesa fixa. Vale para o mês corrente, para os meses sem despesas lançadas e para Anúncios, Curva ABC e Promoções.
+              Mês fechado com despesas lançadas em <NuxtLink to="/financeiro/despesas-fixas" class="btn-link">Financeiro › Despesas › Incluir Despesas</NuxtLink> usa o percentual real daquele mês.
+            </p>
           </div>
           <div class="space-y-1.5">
             <label for="min-margin-pct" class="field-label">Margem mínima</label>
