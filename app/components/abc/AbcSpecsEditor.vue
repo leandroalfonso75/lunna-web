@@ -9,12 +9,14 @@ import { useSessionStore } from '../../stores/session'
  * Curva ABC > "Alterar ficha técnica AGORA" (pedido do usuário em 07/11/2026): os campos que faltam na ficha técnica
  * (obrigatórios e principais da categoria). "Sugerir características" preenche pela IA o que der para afirmar pelo
  * anúncio; cada campo sugerido tem "Aplicar sugestão". "Publicar alterações" grava no Mercado Livre (com confirmação).
+ * Anúncio com variações (11/11/2026): cor e voltagem já ficam nas variações e não são pedidas; campo de variação vale
+ * para todas (per_variation "same"), menos o código universal (GTIN), que tem um campo por variação ("each").
  */
 const props = defineProps<{ itemId: string }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
 
-interface Field { id: string; name: string; value_type: string; required: boolean; hint: string | null; values: { id: string; name: string }[]; free_text: boolean; units: { id: string; name: string }[]; default_unit: string | null; max_length: number | null; not_applicable: boolean; multivalued?: boolean }
-interface Info { title: string; fields: Field[] }
+interface Field { id: string; name: string; value_type: string; required: boolean; hint: string | null; values: { id: string; name: string }[]; free_text: boolean; units: { id: string; name: string }[]; default_unit: string | null; max_length: number | null; not_applicable: boolean; multivalued?: boolean; per_variation?: 'same' | 'each' | null }
+interface Info { title: string; fields: Field[]; variations?: { id: number; label: string }[] }
 interface Suggestion { value_id: string | null; value_name: string; why: string }
 
 const { $api } = useNuxtApp()
@@ -24,14 +26,21 @@ const query = () => ({ account_id: session.selectedAccountId })
 
 const loading = ref(true)
 const info = ref<Info | null>(null)
-type Value = { value_id: string | null; value_name: string; not_applicable?: boolean }
+type Value = { value_id: string | null; value_name: string; not_applicable?: boolean; variations?: Record<string, { value_name: string }> }
 const values = reactive<Record<string, Value>>({})
 const suggestions = ref<Record<string, Suggestion>>({})
 const suggesting = ref(false)
 const confirming = ref(false)
 const publishing = ref(false)
 
-const filledCount = computed(() => Object.values(values).filter((v) => v.not_applicable || v.value_id || v.value_name.trim()).length)
+const isFilled = (v: Value) => !!(v.not_applicable || v.value_id || v.value_name.trim() || Object.values(v.variations ?? {}).some((x) => x.value_name.trim()))
+const filledCount = computed(() => Object.values(values).filter(isFilled).length)
+
+/** GTIN de uma variação (um campo por variação). */
+function onVariationText(f: Field, variationId: number, text: string) {
+  const cur = values[f.id] ?? { value_id: null, value_name: '' }
+  values[f.id] = { ...cur, not_applicable: false, variations: { ...(cur.variations ?? {}), [String(variationId)]: { value_name: text } } }
+}
 const missingCount = computed(() => (info.value?.fields.length ?? 0) - filledCount.value)
 
 onMounted(async () => {
@@ -138,7 +147,15 @@ async function publish() {
               <div class="flex flex-wrap items-end gap-2">
                 <label class="min-w-0 flex-1">
                   <span class="mb-1 block font-semibold text-ink">{{ f.name }}<span v-if="f.required" class="ml-1 text-danger" title="Obrigatório">*</span></span>
-                  <select v-if="isSelect(f)" class="input w-full" :disabled="values[f.id]?.not_applicable" :value="values[f.id]?.value_id ?? ''" @change="onSelect(f, ($event.target as HTMLSelectElement).value)">
+                  <span v-if="f.per_variation === 'same' && info.variations?.length" class="mb-1 block text-[12px] text-ink-3">Vale para as {{ info.variations.length }} variações ({{ info.variations.map((v) => v.label).join(', ') }}).</span>
+                  <span v-if="f.per_variation === 'each'" class="block space-y-1.5" data-test="ficha-por-variacao">
+                    <span v-for="v in info.variations ?? []" :key="v.id" class="flex items-center gap-2">
+                      <span class="w-40 shrink-0 truncate text-[12px] text-ink-2" :title="v.label">{{ v.label }}</span>
+                      <input class="input w-full" type="text" :disabled="values[f.id]?.not_applicable" :value="values[f.id]?.variations?.[String(v.id)]?.value_name ?? ''"
+                        @input="onVariationText(f, v.id, ($event.target as HTMLInputElement).value)">
+                    </span>
+                  </span>
+                  <select v-else-if="isSelect(f)" class="input w-full" :disabled="values[f.id]?.not_applicable" :value="values[f.id]?.value_id ?? ''" @change="onSelect(f, ($event.target as HTMLSelectElement).value)">
                     <option value="">— escolha —</option>
                     <option v-for="v in f.values" :key="v.id" :value="v.id">{{ v.name }}</option>
                   </select>
@@ -162,7 +179,7 @@ async function publish() {
                 <input type="checkbox" :checked="!!values[f.id]?.not_applicable" @change="toggleNA(f, ($event.target as HTMLInputElement).checked)">
                 Não se aplica
               </label>
-              <p v-if="f.multivalued" class="mt-1 text-[12px] text-ink-3">Aceita mais de um valor: separe por vírgula.</p>
+              <p v-if="f.multivalued && f.per_variation !== 'each'" class="mt-1 text-[12px] text-ink-3">Aceita mais de um valor: separe por vírgula.</p>
               <p v-if="f.hint" class="mt-1 text-[12px] text-ink-3">{{ f.hint }}</p>
               <p v-if="f.units.length" class="mt-1 text-[12px] text-ink-3">Unidades: {{ f.units.map((u) => u.id).join(', ') }}</p>
             </li>
