@@ -145,6 +145,9 @@ function value(q: AdsAnalysisQueueItem) {
           <p class="font-semibold text-ink">O que mexer agora</p>
           <p class="text-[12px] text-ink-3">até {{ data.rules.max_actions }} ações, por dinheiro em jogo; {{ data.next_round.length }} na próxima rodada, {{ data.watch.length }} para observar</p>
         </div>
+        <p v-if="data.decided_hidden" class="mt-1 text-[12px] text-ink-3" data-test="fila-decididas">
+          {{ data.decided_hidden }} {{ data.decided_hidden === 1 ? 'ação decidida nos últimos 7 dias saiu' : 'ações decididas nos últimos 7 dias saíram' }} da fila e {{ data.decided_hidden === 1 ? 'está' : 'estão' }} em "Decisões dos últimos 30 dias", com o antes e depois. Volta para cá se o problema seguir depois de 7 dias.
+        </p>
         <p v-if="!data.queue.length" class="mt-2 text-ink-3">Nenhuma ação com valor estimável nesta janela.</p>
         <ol class="mt-3 space-y-3">
           <li v-for="q in data.queue" :key="`${q.key}-${q.signal}`" class="rounded-card border border-line p-3" :data-test="`acao-${q.n}`">

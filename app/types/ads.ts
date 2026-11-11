@@ -288,6 +288,8 @@ export interface AdsAnalysis {
   untouchables: { key: string; name: string | null; reason: string; until: string | null }[]
   closing: { tacos: number | null; previous_tacos: number | null; target: number[]; direction: string; text: string }
   decisions: AdsDecision[]
+  /** ações decididas nos últimos 7 dias que saíram da fila */
+  decided_hidden?: number
   structure: AdsStructure
   generated_at: string
 }
