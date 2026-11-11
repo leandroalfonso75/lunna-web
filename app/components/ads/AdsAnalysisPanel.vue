@@ -34,8 +34,7 @@ const HELP_NEXT_ROUND = [
   'A análise é refeita toda vez que você abre a aba, com os 7 últimos dias fechados. O dia anterior entra quando o Mercado Livre consolida os números, por volta das 10h. Então a lista pode mudar de um dia para o outro.'
 ]
 const HELP_WATCH = [
-  'São sinais em que não dá para estimar quanto dinheiro está em jogo, como capa fraca ou anúncio recomendado fora de campanha. Eles não entram na fila numerada (próxima rodada), mas valem como melhorias quando você tiver tempo.',
-  'Há uma rodada com prazo, mas ela fica em outro bloco, “Estrutura de campanhas”. Lá as mudanças de campanha seguem um ciclo de 7 dias, e o próprio bloco mostra a data da próxima rodada.'
+  'São sinais em que não dá para estimar quanto dinheiro está em jogo, como capa fraca ou anúncio recomendado fora de campanha. Eles não entram na fila numerada (próxima rodada), mas valem como melhorias quando você tiver tempo.'
 ]
 
 /** Guias da Análise: a análise da semana e o Histórico de Ações (o que já foi feito, com a revisão no 8º dia). */
