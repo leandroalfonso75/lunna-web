@@ -37,6 +37,13 @@ const HELP_WATCH = [
   'São sinais em que não dá para estimar quanto dinheiro está em jogo, como capa fraca ou anúncio recomendado fora de campanha. Eles não entram na fila numerada (próxima rodada), mas valem como melhorias quando você tiver tempo.'
 ]
 
+const HELP_UNTOUCHABLES = [
+  '“Intocáveis” são os produtos que a Análise ainda não julga. Por isso eles não recebem sugestão nenhuma, nem para cortar nem para aumentar: a ideia é não mexer no que ainda não tem dados suficientes para uma decisão segura.',
+  'Em maturação: todos os anúncios do produto têm menos de 30 dias. O Mercado Livre ainda está testando o anúncio, e cortar cedo demais o mata antes de engrenar. O card mostra a partir de quando ele passa a ser avaliado.',
+  'Amostra insuficiente: o produto gastou com publicidade nos últimos 7 dias, mas teve menos de 30 cliques e menos de 500 impressões. Com tão pouco movimento, qualquer conclusão seria chute; ele sai da lista sozinho quando acumular dados.',
+  'Esses limites (30 dias, 30 cliques, 500 impressões) são regras da casa, as mesmas indicadas no topo da Análise.'
+]
+
 /** Guias da Análise: a análise da semana e o Histórico de Ações (o que já foi feito, com a revisão no 8º dia). */
 const view = ref<'analise' | 'historico'>('analise')
 const dueCount = computed(() => props.data?.history?.filter((h) => h.due).length ?? 0)
@@ -378,7 +385,7 @@ function value(q: AdsAnalysisQueueItem) {
           </ul>
         </div>
         <div class="card p-4" data-test="intocaveis">
-          <p class="font-semibold text-ink">Intocáveis <span class="text-[12px] font-normal text-ink-3">({{ data.untouchables.length }}): não mexer ainda</span></p>
+          <p class="font-semibold text-ink">Intocáveis <span class="text-[12px] font-normal text-ink-3">({{ data.untouchables.length }}): não mexer ainda</span> <HelpTip :text="HELP_UNTOUCHABLES" label="O que são Intocáveis?" /></p>
           <ul class="mt-2 space-y-1 text-[12px]">
             <li v-for="u in data.untouchables" :key="u.key" class="text-ink-2">
               <span class="text-ink">{{ u.name }}</span> · {{ u.reason }}<template v-if="u.until"> · avaliar a partir de {{ dateShort(u.until) }}</template>
