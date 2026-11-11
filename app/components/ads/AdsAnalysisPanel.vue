@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { brl, dateShort, dateTimeShort, int, num, pct } from '../../lib/format'
 import AdsHistoryPanel from './AdsHistoryPanel.vue'
+import HelpTip from '../ui/HelpTip.vue'
 import type { AdsAnalysis, AdsAnalysisFamily, AdsAnalysisQueueItem, AdsDiagnosis, AdsStructureSuggestion, AdsStructureType } from '../../types/ads'
 
 /**
@@ -25,6 +26,17 @@ const emit = defineEmits<{
   undecide: [id: number]
   refresh: []
 }>()
+
+/** Explicações dos "?" de Próxima rodada e Observar (textos do usuário em 11/11/2026). */
+const HELP_NEXT_ROUND = [
+  '“Próxima rodada” não é um evento com data marcada. É a fila de espera do “O que mexer agora”.',
+  'A Análise mostra no máximo 7 ações por vez, ordenadas pelo dinheiro em jogo. Se aparecerem mais de 7 sugestões com valor estimável, as que sobram ficam em “Próxima rodada”. Quando você marca uma ação como “Feito” ou “Ignorar”, ela sai da lista e a primeira da Próxima rodada sobe na mesma hora.',
+  'A análise é refeita toda vez que você abre a aba, com os 7 últimos dias fechados. O dia anterior entra quando o Mercado Livre consolida os números, por volta das 10h. Então a lista pode mudar de um dia para o outro.'
+]
+const HELP_WATCH = [
+  'São sinais em que não dá para estimar quanto dinheiro está em jogo, como capa fraca ou anúncio recomendado fora de campanha. Eles não entram na fila numerada (próxima rodada), mas valem como melhorias quando você tiver tempo.',
+  'Há uma rodada com prazo, mas ela fica em outro bloco, “Estrutura de campanhas”. Lá as mudanças de campanha seguem um ciclo de 7 dias, e o próprio bloco mostra a data da próxima rodada.'
+]
 
 /** Guias da Análise: a análise da semana e o Histórico de Ações (o que já foi feito, com a revisão no 8º dia). */
 const view = ref<'analise' | 'historico'>('analise')
@@ -351,7 +363,7 @@ function value(q: AdsAnalysisQueueItem) {
 
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div class="card p-4" data-test="proxima-rodada">
-          <p class="font-semibold text-ink">Próxima rodada <span class="text-[12px] font-normal text-ink-3">({{ data.next_round.length }})</span></p>
+          <p class="font-semibold text-ink">Próxima rodada <span class="text-[12px] font-normal text-ink-3">({{ data.next_round.length }})</span> <HelpTip :text="HELP_NEXT_ROUND" label="O que é Próxima rodada?" /></p>
           <ul class="mt-2 space-y-1 text-[12px]">
             <li v-for="q in data.next_round" :key="`${q.key}-${q.signal}`" class="flex gap-2">
               <span class="shrink-0 rounded-full px-1.5 text-[10px] font-semibold" :class="CLASS_TONE[q.class]">{{ q.class_label }}</span>
@@ -360,7 +372,7 @@ function value(q: AdsAnalysisQueueItem) {
             </li>
             <li v-if="!data.next_round.length" class="text-ink-3">Nada esperando.</li>
           </ul>
-          <p class="mt-3 font-semibold text-ink">Observar <span class="text-[12px] font-normal text-ink-3">(sem valor estimável)</span></p>
+          <p class="mt-3 font-semibold text-ink">Observar <span class="text-[12px] font-normal text-ink-3">(sem valor estimável)</span> <HelpTip :text="HELP_WATCH" label="O que é Observar?" /></p>
           <ul class="mt-1 space-y-1 text-[12px]">
             <li v-for="q in data.watch" :key="`${q.key}-${q.signal}`" class="text-ink-2" :title="q.evidence">{{ q.title }}: {{ q.action }}</li>
             <li v-if="!data.watch.length" class="text-ink-3">Nada.</li>
