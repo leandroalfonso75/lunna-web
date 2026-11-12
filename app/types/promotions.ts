@@ -100,6 +100,8 @@ export interface PromotionItemRow {
   offers_count: number
   settings: PromotionSettings
   status: { key: string; label: string; tone: Tone }
+  /** Em "Para revisar": a rodada em que entrou (ou "Depois da rodada de…") e o que a última rodada disse dele. */
+  review_round?: { at: string | null; run_id: number | null; after_last: boolean; label: string; note: string | null } | null
   /** Em "Para revisar": a regra que barrou a promoção atual e as que barraram as ofertas. */
   review: {
     current_reason: string | null

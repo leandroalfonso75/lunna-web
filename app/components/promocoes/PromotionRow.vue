@@ -133,6 +133,9 @@ function offerLine(o: PromotionOfferShort | null) {
     </td>
     <td class="px-2 py-2 align-top">
       <span :class="tone(row.status.tone)">{{ row.status.label }}</span>
+      <span v-if="row.review_round" class="block text-[11px] font-medium text-ink-2" data-test="rodada-revisar" :title="row.review_round.note ?? undefined">
+        {{ row.review_round.label }}<template v-if="row.review_round.note"> · {{ row.review_round.note }}</template>
+      </span>
       <span v-if="row.review" class="block text-[11px] text-ink-3" :title="row.review.suggestion ?? row.review.reasons.map((r) => `${r.reason} (${r.offers})`).join(' · ')">
         {{ row.review.label }}
       </span>

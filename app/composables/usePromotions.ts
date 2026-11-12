@@ -75,6 +75,11 @@ export function usePromotions() {
 
   function change(patch: Partial<PromotionsFilters>, debounced = false) {
     Object.assign(filters, patch, { page: 1 })
+    // "Para revisar" abre ordenado pela rodada em que o anúncio entrou, da mais recente para a mais antiga
+    if (patch.status !== undefined) {
+      if (patch.status === 'para_revisar') Object.assign(filters, { sort: 'review_round', dir: 'desc' })
+      else if (filters.sort === 'review_round') Object.assign(filters, { sort: 'gain', dir: 'desc' })
+    }
     schedule(debounced)
   }
 

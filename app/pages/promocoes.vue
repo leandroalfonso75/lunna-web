@@ -127,7 +127,7 @@ async function onLeave(next: boolean) {
 /** Todos os anúncios da página, soltos e dentro dos produtos. */
 const allItems = computed<PromotionItemRow[]>(() => (response.value?.items ?? []).flatMap((r) => ('group' in r ? r.children : [r])))
 
-const COLUMNS = [
+const BASE_COLUMNS = [
   { key: 'item', label: 'Anúncio', sort: 'title', width: 'w-[30%]', align: 'left' },
   { key: 'price', label: 'Preço cheio', sort: 'price', width: 'w-[9%]', align: 'right' },
   { key: 'current', label: 'Promoção atual (margem real)', sort: 'margin', width: 'w-[18%]', align: 'left' },
@@ -136,6 +136,14 @@ const COLUMNS = [
   { key: 'gain', label: 'Ganho/un.', sort: 'gain', width: 'w-[7%]', align: 'right' },
   { key: 'status', label: 'Situação', width: 'w-[12%]', align: 'left' }
 ]
+/** Em "Para revisar", a coluna Situação ordena pela rodada em que o anúncio entrou (padrão: mais recente primeiro). */
+const COLUMNS = computed(() => BASE_COLUMNS.map((c) => (c.key === 'status' && filters.status === 'para_revisar' ? { ...c, label: 'Situação · rodada', sort: 'review_round' } : c)))
+/** Rodada mais recente entre as variações de um produto em "Para revisar". */
+function groupRound(children: PromotionItemRow[]) {
+  const list = children.filter((c) => c.review_round)
+  if (!list.length) return null
+  return list.find((c) => c.review_round?.after_last)?.review_round ?? list.map((c) => c.review_round!).sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))[0]
+}
 
 const TONE: Record<string, string> = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger', neutral: 'text-ink-3' }
 const STATUS_SHORT: Record<string, string> = {
@@ -374,6 +382,7 @@ function runBulk() {
                     <td class="px-2 py-2 align-top">
                       <span :class="tone(row.status.tone)">{{ row.status.label }}</span>
                       <span class="block text-[11px] text-ink-3">{{ Object.entries(row.statuses).map(([k, n]) => `${n} ${STATUS_SHORT[k] ?? k}`).join(' · ') }}</span>
+                      <span v-if="groupRound(row.children)" class="block text-[11px] font-medium text-ink-2" data-test="rodada-revisar">{{ groupRound(row.children)?.label }}</span>
                     </td>
                   </tr>
                   <tr v-if="groupPanel === row.key" class="border-b border-line bg-surface-2">
