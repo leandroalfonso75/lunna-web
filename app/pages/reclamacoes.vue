@@ -380,7 +380,7 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
       <button v-if="filters.view" type="button" class="btn-link self-center text-[13px]" @click="setView(filters.view)">← Ver todas as reclamações</button>
     </div>
 
-    <ReturnsPanel v-if="filters.view === 'devolucoes'" :data="returns" :loading="returnsLoading" />
+    <ReturnsPanel v-if="filters.view === 'devolucoes'" :data="returns" :loading="returnsLoading" @changed="loadReturns" />
 
     <div v-if="filters.view === 'contestar'" class="space-y-3" data-test="lista-contestar">
       <div class="flex flex-wrap items-end gap-1 border-b-2 border-line" role="tablist" aria-label="Contestações">

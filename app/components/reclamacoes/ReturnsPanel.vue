@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ArrowDownTrayIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/vue/24/outline'
 import { computed, ref } from 'vue'
+import { useToast } from '../../composables/useToast'
+import { apiErrorMessage } from '../../lib/apiErrors'
+import { useSessionStore } from '../../stores/session'
 import { brl, dateShort, dateTimeShort, int } from '../../lib/format'
 import type { ReturnRow, ReturnsResponse, ReturnsTab } from '../../types/claims'
 
@@ -11,6 +14,30 @@ import type { ReturnRow, ReturnsResponse, ReturnsTab } from '../../types/claims'
  * motivos, o extrato de cada venda e exportação em CSV.
  */
 const props = defineProps<{ data: ReturnsResponse | null; loading: boolean }>()
+const emit = defineEmits<{ changed: [] }>()
+const { $api } = useNuxtApp()
+const session = useSessionStore()
+const toast = useToast()
+
+/**
+ * "Ok, nota de retorno emitida" (pedido do usuário em 13/11/2026): tira a devolução de SEM NOTA na hora. Ela volta só se
+ * a próxima rodada de conferência (a diária, às 5h) não achar a nota no ML (Full) ou no Olist (Agência/Flex).
+ */
+const declaring = ref<number | null>(null)
+const hiddenNow = ref<Set<number>>(new Set())
+async function declareInvoice(r: ReturnRow) {
+  declaring.value = r.claim_id
+  try {
+    await $api(`/api/claims/${r.claim_id}/return_invoice_declared`, { method: 'POST', query: { account_id: session.selectedAccountId } })
+    hiddenNow.value = new Set([...hiddenNow.value, r.claim_id])
+    toast.success('Marcada como emitida. Se a próxima conferência não achar a nota, ela volta para SEM NOTA.')
+    emit('changed')
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível marcar agora.'))
+  } finally {
+    declaring.value = null
+  }
+}
 
 const tab = ref<ReturnsTab>('com_custos')
 const open = ref<number | null>(null)
@@ -32,7 +59,7 @@ const KIND_LABELS: Record<string, string> = {
 const CATEGORY: Record<string, string> = { envio: 'Envio', devolucao: 'Devolução', venda: 'Venda', outro: 'Outro' }
 
 const rows = computed<ReturnRow[]>(() => {
-  const list = [...(props.data?.tabs[tab.value] ?? [])]
+  const list = (props.data?.tabs[tab.value] ?? []).filter((r) => tab.value !== 'sem_nota' || !hiddenNow.value.has(r.claim_id))
   if (sort.value === 'cost') list.sort((a, b) => b.costs.total - a.costs.total)
   else if (sort.value === 'refund') list.sort((a, b) => (b.refund.amount ?? 0) - (a.refund.amount ?? 0))
   return list
@@ -187,7 +214,13 @@ function exportCsv() {
                 <template v-if="r.return_invoice">
                   <span class="font-semibold" :class="INVOICE_TONE[r.return_invoice.state]" data-numeric>{{ r.return_invoice.label }}</span>
                   <span v-if="r.return_invoice.state === 'com_nota'" class="block text-[11px] text-ink-3">{{ r.return_invoice.source === 'ml' ? 'emitida pelo ML' : 'entrada no ERP' }}<template v-if="r.return_invoice.issued_at"> · {{ dateShort(r.return_invoice.issued_at) }}</template></span>
+                  <span v-if="r.return_invoice.state === 'emitida'" class="block text-[11px] text-ink-3">conferência na próxima rodada</span>
+                  <span v-if="r.return_invoice.not_found_after_declared" class="block text-[11px] text-warning">marcada como emitida, mas não encontrada</span>
                   <a v-if="r.return_invoice.emit_link" :href="r.return_invoice.emit_link" target="_blank" rel="noopener" class="btn-link block text-[11px]" data-test="emitir-nota">emitir nota</a>
+                  <button
+                    v-if="r.return_invoice.state === 'sem_nota'" type="button" class="btn-secondary mt-1 h-7 px-2 text-[11px] leading-tight"
+                    :disabled="declaring === r.claim_id" data-test="nota-emitida" @click="declareInvoice(r)"
+                  >{{ declaring === r.claim_id ? 'Marcando…' : 'Ok, nota de retorno emitida' }}</button>
                 </template>
                 <span v-else class="text-ink-3">—</span>
               </td>

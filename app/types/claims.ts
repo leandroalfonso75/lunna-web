@@ -147,7 +147,10 @@ export type ReturnsTab = 'expiradas' | 'sem_custo' | 'com_custos' | 'em_andament
 
 /** Nota fiscal de devolução: com nota ("022615-1"), SEM NOTA (com link para emitir no Full), aguardando a chegada, não se aplica. */
 export interface ReturnInvoice {
-  state: 'com_nota' | 'sem_nota' | 'aguardando' | 'nao_se_aplica' | 'sem_dados'
+  state: 'com_nota' | 'sem_nota' | 'emitida' | 'aguardando' | 'nao_se_aplica' | 'sem_dados'
+  /** "Ok, nota de retorno emitida": quando foi marcada e se a rodada seguinte não achou a nota */
+  declared_at?: string | null
+  not_found_after_declared?: boolean
   label: string
   source?: 'ml' | 'olist'
   issued_at?: string | null
