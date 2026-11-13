@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import AbcPhotoGenerator from './AbcPhotoGenerator.vue'
 import AbcPriceScenarios from './AbcPriceScenarios.vue'
 import AbcSpecsEditor from './AbcSpecsEditor.vue'
@@ -29,12 +29,36 @@ const toast = useToast()
 const editing = ref<'titulo' | 'ficha' | null>(null)
 const acking = ref<string | null>(null)
 
+/**
+ * Outras variações do mesmo anúncio pai (pedido do usuário em 13/11/2026): cada variação é um anúncio próprio no ML,
+ * da mesma família. Outro anúncio do mesmo produto (catálogo, outro tipo) não entra. Lidas uma vez por anúncio aberto.
+ */
+const variations = ref(0)
+async function loadVariations() {
+  try {
+    const res = await $api<{ count: number }>(`/api/items/${props.row.id}/variations`, { query: { account_id: session.selectedAccountId } })
+    variations.value = res.count
+  } catch {
+    variations.value = 0
+  }
+}
+onMounted(loadVariations)
+watch(() => props.row.id, loadVariations)
+
+/** Ciente com variações: pergunta antes se vale também para as outras variações do anúncio. */
+const askAck = ref<{ s: AbcSuggestion; kind: 'aplicada' | 'aguardar' } | null>(null)
+function requestAck(s: AbcSuggestion, kind: 'aplicada' | 'aguardar') {
+  if (variations.value > 0) askAck.value = { s, kind }
+  else void ack(s, kind, false)
+}
+
 /** "Ciente" em Vídeo, Tipo de anúncio e Qualidade: aplicada no ML ou aguardar (some e volta em 15 dias se nada mudar). */
-async function ack(s: AbcSuggestion, kind: 'aplicada' | 'aguardar') {
+async function ack(s: AbcSuggestion, kind: 'aplicada' | 'aguardar', all = false) {
+  askAck.value = null
   acking.value = s.key
   try {
     const res = await $api<{ message: string }>(`/api/items/${props.row.id}/suggestion_acks`, {
-      method: 'POST', query: { account_id: session.selectedAccountId }, body: { key: s.key, kind }
+      method: 'POST', query: { account_id: session.selectedAccountId }, body: { key: s.key, kind, apply_to_variations: all }
     })
     toast.success(res.message)
     emit('changed')
@@ -163,12 +187,12 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
             <ul v-if="s.steps?.length" class="mt-1 list-disc space-y-0.5 pl-4 text-[13px] text-ink-2" data-test="sugestao-medidas">
               <li v-for="(m, k) in s.steps" :key="k">{{ m }}</li>
             </ul>
-            <AbcPriceScenarios v-if="s.options?.length" :item-id="row.id" :options="s.options" :calculator="s.calculator" @changed="emit('changed')" />
+            <AbcPriceScenarios v-if="s.options?.length" :item-id="row.id" :options="s.options" :calculator="s.calculator" :variations="variations" @changed="emit('changed')" />
             <button
               v-if="s.options?.length && ['preço', 'frete'].includes(s.area)" type="button" class="btn-secondary mt-2 h-8 text-[12px]"
               :disabled="acking === 'preço:*'" data-test="preco-nao-aplicar"
               title="As sugestões de preço deixam de aparecer por 15 dias"
-              @click="ack({ ...s, key: 'preço:*' }, 'aguardar')"
+              @click="requestAck({ ...s, key: 'preço:*' }, 'aguardar')"
             >Não aplicar nenhum preço sugerido</button>
             <button
               v-if="s.action?.kind === 'gerar_fotos'"
@@ -188,11 +212,11 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
               @click="editing = 'ficha'"
             >Alterar ficha técnica AGORA</button>
             <div v-else-if="s.action?.kind === 'ciente'" class="mt-2 flex flex-wrap gap-2" data-test="sugestao-ciente">
-              <button type="button" class="btn-secondary h-8 text-[12px]" :disabled="acking === s.key" @click="ack(s, 'aplicada')">Ciente, sugestão aplicada no Mercado Livre</button>
+              <button type="button" class="btn-secondary h-8 text-[12px]" :disabled="acking === s.key" @click="requestAck(s, 'aplicada')">Ciente, sugestão aplicada no Mercado Livre</button>
               <button
                 type="button" class="btn-secondary h-8 text-[12px]" :disabled="acking === s.key"
                 title="A sugestão deixa de aparecer; se nada mudar em 15 dias, ela volta"
-                @click="ack(s, 'aguardar')"
+                @click="requestAck(s, 'aguardar')"
               >Ciente, aguardar</button>
             </div>
           </div>
@@ -262,6 +286,21 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
     <AiPlanPanel :item-id="row.id" />
   </div>
   <AbcTitleEditor v-if="editing === 'titulo'" :item-id="row.id" @close="editing = null" @changed="emit('changed')" />
-  <AbcSpecsEditor v-if="editing === 'ficha'" :item-id="row.id" @close="editing = null" @changed="emit('changed')" />
+  <AbcSpecsEditor v-if="editing === 'ficha'" :item-id="row.id" :variations="variations" @close="editing = null" @changed="emit('changed')" />
+  <div v-if="askAck" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" data-test="ciente-variacoes" @click.self="askAck = null">
+    <div class="card w-full max-w-md space-y-3 p-5 text-[13px]">
+      <p class="text-[15px] font-semibold text-ink">Aplicar às outras variações?</p>
+      <p class="text-ink-2">
+        Este anúncio tem mais {{ variations }} {{ variations === 1 ? 'variação' : 'variações' }} no mesmo anúncio pai.
+        Quer marcar "{{ askAck.kind === 'aplicada' ? 'Ciente, sugestão aplicada' : 'Ciente, aguardar' }}" também nelas?
+      </p>
+      <p class="text-[12px] text-ink-3">Outros anúncios do mesmo produto (catálogo ou outro tipo de anúncio) não entram.</p>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn-primary h-9" data-test="ciente-todas" @click="ack(askAck.s, askAck.kind, true)">Sim, em todas as variações</button>
+        <button type="button" class="btn-secondary h-9" data-test="ciente-so-este" @click="ack(askAck.s, askAck.kind, false)">Só neste anúncio</button>
+        <button type="button" class="btn-link" @click="askAck = null">Cancelar</button>
+      </div>
+    </div>
+  </div>
   <AbcPhotoGenerator v-if="photoCount !== null && detail" :item-id="row.id" :title="row.title" :suggested-count="photoCount" @close="photoCount = null" />
 </template>

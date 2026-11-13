@@ -11,7 +11,7 @@ import type { AbcPriceCalculator, AbcPriceOption } from '../../types/painel'
  * "Aplicar novo preço sugerido", que muda o preço no Mercado Livre; e um campo de preço livre mostra tarifa, frete
  * (a partir de R$ 79 o frete grátis é obrigatório e segue a tabela do ML por faixa), imposto, custo e margem.
  */
-const props = defineProps<{ itemId: string; options: AbcPriceOption[]; calculator?: AbcPriceCalculator | null }>()
+const props = defineProps<{ itemId: string; options: AbcPriceOption[]; calculator?: AbcPriceCalculator | null; variations?: number }>()
 const emit = defineEmits<{ changed: [] }>()
 
 const { $api } = useNuxtApp()
@@ -21,6 +21,8 @@ const toast = useToast()
 const custom = ref('')
 const pending = ref<number | null>(null) // linha aguardando confirmação
 const applying = ref(false)
+/** Aplicar o mesmo preço nas outras variações do anúncio pai (pedido do usuário em 13/11/2026). */
+const allVariations = ref(false)
 
 const BANDS = ['200', '150', '120', '100', '79']
 
@@ -51,10 +53,12 @@ const canApply = (o: AbcPriceOption) => !o.today && session.isAdmin
 async function apply(o: AbcPriceOption) {
   applying.value = true
   try {
-    const res = await $api<{ message: string }>(`/api/items/${props.itemId}/price`, {
-      method: 'POST', query: { account_id: session.selectedAccountId }, body: { price: o.price, free_shipping: !!o.free_shipping, confirm: true }
+    const res = await $api<{ message: string; variations?: { ok: boolean }[] | null }>(`/api/items/${props.itemId}/price`, {
+      method: 'POST', query: { account_id: session.selectedAccountId },
+      body: { price: o.price, free_shipping: !!o.free_shipping, confirm: true, apply_to_variations: allVariations.value }
     })
-    toast.success(res.message)
+    if (res.variations?.some((v) => !v.ok)) toast.error(res.message)
+    else toast.success(res.message)
     pending.value = null
     custom.value = ''
     emit('changed')
@@ -95,6 +99,9 @@ async function apply(o: AbcPriceOption) {
           <td class="whitespace-nowrap py-1 pl-2 text-right">
             <template v-if="canApply(o)">
               <span v-if="pending === k" class="inline-flex items-center gap-1">
+                <label v-if="variations" class="mr-1 inline-flex items-center gap-1 text-[11px] text-ink-2" data-test="preco-todas-variacoes">
+                  <input v-model="allVariations" type="checkbox"> e nas outras {{ variations }} variações
+                </label>
                 <button type="button" class="btn-primary h-7 px-2 text-[11px]" :disabled="applying" data-test="preco-confirmar" @click="apply(o)">{{ applying ? 'Aplicando…' : 'Confirmar no ML' }}</button>
                 <button type="button" class="btn-secondary h-7 px-2 text-[11px]" :disabled="applying" @click="pending = null">Cancelar</button>
               </span>

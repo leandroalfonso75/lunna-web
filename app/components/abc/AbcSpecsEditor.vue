@@ -12,7 +12,7 @@ import { useSessionStore } from '../../stores/session'
  * Anúncio com variações (11/11/2026): cor e voltagem já ficam nas variações e não são pedidas; campo de variação vale
  * para todas (per_variation "same"), menos o código universal (GTIN), que tem um campo por variação ("each").
  */
-const props = defineProps<{ itemId: string }>()
+const props = defineProps<{ itemId: string; variations?: number }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
 
 interface Field { id: string; name: string; value_type: string; required: boolean; hint: string | null; values: { id: string; name: string }[]; free_text: boolean; units: { id: string; name: string }[]; default_unit: string | null; max_length: number | null; not_applicable: boolean; multivalued?: boolean; per_variation?: 'same' | 'each' | null }
@@ -32,6 +32,8 @@ const suggestions = ref<Record<string, Suggestion>>({})
 const suggesting = ref(false)
 const confirming = ref(false)
 const publishing = ref(false)
+/** Completar também as outras variações do anúncio pai, só com o que é comum (pedido do usuário em 13/11/2026). */
+const allVariations = ref(false)
 
 const isFilled = (v: Value) => !!(v.not_applicable || v.value_id || v.value_name.trim() || Object.values(v.variations ?? {}).some((x) => x.value_name.trim()))
 const filledCount = computed(() => Object.values(values).filter(isFilled).length)
@@ -104,8 +106,11 @@ function apply(id: string) {
 async function publish() {
   publishing.value = true
   try {
-    const res = await $api<{ message: string }>(`/api/items/${props.itemId}/specs`, { method: 'POST', query: query(), body: { values, confirm: true } })
-    toast.success(res.message)
+    const res = await $api<{ message: string; variations?: { ok: boolean }[] | null }>(`/api/items/${props.itemId}/specs`, {
+      method: 'POST', query: query(), body: { values, confirm: true, apply_to_variations: allVariations.value }
+    })
+    if (res.variations?.some((v) => !v.ok)) toast.error(res.message)
+    else toast.success(res.message)
     emit('changed')
     emit('close')
   } catch (err) {
@@ -190,9 +195,13 @@ async function publish() {
               <button type="button" class="btn-primary h-9" :disabled="!filledCount || !session.isAdmin" data-test="ficha-publicar" @click="confirming = true">Publicar alterações</button>
               <span v-if="missingCount > 0 && filledCount" class="text-[12px] text-ink-3">{{ missingCount }} campo(s) continuam vazios e ficam como estão.</span>
               <span v-if="!session.isAdmin" class="text-[12px] text-ink-3">Só administradores publicam no Mercado Livre.</span>
+              <label v-if="variations && session.isAdmin" class="inline-flex w-full items-start gap-2 text-[12px] text-ink-2" data-test="ficha-todas-variacoes">
+                <input v-model="allVariations" type="checkbox" class="mt-0.5">
+                <span>Aplicar também às outras {{ variations }} variações deste anúncio (só os campos comuns que faltarem em cada uma; cor, tom, voltagem e código de cada variação não são copiados)</span>
+              </label>
             </template>
             <template v-else>
-              <span class="text-ink">{{ filledCount }} característica(s) mudam no Mercado Livre agora. Confirmar?</span>
+              <span class="text-ink">{{ filledCount }} característica(s) mudam no Mercado Livre agora{{ allVariations && variations ? `, neste anúncio e nas outras ${variations} variações` : '' }}. Confirmar?</span>
               <button type="button" class="btn-primary h-9" :disabled="publishing" data-test="ficha-confirmar" @click="publish">{{ publishing ? 'Publicando…' : 'Sim, publicar' }}</button>
               <button type="button" class="btn-secondary h-9" :disabled="publishing" @click="confirming = false">Cancelar</button>
             </template>
