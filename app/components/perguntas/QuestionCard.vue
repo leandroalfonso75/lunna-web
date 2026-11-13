@@ -101,7 +101,13 @@ async function send() {
 
     <div class="rounded-card bg-surface-2 p-3">
       <div class="flex items-start justify-between gap-2">
-        <p class="text-[11px] text-ink-3">Pergunta · {{ dateTimeShort(question.date_created) }}</p>
+        <p class="text-[11px] text-ink-3">
+          Pergunta de
+          <span class="font-semibold text-ink-2" data-test="quem-perguntou">{{ question.from_name || question.from_nickname || (question.from_id ? `usuário ${question.from_id}` : 'comprador') }}</span>
+          <template v-if="question.from_name && question.from_nickname"> ({{ question.from_nickname }})</template>
+          <span v-if="question.from_name" class="ml-1 rounded-full bg-success-soft px-1.5 font-semibold text-success" title="Esta pessoa já comprou da sua loja">já comprou</span>
+          · {{ dateTimeShort(question.date_created) }}
+        </p>
         <template v-if="session.isAdmin">
           <button v-if="!confirmingDelete" type="button" class="btn-link text-[12px] text-danger" data-test="pergunta-excluir" @click="confirmingDelete = true">Excluir pergunta</button>
           <span v-else class="flex flex-wrap items-center justify-end gap-2 text-[12px]">

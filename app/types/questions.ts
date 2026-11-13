@@ -5,6 +5,9 @@ export interface Question {
   text: string
   date_created: string
   from_id: number | null
+  /** apelido de quem perguntou no ML e, se já comprou da loja, o nome da venda */
+  from_nickname?: string | null
+  from_name?: string | null
   status: string
   status_label: string
   status_tone: 'success' | 'warn' | 'danger' | 'neutral'
