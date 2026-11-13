@@ -297,7 +297,7 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
       <p class="text-[12px] text-ink-3">Outros anúncios do mesmo produto (catálogo ou outro tipo de anúncio) não entram.</p>
       <div class="flex flex-wrap gap-2">
         <button type="button" class="btn-primary h-9" data-test="ciente-todas" @click="ack(askAck.s, askAck.kind, true)">Sim, em todas as variações</button>
-        <button type="button" class="btn-secondary h-9" data-test="ciente-so-este" @click="ack(askAck.s, askAck.kind, false)">Só neste anúncio</button>
+        <button type="button" class="btn-secondary h-9" data-test="ciente-so-este" @click="ack(askAck.s, askAck.kind, false)">Só nesta variação</button>
         <button type="button" class="btn-link" @click="askAck = null">Cancelar</button>
       </div>
     </div>
