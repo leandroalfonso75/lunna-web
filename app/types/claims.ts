@@ -6,6 +6,9 @@ export interface ClaimOrder {
   total: number | null
   date_created: string | null
   status: string | null
+  /** tipo de envio da venda: Full, Agência, Flex, Coleta */
+  logistic?: string | null
+  logistic_type?: string | null
   item: { item_id: string; title: string | null; sku: string | null; quantity: number | null; thumbnail: string | null } | null
 }
 
@@ -140,7 +143,17 @@ export interface ContestsResponse {
 }
 
 /** Card Devoluções: devoluções liberadas pelo ML em quatro guias, com os custos itemizados. */
-export type ReturnsTab = 'expiradas' | 'sem_custo' | 'com_custos' | 'em_andamento'
+export type ReturnsTab = 'expiradas' | 'sem_custo' | 'com_custos' | 'em_andamento' | 'sem_nota'
+
+/** Nota fiscal de devolução: com nota ("022615-1"), SEM NOTA (com link para emitir no Full), aguardando a chegada, não se aplica. */
+export interface ReturnInvoice {
+  state: 'com_nota' | 'sem_nota' | 'aguardando' | 'nao_se_aplica' | 'sem_dados'
+  label: string
+  source?: 'ml' | 'olist'
+  issued_at?: string | null
+  emit_link?: string | null
+  checked_at?: string | null
+}
 
 export interface ReturnCostItem {
   key: 'frete_envio' | 'frete_devolucao' | 'tarifa_venda' | 'reembolso_parcial' | 'outro'
@@ -178,6 +191,7 @@ export interface ReturnRow {
   coverage: boolean | null
   costs: { items: ReturnCostItem[]; total: number; notes: string[]; statement: ReturnStatementLine[] }
   tab: ReturnsTab
+  return_invoice?: ReturnInvoice
   link: string | null
 }
 

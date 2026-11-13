@@ -509,7 +509,7 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
                       <img v-if="c.order.item?.thumbnail" :src="c.order.item.thumbnail" alt="" class="h-10 w-10 shrink-0 rounded object-cover" loading="lazy" />
                       <div class="min-w-0">
                         <p class="truncate text-ink" :title="c.order.item?.title ?? ''">{{ c.order.item?.title ?? '—' }}</p>
-                        <p class="truncate text-[12px] text-ink-3">#{{ c.order.order_id }} · {{ c.order.item?.sku ?? 'sem SKU' }} · {{ brl(c.order.total) }}</p>
+                        <p class="truncate text-[12px] text-ink-3">#{{ c.order.order_id }} · {{ c.order.item?.sku ?? 'sem SKU' }} · {{ brl(c.order.total) }}<template v-if="c.order.logistic"> · <span class="font-semibold text-ink-2" data-test="tipo-envio">{{ c.order.logistic }}</span></template></p>
                         <p class="truncate text-[12px] text-ink-3">{{ c.order.buyer_name ?? c.order.buyer_nickname ?? '—' }}</p>
                       </div>
                     </div>

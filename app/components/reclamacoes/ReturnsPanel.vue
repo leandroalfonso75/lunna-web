@@ -20,8 +20,11 @@ const TABS: { key: ReturnsTab; label: string; hint: string; tone: string }[] = [
   { key: 'expiradas', label: 'Expiradas', tone: 'text-ink-2', hint: 'Devolução liberada, mas não efetivada: o comprador perdeu o prazo de postagem ou desistiu.' },
   { key: 'sem_custo', label: 'Sem custo', tone: 'text-success', hint: 'Produto devolvido sem nenhum custo para você: frete de devolução grátis e frete de envio reintegrado pelo ML.' },
   { key: 'com_custos', label: 'Com custos', tone: 'text-danger', hint: 'Produto devolvido com custo para você. Cada custo aparece separado.' },
-  { key: 'em_andamento', label: 'Em andamento', tone: 'text-warning', hint: 'Etiqueta gerada ou produto a caminho: ainda sem resultado.' }
+  { key: 'em_andamento', label: 'Em andamento', tone: 'text-warning', hint: 'Etiqueta gerada ou produto a caminho: ainda sem resultado.' },
+  { key: 'sem_nota', label: 'Sem nota de devolução', tone: 'text-danger', hint: 'Produtos que voltaram e ainda não têm nota fiscal de devolução. No Full, emita pelo Mercado Livre (Detalhe da venda › Ver detalhes da NF-e); em Agência e Flex, pelo ERP (nota de entrada). O Lunna confere de novo a cada 6 horas.' }
 ]
+/** Cor da situação da nota de devolução. */
+const INVOICE_TONE: Record<string, string> = { com_nota: 'text-success', sem_nota: 'text-danger', aguardando: 'text-ink-3', nao_se_aplica: 'text-ink-3', sem_dados: 'text-ink-3' }
 const KIND_LABELS: Record<string, string> = {
   frete_envio: 'Frete de envio retido', frete_devolucao: 'Frete de devolução', tarifa_venda: 'Tarifas da venda não devolvidas',
   reembolso_parcial: 'Reembolso parcial', outro: 'Outras cobranças'
@@ -43,13 +46,13 @@ function tone(t: string) {
 
 /** CSV da guia atual: uma linha por devolução, com os custos em colunas. */
 function exportCsv() {
-  const head = ['Reclamação', 'Venda', 'Aberta em', 'Devolução em', 'Situação', 'Motivo', 'Comprador', 'Produto', 'SKU', 'Envio', 'Valor da venda', 'Reembolso', 'Frete de envio retido', 'Frete de devolução', 'Tarifas não devolvidas', 'Reembolso parcial', 'Outras cobranças', 'Custo total', 'Observações']
+  const head = ['Reclamação', 'Venda', 'Aberta em', 'Devolução em', 'Situação', 'Motivo', 'Comprador', 'Produto', 'SKU', 'Envio', 'Valor da venda', 'Reembolso', 'Frete de envio retido', 'Frete de devolução', 'Tarifas não devolvidas', 'Reembolso parcial', 'Outras cobranças', 'Custo total', 'Observações', 'Nota de Devolução']
   const money = (v: number | null | undefined) => (v === null || v === undefined ? '' : v.toFixed(2).replace('.', ','))
   const kind = (r: ReturnRow, k: string) => money(r.costs.items.filter((i) => i.key === k).reduce((s, i) => s + i.amount, 0) || null)
   const lines = rows.value.map((r) => [
     r.claim_id, r.order_id ?? '', dateShort(r.opened_at), r.closed_at ? dateShort(r.closed_at) : '', r.status.label, r.reason ?? '', r.buyer ?? '',
     r.item?.title ?? '', r.item?.sku ?? '', r.logistic ?? '', money(r.order_total), money(r.refund.amount),
-    kind(r, 'frete_envio'), kind(r, 'frete_devolucao'), kind(r, 'tarifa_venda'), kind(r, 'reembolso_parcial'), kind(r, 'outro'), money(r.costs.total), r.costs.notes.join(' | ')
+    kind(r, 'frete_envio'), kind(r, 'frete_devolucao'), kind(r, 'tarifa_venda'), kind(r, 'reembolso_parcial'), kind(r, 'outro'), money(r.costs.total), r.costs.notes.join(' | '), r.return_invoice?.label ?? ''
   ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';'))
   const blob = new Blob(['﻿' + [head.join(';'), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' })
   const a = document.createElement('a')
@@ -131,12 +134,13 @@ function exportCsv() {
       <table class="w-full table-fixed border-collapse text-[12px]">
         <thead>
           <tr class="border-b border-line text-ink-2">
-            <th class="w-[26%] px-2 py-2 text-left font-semibold">Venda / produto</th>
+            <th class="w-[23%] px-2 py-2 text-left font-semibold">Venda / produto</th>
             <th class="w-[10%] px-2 py-2 text-left font-semibold">Devolução</th>
             <th class="w-[18%] px-2 py-2 text-left font-semibold">Motivo</th>
             <th class="w-[10%] px-2 py-2 text-right font-semibold">Reembolso</th>
-            <th class="w-[26%] px-2 py-2 text-left font-semibold">Custos para você</th>
-            <th class="w-[10%] px-2 py-2 text-right font-semibold">Total</th>
+            <th class="w-[21%] px-2 py-2 text-left font-semibold">Custos para você</th>
+            <th class="w-[8%] px-2 py-2 text-right font-semibold">Total</th>
+            <th class="w-[10%] px-2 py-2 text-left font-semibold">Nota de Devolução</th>
           </tr>
         </thead>
         <tbody>
@@ -179,9 +183,17 @@ function exportCsv() {
                 {{ r.costs.total > 0 ? brl(r.costs.total) : '—' }}
                 <component :is="open === r.claim_id ? ChevronUpIcon : ChevronDownIcon" class="ml-1 inline h-3.5 w-3.5 text-ink-3" aria-hidden="true" />
               </td>
+              <td class="px-2 py-2" data-test="nota-devolucao" @click.stop>
+                <template v-if="r.return_invoice">
+                  <span class="font-semibold" :class="INVOICE_TONE[r.return_invoice.state]" data-numeric>{{ r.return_invoice.label }}</span>
+                  <span v-if="r.return_invoice.state === 'com_nota'" class="block text-[11px] text-ink-3">{{ r.return_invoice.source === 'ml' ? 'emitida pelo ML' : 'entrada no ERP' }}<template v-if="r.return_invoice.issued_at"> · {{ dateShort(r.return_invoice.issued_at) }}</template></span>
+                  <a v-if="r.return_invoice.emit_link" :href="r.return_invoice.emit_link" target="_blank" rel="noopener" class="btn-link block text-[11px]" data-test="emitir-nota">emitir nota</a>
+                </template>
+                <span v-else class="text-ink-3">—</span>
+              </td>
             </tr>
             <tr v-if="open === r.claim_id" class="border-b border-line bg-surface-2" data-test="devolucao-extrato">
-              <td colspan="6" class="px-4 py-3">
+              <td colspan="7" class="px-4 py-3">
                 <div class="grid gap-4 md:grid-cols-2">
                   <div class="text-[12px]">
                     <p class="mb-1 font-semibold text-ink">Dados da devolução</p>
