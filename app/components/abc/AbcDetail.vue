@@ -6,6 +6,7 @@ import AbcSpecsEditor from './AbcSpecsEditor.vue'
 import AbcTitleEditor from './AbcTitleEditor.vue'
 import AbcModelEditor from './AbcModelEditor.vue'
 import AbcDescriptionEditor from './AbcDescriptionEditor.vue'
+import type { SameSkuItem } from './AbcSameSkuChoice.vue'
 import { useToast } from '../../composables/useToast'
 import { apiErrorMessage } from '../../lib/apiErrors'
 import { useSessionStore } from '../../stores/session'
@@ -36,12 +37,16 @@ const acking = ref<string | null>(null)
  * da mesma família. Outro anúncio do mesmo produto (catálogo, outro tipo) não entra. Lidas uma vez por anúncio aberto.
  */
 const variations = ref(0)
+/** Outros anúncios do mesmo SKU (14/11/2026): modelo e descrição perguntam se alteram neles também. */
+const sameSku = ref<SameSkuItem[]>([])
 async function loadVariations() {
   try {
-    const res = await $api<{ count: number }>(`/api/items/${props.row.id}/variations`, { query: { account_id: session.selectedAccountId } })
+    const res = await $api<{ count: number; same_sku?: SameSkuItem[] }>(`/api/items/${props.row.id}/variations`, { query: { account_id: session.selectedAccountId } })
     variations.value = res.count
+    sameSku.value = res.same_sku ?? []
   } catch {
     variations.value = 0
+    sameSku.value = []
   }
 }
 onMounted(loadVariations)
@@ -299,8 +304,8 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
   </div>
   <AbcTitleEditor v-if="editing === 'titulo'" :item-id="row.id" @close="editing = null" @changed="emit('changed')" />
   <AbcSpecsEditor v-if="editing === 'ficha'" :item-id="row.id" :variations="variations" @close="editing = null" @changed="emit('changed')" />
-  <AbcModelEditor v-if="editing === 'modelo'" :item-id="row.id" :variations="variations" @close="editing = null" @changed="emit('changed')" />
-  <AbcDescriptionEditor v-if="editing === 'descricao'" :item-id="row.id" :variations="variations" @close="editing = null" @changed="emit('changed')" />
+  <AbcModelEditor v-if="editing === 'modelo'" :item-id="row.id" :variations="variations" :same-sku="sameSku" @close="editing = null" @changed="emit('changed')" />
+  <AbcDescriptionEditor v-if="editing === 'descricao'" :item-id="row.id" :variations="variations" :same-sku="sameSku" @close="editing = null" @changed="emit('changed')" />
   <div v-if="askAck" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" data-test="ciente-variacoes" @click.self="askAck = null">
     <div class="card w-full max-w-md space-y-3 p-5 text-[13px]">
       <p class="text-[15px] font-semibold text-ink">Aplicar às outras variações?</p>

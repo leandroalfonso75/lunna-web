@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useToast } from '../../composables/useToast'
 import { apiErrorMessage } from '../../lib/apiErrors'
 import { useSessionStore } from '../../stores/session'
+import AbcSameSkuChoice, { type SameSkuItem } from './AbcSameSkuChoice.vue'
 
 /**
  * Curva ABC > "Alterar modelo AGORA" (pedido do usuário em 14/11/2026): o campo Modelo da ficha técnica aceita até 110
@@ -11,7 +12,7 @@ import { useSessionStore } from '../../stores/session'
  * real do produto vai em "Modelo detalhado". "Sugerir palavras-chave" (IA, com as buscas da categoria) e "Publicar"
  * (muda no Mercado Livre na hora, com confirmação; só admin).
  */
-const props = defineProps<{ itemId: string; variations?: number }>()
+const props = defineProps<{ itemId: string; variations?: number; sameSku?: SameSkuItem[] }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
 
 interface Info {
@@ -34,6 +35,7 @@ const options = ref<Option[]>([])
 const confirming = ref(false)
 const publishing = ref(false)
 const allVariations = ref(false)
+const alsoIds = ref<string[]>([])
 
 const max = computed(() => info.value?.max_length ?? 110)
 const tooLong = computed(() => model.value.trim().length > max.value)
@@ -69,11 +71,11 @@ async function suggest() {
 async function publish() {
   publishing.value = true
   try {
-    const res = await $api<{ message: string; variations?: { ok: boolean }[] | null }>(`/api/items/${props.itemId}/model`, {
+    const res = await $api<{ message: string; variations?: { ok: boolean }[] | null; same_sku?: { ok: boolean }[] | null }>(`/api/items/${props.itemId}/model`, {
       method: 'POST', query: query(),
-      body: { model: model.value.trim(), detailed_model: detailed.value.trim(), confirm: true, apply_to_variations: allVariations.value }
+      body: { model: model.value.trim(), detailed_model: detailed.value.trim(), confirm: true, apply_to_variations: allVariations.value, also_item_ids: alsoIds.value }
     })
-    if (res.variations?.some((v) => !v.ok)) toast.error(res.message)
+    if ([...(res.variations ?? []), ...(res.same_sku ?? [])].some((v) => !v.ok)) toast.error(res.message)
     else toast.success(res.message)
     emit('changed')
     emit('close')
@@ -163,7 +165,8 @@ async function publish() {
               <span v-if="!session.isAdmin" class="text-[12px] text-ink-3">Só administradores publicam no Mercado Livre.</span>
             </template>
             <template v-else>
-              <span class="text-ink">O Modelo{{ detailed.trim() && info.detailed_available ? ' e o Modelo detalhado mudam' : ' muda' }} no Mercado Livre agora{{ allVariations && variations ? `, neste anúncio e nas outras ${variations} variações` : '' }}. Confirmar?</span>
+              <AbcSameSkuChoice v-model="alsoIds" :items="sameSku ?? []" />
+              <span class="text-ink">O Modelo{{ detailed.trim() && info.detailed_available ? ' e o Modelo detalhado mudam' : ' muda' }} no Mercado Livre agora{{ allVariations && variations ? `, neste anúncio e nas outras ${variations} variações` : '' }}{{ alsoIds.length ? ` e em mais ${alsoIds.length} anúncio(s) do mesmo produto` : '' }}. Confirmar?</span>
               <button type="button" class="btn-primary h-9" :disabled="publishing" data-test="modelo-confirmar" @click="publish">{{ publishing ? 'Publicando…' : 'Sim, publicar' }}</button>
               <button type="button" class="btn-secondary h-9" :disabled="publishing" @click="confirming = false">Cancelar</button>
             </template>
