@@ -248,15 +248,21 @@ watchEffect(() => {
         <select v-model="depotFilters.sort" class="input ml-auto h-9 w-60" @change="depotFilters.page = 1; reload()">
           <option v-for="s in DEPOT_SORTS" :key="s.value" :value="s.value">Ordenar: {{ s.label }}</option>
         </select>
-        <label class="relative">
-          <MagnifyingGlassIcon class="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-ink-3" aria-hidden="true" />
-          <input v-model="depotFilters.q" type="search" class="input h-9 w-64 pl-8" placeholder="Buscar por SKU ou produto" @input="depotFilters.page = 1; reload(true)" />
-        </label>
       </div>
       <p class="text-[12px] text-ink-3">
         Estoque geral do Olist (disponível), lido a cada 3 minutos<template v-if="depot?.synced_at"> · {{ dateTimeShort(depot.synced_at) }}</template>.
         Vendas de 30 dias no Mercado Livre: os kits contam para cada componente. Cobertura = (depósito + Full) ÷ venda por dia. Kits não têm estoque próprio e não aparecem.
       </p>
+
+      <label class="relative block" data-test="filtro-deposito">
+        <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-3 h-5 w-5 text-ink-3" aria-hidden="true" />
+        <input
+          v-model="depotFilters.q" type="search" class="input h-11 w-full pl-10 text-[14px]"
+          placeholder="Filtrar por SKU, número do anúncio (MLB), título do anúncio ou palavra do nome do produto"
+          @input="depotFilters.page = 1; reload(true)"
+        />
+      </label>
+      <p v-if="depotFilters.q && depot" class="-mt-3 text-[12px] text-ink-3">{{ int(depot.total) }} produto(s) encontrado(s). Buscar um anúncio de kit mostra os produtos que o compõem.</p>
 
       <div class="card overflow-hidden">
         <table class="w-full table-fixed border-collapse text-[12px]">
