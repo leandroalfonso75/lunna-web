@@ -24,6 +24,7 @@ const loading = ref(true)
 const info = ref<Info | null>(null)
 const text = ref('')
 const highlights = ref<string[]>([])
+const kept = ref<string[]>([])
 const suggesting = ref(false)
 const confirming = ref(false)
 const publishing = ref(false)
@@ -46,9 +47,10 @@ onMounted(async () => {
 async function suggest() {
   suggesting.value = true
   try {
-    const res = await $api<{ text: string; highlights: string[] }>(`/api/items/${props.itemId}/description/suggest`, { method: 'POST', query: query() })
+    const res = await $api<{ text: string; highlights: string[]; kept?: string[] }>(`/api/items/${props.itemId}/description/suggest`, { method: 'POST', query: query() })
     text.value = res.text
     highlights.value = res.highlights
+    kept.value = res.kept ?? []
   } catch (err) {
     toast.error(apiErrorMessage(err, 'Não foi possível sugerir uma descrição agora.'))
   } finally {
@@ -107,9 +109,14 @@ async function publish() {
             <li v-for="h in highlights" :key="h">{{ h }}</li>
           </ul>
 
+          <div v-if="kept.length" class="rounded-card border border-line bg-surface-2 p-3 text-[12px]" data-test="descricao-mantidos">
+            <p class="font-semibold text-ink">Avisos da descrição atual mantidos (confira se falta algum)</p>
+            <ul class="mt-1 list-disc space-y-0.5 pl-5 text-ink-2"><li v-for="k in kept" :key="k">{{ k }}</li></ul>
+          </div>
+
           <label class="block">
             <span class="mb-1 block font-semibold text-ink">Descrição (texto puro)</span>
-            <textarea v-model="text" rows="16" class="input w-full font-sans leading-relaxed" data-test="descricao-texto" />
+            <textarea v-model="text" rows="64" class="input min-h-[60rem] w-full resize-y font-sans leading-relaxed" data-test="descricao-texto" />
             <span class="mt-1 block text-[12px] text-ink-3" data-numeric>{{ length }} caracteres · sem HTML, links, e-mail ou telefone</span>
           </label>
 
