@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LogisticBadge from '../ui/LogisticBadge.vue'
 import { ArrowUturnLeftIcon, BanknotesIcon, ChatBubbleLeftEllipsisIcon, ClockIcon, ExclamationTriangleIcon, ScaleIcon } from '@heroicons/vue/24/outline'
 import { computed, ref } from 'vue'
 import { apiErrorMessage } from '../../lib/apiErrors'
@@ -125,7 +126,7 @@ defineExpose({ reset })
         </p>
         <p class="truncate text-[13px] text-ink" :title="claim.order?.item?.title ?? ''">{{ claim.order?.item?.title ?? 'Venda fora do Lunna' }}</p>
         <p class="text-[12px] text-ink-3">
-          <template v-if="claim.order">Venda #{{ claim.order.order_id }} · {{ claim.order.item?.sku ?? 'sem SKU' }} · {{ brl(claim.order.total) }}<template v-if="claim.order.logistic"> · <span class="font-semibold">{{ claim.order.logistic }}</span></template> · {{ claim.order.buyer_name ?? claim.order.buyer_nickname ?? '' }}</template>
+          <template v-if="claim.order">Venda #{{ claim.order.order_id }} · {{ claim.order.item?.sku ?? 'sem SKU' }} · {{ brl(claim.order.total) }}<template v-if="claim.order.logistic"> · <LogisticBadge :type="claim.order.logistic_type" :label="claim.order.logistic" /></template> · {{ claim.order.buyer_name ?? claim.order.buyer_nickname ?? '' }}</template>
         </p>
       </div>
       <div class="rounded-card border px-3 py-1.5 text-right" :class="urgency" data-test="atender-prazo">

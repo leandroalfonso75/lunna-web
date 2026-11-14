@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LogisticBadge from '../ui/LogisticBadge.vue'
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import AbcDetail from './AbcDetail.vue'
@@ -182,7 +183,7 @@ function profitLabel(): string {
                     <p class="truncate text-[14px] font-medium text-ink">{{ row.title }}</p>
                     <p class="text-[13px] text-ink-3">
                       {{ row.id }} · {{ row.status_label }}
-                      <span v-if="row.full" class="pill-primary ml-1 px-1.5 py-0 text-[11px]">Full</span>
+                      <LogisticBadge v-if="row.full" type="fulfillment" class="ml-1" />
                       <span v-if="row.group === 'up'" class="pill-success ml-1 px-1.5 py-0 text-[11px]">Vendendo</span>
                       <span v-else-if="row.group === 'down'" class="pill-danger ml-1 px-1.5 py-0 text-[11px]">Em queda</span>
                       <span v-else-if="row.group === 'flat'" class="pill-neutral ml-1 px-1.5 py-0 text-[11px]">Estagnado</span>

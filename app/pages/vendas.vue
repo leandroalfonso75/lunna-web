@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LogisticBadge from '../components/ui/LogisticBadge.vue'
 import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShoppingCartIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
@@ -86,15 +87,6 @@ const money = (v: number | null | undefined) => (v === null || v === undefined ?
 const share = (v: number | null | undefined, revenue: number | null | undefined) => (v === null || v === undefined || !revenue ? '' : pct((v / revenue) * 100))
 const expanded = ref<number | null>(null)
 
-/** Selo da forma de envio na coluna Envio: imagem para Full e Agência; as demais formas ficam em texto. */
-const LOGISTIC_BADGES: Record<string, { src: string }> = {
-  fulfillment: { src: '/logistica/full.png' },
-  xd_drop_off: { src: '/logistica/agencia.png' },
-  drop_off: { src: '/logistica/agencia.png' }
-}
-function logisticBadge(type: string | null | undefined) {
-  return type ? LOGISTIC_BADGES[type] ?? null : null
-}
 
 function toggle(row: SaleRow) {
   expanded.value = expanded.value === row.order_id ? null : row.order_id
@@ -371,15 +363,7 @@ function onDate(which: 'from' | 'to', event: Event) {
                   <span :class="tone(row.shipping.tone)">{{ row.shipping.label }}</span>
                   <span class="mt-1 flex items-center gap-1.5" data-test="sale-channel">
                     <img src="/logistica/ml-oval.png" alt="Mercado Livre" title="Venda do Mercado Livre" class="h-5 w-auto shrink-0" />
-                    <img
-                      v-if="logisticBadge(row.shipping.logistic_type)"
-                      :src="logisticBadge(row.shipping.logistic_type)!.src"
-                      :alt="row.shipping.logistic_label ?? ''"
-                      :title="row.shipping.logistic_label ?? ''"
-                      class="h-4 w-auto shrink-0"
-                      data-test="sale-logistic-badge"
-                    />
-                    <span v-else-if="row.shipping.logistic_label" class="text-[11px] text-ink-3">{{ row.shipping.logistic_label }}</span>
+                    <LogisticBadge :type="row.shipping.logistic_type" :label="row.shipping.logistic_label" data-test="sale-logistic-badge" />
                   </span>
                 </td>
               </tr>

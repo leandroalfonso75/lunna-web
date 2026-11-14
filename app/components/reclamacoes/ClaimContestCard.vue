@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LogisticBadge from '../ui/LogisticBadge.vue'
 import { ClipboardDocumentIcon, ClockIcon } from '@heroicons/vue/24/outline'
 import { computed, ref, watch } from 'vue'
 import { dateShort } from '../../lib/format'
@@ -69,7 +70,7 @@ function save(next?: ContestStatus) {
         </p>
         <p class="truncate text-[13px] text-ink" :title="claim.title ?? ''">{{ claim.title ?? 'Venda fora do Lunna' }}</p>
         <p class="text-[12px] text-ink-3">
-          <template v-if="claim.order_id">Venda #{{ claim.order_id }} · </template>{{ claim.sku ?? 'sem SKU' }}<template v-if="claim.logistic"> · {{ claim.logistic }}</template> · motivo: {{ claim.reason }}
+          <template v-if="claim.order_id">Venda #{{ claim.order_id }} · </template>{{ claim.sku ?? 'sem SKU' }}<template v-if="claim.logistic"> · <LogisticBadge :label="claim.logistic" /></template> · motivo: {{ claim.reason }}
         </p>
       </div>
       <div v-if="!contested" class="rounded-card border px-3 py-1.5 text-right" :class="urgency" data-test="contestar-prazo">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LogisticBadge from '../ui/LogisticBadge.vue'
 import { computed } from 'vue'
 import { brl, dateTimeShort, int, pct } from '../../lib/format'
 import type { SaleDetail } from '../../types/sales'
@@ -145,7 +146,7 @@ const money = (v: number | null | undefined) => brl(v)
       <p class="mb-2 font-semibold text-ink">Envio</p>
       <dl v-if="detail.shipping.loaded">
         <div class="def-row"><dt>Situação</dt><dd>{{ detail.shipping.label }}</dd></div>
-        <div class="def-row"><dt>Logística</dt><dd>{{ detail.shipping.logistic_label ?? '—' }}</dd></div>
+        <div class="def-row"><dt>Logística</dt><dd><LogisticBadge v-if="detail.shipping.logistic_type || detail.shipping.logistic_label" :type="detail.shipping.logistic_type" :label="detail.shipping.logistic_label" /><template v-else>—</template></dd></div>
         <div v-if="detail.shipping.method_name" class="def-row"><dt>Serviço</dt><dd>{{ detail.shipping.method_name }}</dd></div>
         <div v-if="detail.shipping.destination" class="def-row"><dt>Destino</dt><dd>{{ detail.shipping.destination }}</dd></div>
         <div v-if="detail.shipping.tracking_number" class="def-row"><dt>Rastreio</dt><dd class="break-all" data-numeric>{{ detail.shipping.tracking_number }}</dd></div>

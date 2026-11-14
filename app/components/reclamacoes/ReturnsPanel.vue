@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LogisticBadge from '../ui/LogisticBadge.vue'
 import { ArrowDownTrayIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/vue/24/outline'
 import { computed, ref } from 'vue'
 import { useToast } from '../../composables/useToast'
@@ -179,7 +180,7 @@ function exportCsv() {
                   <div class="min-w-0">
                     <p class="truncate font-medium text-ink" :title="r.item?.title ?? ''">{{ r.item?.title ?? 'Venda fora do Lunna' }}</p>
                     <p class="text-[11px] text-ink-3">
-                      <template v-if="r.order_id">Venda #{{ r.order_id }} · </template>{{ r.item?.sku ?? 'sem SKU' }}<template v-if="r.logistic"> · {{ r.logistic }}</template>
+                      <template v-if="r.order_id">Venda #{{ r.order_id }} · </template>{{ r.item?.sku ?? 'sem SKU' }}<template v-if="r.logistic"> · <LogisticBadge :label="r.logistic" /></template>
                       <template v-if="r.order_total !== null"> · {{ brl(r.order_total) }}</template>
                     </p>
                     <p class="text-[11px] text-ink-3">Reclamação #{{ r.claim_id }} · aberta em {{ dateShort(r.opened_at) }}<template v-if="r.buyer"> · {{ r.buyer }}</template></p>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LogisticBadge from '../../components/ui/LogisticBadge.vue'
 import { ArrowDownTrayIcon, ArrowTrendingDownIcon, ArrowTrendingUpIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import FinanceDailyChart from '../../components/financeiro/FinanceDailyChart.vue'
@@ -373,7 +374,7 @@ function exportExpenses() {
               <thead><tr class="border-b border-line text-ink-2"><th class="py-1 text-left font-semibold">Envio</th><th class="py-1 text-right font-semibold">Vendas</th><th class="py-1 text-right font-semibold">Receita</th><th class="py-1 text-right font-semibold">% </th><th class="py-1 text-right font-semibold">Variação</th></tr></thead>
               <tbody>
                 <tr v-for="l in data.revenue.by_logistic" :key="l.label" class="border-b border-line">
-                  <td class="py-1.5 capitalize text-ink">{{ l.label }}</td>
+                  <td class="py-1.5 capitalize text-ink"><LogisticBadge :label="l.label" /></td>
                   <td class="py-1.5 text-right" data-numeric>{{ int(l.orders) }}</td>
                   <td class="py-1.5 text-right" data-numeric>{{ brl(l.value) }}</td>
                   <td class="py-1.5 text-right text-ink-3" data-numeric>{{ l.share ?? 0 }}%</td>

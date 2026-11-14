@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LogisticBadge from '../ui/LogisticBadge.vue'
 import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import { useItemsTable } from '../../composables/useItemsTable'
@@ -256,7 +257,7 @@ function totalPages(): number {
                   <p class="truncate text-[13px] font-medium text-ink" :title="item.title">{{ item.title }}</p>
                   <p class="truncate text-[12px] text-ink-3">
                     {{ item.id }} · {{ item.status_label }}
-                    <span v-if="item.full" class="pill-primary ml-1 px-1.5 py-0 text-[10px]">Full</span>
+                    <LogisticBadge v-if="item.full" type="fulfillment" class="ml-1" />
                   </p>
                 </td>
                 <td class="truncate px-2 py-2 text-ink-2" :title="item.sku ?? 'sem SKU'">{{ item.sku ?? 'sem SKU' }}</td>
@@ -350,7 +351,7 @@ function totalPages(): number {
                         </div>
                         <div v-if="item.discount_pct" class="def-row"><dt>Desconto</dt><dd data-numeric>{{ pct(item.discount_pct) }}</dd></div>
                         <div class="def-row"><dt>Frete</dt><dd>{{ item.free_shipping ? 'Grátis' : 'Pago pelo comprador' }}</dd></div>
-                        <div class="def-row"><dt>Logística</dt><dd>{{ item.full ? 'Full' : 'Fora do Full' }}</dd></div>
+                        <div class="def-row"><dt>Logística</dt><dd><LogisticBadge v-if="item.full" type="fulfillment" /><template v-else>Fora do Full</template></dd></div>
                         <div class="def-row"><dt>Catálogo</dt><dd>{{ item.catalog ? 'Sim' : 'Não' }}</dd></div>
                       </dl>
                     </div>
