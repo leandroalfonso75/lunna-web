@@ -7,7 +7,7 @@ import { useSessionStore } from '../../stores/session'
 
 /**
  * Curva ABC > "Alterar modelo AGORA" (pedido do usuário em 14/11/2026): o campo Modelo da ficha técnica aceita até 110
- * caracteres no Mercado Livre e entra na busca. Ele recebe palavras-chave (as mais buscadas no ML e no Google) e o modelo
+ * caracteres no Mercado Livre e entra na busca. Ele recebe as buscas mais feitas da categoria no ML (texto exato) e o modelo
  * real do produto vai em "Modelo detalhado". "Sugerir palavras-chave" (IA, com as buscas da categoria) e "Publicar"
  * (muda no Mercado Livre na hora, com confirmação; só admin).
  */
@@ -109,7 +109,8 @@ async function publish() {
 
         <p class="text-[12px] text-ink-2">
           O Mercado Livre aceita até {{ max }} caracteres no campo Modelo e usa esse texto na busca. Em vez do código do produto,
-          coloque as palavras que o comprador digita (de preferência as que não estão no título). O modelo de verdade vai em "Modelo detalhado".
+          vão as buscas mais feitas da categoria, exatamente como aparecem abaixo; as duas primeiras sem marca de outra empresa.
+          O modelo de verdade, com outros detalhes do produto, vai em "Modelo detalhado".
         </p>
 
         <p v-if="!info.editable" class="rounded-card border border-warning bg-warning-soft p-3 text-ink" data-test="modelo-bloqueado">{{ info.reason }}</p>
@@ -146,7 +147,7 @@ async function publish() {
           </ul>
 
           <label v-if="info.detailed_available" class="block">
-            <span class="mb-1 block font-semibold text-ink">Modelo detalhado (o modelo real do produto)</span>
+            <span class="mb-1 block font-semibold text-ink">Modelo detalhado (o modelo real do produto e outros detalhes)</span>
             <input v-model="detailed" type="text" class="input w-full" maxlength="255" placeholder="Ex.: SC-13" data-test="modelo-detalhado">
             <span v-if="info.detailed_per_variation" class="mt-1 block text-[12px] text-ink-3">Vai em todas as variações deste anúncio.</span>
           </label>
