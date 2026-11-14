@@ -8,6 +8,7 @@ import {
   EnvelopeIcon,
   ChevronUpDownIcon,
   Cog6ToothIcon,
+  ArchiveBoxIcon,
   CubeIcon,
   HomeIcon,
   ListBulletIcon,
@@ -48,6 +49,7 @@ const NAV_SECTIONS = [
     items: [
       { to: '/', label: 'Visão geral', icon: HomeIcon },
       { to: '/produtos', label: 'Produtos', icon: CubeIcon },
+      { to: '/estoque', label: 'Estoque', icon: ArchiveBoxIcon },
       { to: '/anuncios', label: 'Anúncios', icon: ListBulletIcon },
       { to: '/vendas', label: 'Vendas', icon: ShoppingBagIcon },
       { to: '/reclamacoes', label: 'Reclamações', icon: ChatBubbleLeftRightIcon },
