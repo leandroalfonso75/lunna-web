@@ -148,15 +148,19 @@ watchEffect(() => {
 
     <!-- ===== Full e reposição ===== -->
     <template v-if="tab === 'full'">
+      <div class="relative max-w-xl" data-test="filtro-full">
+        <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" aria-hidden="true" />
+        <input
+          v-model="fullFilters.q" type="search" class="input h-10 w-full pl-9" aria-label="Filtrar produtos do Full"
+          placeholder="Filtrar por SKU, nº do anúncio (MLB) ou título"
+          @input="fullFilters.page = 1; reload(true)"
+        />
+      </div>
       <div class="flex flex-wrap items-center gap-2">
         <button v-for="v in FULL_VIEWS" :key="v.value" type="button" class="rounded-md px-2.5 py-1 text-[13px]"
           :class="fullFilters.view === v.value ? 'bg-primary-soft font-semibold text-primary' : 'text-ink-2 hover:bg-surface-2'"
           @click="fullFilters.view = v.value; fullFilters.page = 1; reload()">{{ v.label }}</button>
-        <label class="relative ml-auto">
-          <MagnifyingGlassIcon class="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-ink-3" aria-hidden="true" />
-          <input v-model="fullFilters.q" type="search" class="input h-9 w-72 pl-8" placeholder="Buscar por SKU, produto ou MLB" @input="fullFilters.page = 1; reload(true)" />
-        </label>
-        <button v-if="session.isAdmin" type="button" class="btn-link text-[12px]" @click="syncFull">Reler do Mercado Livre</button>
+        <button v-if="session.isAdmin" type="button" class="btn-link ml-auto text-[12px]" @click="syncFull">Reler do Mercado Livre</button>
       </div>
       <p class="text-[12px] text-ink-3">
         Recomendações do próprio Mercado Livre (Planejamento de reposição do Full), relidas a cada 6 horas<template v-if="full?.synced_at"> · última leitura {{ dateTimeShort(full.synced_at) }}</template>.
@@ -241,6 +245,14 @@ watchEffect(() => {
 
     <!-- ===== Depósito (ERP) ===== -->
     <template v-else>
+      <div class="relative max-w-xl" data-test="filtro-deposito">
+        <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" aria-hidden="true" />
+        <input
+          v-model="depotFilters.q" type="search" class="input h-10 w-full pl-9" aria-label="Filtrar estoque do depósito"
+          placeholder="Filtrar por SKU, nº do anúncio (MLB), título do anúncio ou palavra do nome"
+          @input="depotFilters.page = 1; reload(true)"
+        />
+      </div>
       <div class="flex flex-wrap items-center gap-2">
         <button v-for="v in DEPOT_VIEWS" :key="v.value" type="button" class="rounded-md px-2.5 py-1 text-[13px]"
           :class="depotFilters.view === v.value ? 'bg-primary-soft font-semibold text-primary' : 'text-ink-2 hover:bg-surface-2'"
@@ -254,15 +266,7 @@ watchEffect(() => {
         Vendas de 30 dias no Mercado Livre: os kits contam para cada componente. Cobertura = (depósito + Full) ÷ venda por dia. Kits não têm estoque próprio e não aparecem.
       </p>
 
-      <label class="relative block" data-test="filtro-deposito">
-        <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-3 h-5 w-5 text-ink-3" aria-hidden="true" />
-        <input
-          v-model="depotFilters.q" type="search" class="input h-11 w-full pl-10 text-[14px]"
-          placeholder="Filtrar por SKU, número do anúncio (MLB), título do anúncio ou palavra do nome do produto"
-          @input="depotFilters.page = 1; reload(true)"
-        />
-      </label>
-      <p v-if="depotFilters.q && depot" class="-mt-3 text-[12px] text-ink-3">{{ int(depot.total) }} produto(s) encontrado(s). Buscar um anúncio de kit mostra os produtos que o compõem.</p>
+      <p v-if="depotFilters.q && depot" class="text-[12px] text-ink-3">{{ int(depot.total) }} produto(s) encontrado(s). Buscar um anúncio de kit mostra os produtos que o compõem.</p>
 
       <div class="card overflow-hidden">
         <table class="w-full table-fixed border-collapse text-[12px]">
