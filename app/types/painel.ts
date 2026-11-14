@@ -390,7 +390,7 @@ export interface AbcSuggestion {
   /** identifica a sugestão para o "Ciente" */
   key: string
   /** ação disponível na tela (ex.: gerar fotos, alterar título/ficha, "Ciente") */
-  action?: { kind: 'gerar_fotos'; suggested_count: number } | { kind: 'alterar_titulo' | 'alterar_ficha' | 'ciente' }
+  action?: { kind: 'gerar_fotos'; suggested_count: number } | { kind: 'alterar_titulo' | 'alterar_ficha' | 'alterar_modelo' | 'alterar_descricao' | 'ciente' }
 }
 
 export interface AbcPriceOption {

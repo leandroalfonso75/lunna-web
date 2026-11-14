@@ -4,6 +4,8 @@ import AbcPhotoGenerator from './AbcPhotoGenerator.vue'
 import AbcPriceScenarios from './AbcPriceScenarios.vue'
 import AbcSpecsEditor from './AbcSpecsEditor.vue'
 import AbcTitleEditor from './AbcTitleEditor.vue'
+import AbcModelEditor from './AbcModelEditor.vue'
+import AbcDescriptionEditor from './AbcDescriptionEditor.vue'
 import { useToast } from '../../composables/useToast'
 import { apiErrorMessage } from '../../lib/apiErrors'
 import { useSessionStore } from '../../stores/session'
@@ -26,7 +28,7 @@ const session = useSessionStore()
 const toast = useToast()
 
 /** Janelas de "Alterar título AGORA" e "Alterar ficha técnica AGORA" (pedido do usuário em 07/11/2026). */
-const editing = ref<'titulo' | 'ficha' | null>(null)
+const editing = ref<'titulo' | 'ficha' | 'modelo' | 'descricao' | null>(null)
 const acking = ref<string | null>(null)
 
 /**
@@ -211,6 +213,16 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
               type="button" class="btn-primary mt-2 h-8 text-[12px]" data-test="sugestao-alterar-ficha"
               @click="editing = 'ficha'"
             >Alterar ficha técnica AGORA</button>
+            <button
+              v-else-if="s.action?.kind === 'alterar_modelo'"
+              type="button" class="btn-primary mt-2 h-8 text-[12px]" data-test="sugestao-alterar-modelo"
+              @click="editing = 'modelo'"
+            >Alterar modelo AGORA</button>
+            <button
+              v-else-if="s.action?.kind === 'alterar_descricao'"
+              type="button" class="btn-primary mt-2 h-8 text-[12px]" data-test="sugestao-alterar-descricao"
+              @click="editing = 'descricao'"
+            >Alterar descrição AGORA</button>
             <div v-else-if="s.action?.kind === 'ciente'" class="mt-2 flex flex-wrap gap-2" data-test="sugestao-ciente">
               <button type="button" class="btn-secondary h-8 text-[12px]" :disabled="acking === s.key" @click="requestAck(s, 'aplicada')">Ciente, sugestão aplicada no Mercado Livre</button>
               <button
@@ -287,6 +299,8 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
   </div>
   <AbcTitleEditor v-if="editing === 'titulo'" :item-id="row.id" @close="editing = null" @changed="emit('changed')" />
   <AbcSpecsEditor v-if="editing === 'ficha'" :item-id="row.id" :variations="variations" @close="editing = null" @changed="emit('changed')" />
+  <AbcModelEditor v-if="editing === 'modelo'" :item-id="row.id" :variations="variations" @close="editing = null" @changed="emit('changed')" />
+  <AbcDescriptionEditor v-if="editing === 'descricao'" :item-id="row.id" :variations="variations" @close="editing = null" @changed="emit('changed')" />
   <div v-if="askAck" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" data-test="ciente-variacoes" @click.self="askAck = null">
     <div class="card w-full max-w-md space-y-3 p-5 text-[13px]">
       <p class="text-[15px] font-semibold text-ink">Aplicar às outras variações?</p>
