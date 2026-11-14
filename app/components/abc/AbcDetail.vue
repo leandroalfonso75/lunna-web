@@ -53,14 +53,15 @@ onMounted(loadVariations)
 watch(() => props.row.id, loadVariations)
 
 /** Ciente com variações: pergunta antes se vale também para as outras variações do anúncio. */
-const askAck = ref<{ s: AbcSuggestion; kind: 'aplicada' | 'aguardar' } | null>(null)
-function requestAck(s: AbcSuggestion, kind: 'aplicada' | 'aguardar') {
+type AckKind = 'aplicada' | 'aguardar' | 'ignorar'
+const askAck = ref<{ s: AbcSuggestion; kind: AckKind } | null>(null)
+function requestAck(s: AbcSuggestion, kind: AckKind) {
   if (variations.value > 0) askAck.value = { s, kind }
   else void ack(s, kind, false)
 }
 
 /** "Ciente" em Vídeo, Tipo de anúncio e Qualidade: aplicada no ML ou aguardar (some e volta em 15 dias se nada mudar). */
-async function ack(s: AbcSuggestion, kind: 'aplicada' | 'aguardar', all = false) {
+async function ack(s: AbcSuggestion, kind: AckKind, all = false) {
   askAck.value = null
   acking.value = s.key
   try {
@@ -218,16 +219,23 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
               type="button" class="btn-primary mt-2 h-8 text-[12px]" data-test="sugestao-alterar-ficha"
               @click="editing = 'ficha'"
             >Alterar ficha técnica AGORA</button>
-            <button
-              v-else-if="s.action?.kind === 'alterar_modelo'"
-              type="button" class="btn-primary mt-2 h-8 text-[12px]" data-test="sugestao-alterar-modelo"
-              @click="editing = 'modelo'"
-            >Alterar modelo AGORA</button>
-            <button
-              v-else-if="s.action?.kind === 'alterar_descricao'"
-              type="button" class="btn-primary mt-2 h-8 text-[12px]" data-test="sugestao-alterar-descricao"
-              @click="editing = 'descricao'"
-            >Alterar descrição AGORA</button>
+            <div v-else-if="s.action?.kind === 'alterar_modelo' || s.action?.kind === 'alterar_descricao'" class="mt-2 flex flex-wrap gap-2">
+              <button
+                v-if="s.action?.kind === 'alterar_modelo'"
+                type="button" class="btn-primary h-8 text-[12px]" data-test="sugestao-alterar-modelo"
+                @click="editing = 'modelo'"
+              >Alterar modelo AGORA</button>
+              <button
+                v-else
+                type="button" class="btn-primary h-8 text-[12px]" data-test="sugestao-alterar-descricao"
+                @click="editing = 'descricao'"
+              >Alterar descrição AGORA</button>
+              <button
+                type="button" class="btn-secondary h-8 text-[12px]" :disabled="acking === s.key" data-test="sugestao-ignorar"
+                title="Nada muda no anúncio e a sugestão não aparece por 30 dias"
+                @click="requestAck(s, 'ignorar')"
+              >Ignorar</button>
+            </div>
             <div v-else-if="s.action?.kind === 'ciente'" class="mt-2 flex flex-wrap gap-2" data-test="sugestao-ciente">
               <button type="button" class="btn-secondary h-8 text-[12px]" :disabled="acking === s.key" @click="requestAck(s, 'aplicada')">Ciente, sugestão aplicada no Mercado Livre</button>
               <button
@@ -311,7 +319,7 @@ function marginClass(state: ThreeState | null, profitState: ThreeState | null = 
       <p class="text-[15px] font-semibold text-ink">Aplicar às outras variações?</p>
       <p class="text-ink-2">
         Este anúncio tem mais {{ variations }} {{ variations === 1 ? 'variação' : 'variações' }} no mesmo anúncio pai.
-        Quer marcar "{{ askAck.kind === 'aplicada' ? 'Ciente, sugestão aplicada' : 'Ciente, aguardar' }}" também nelas?
+        Quer marcar "{{ askAck.kind === 'aplicada' ? 'Ciente, sugestão aplicada' : askAck.kind === 'ignorar' ? 'Ignorar' : 'Ciente, aguardar' }}" também nelas?
       </p>
       <p class="text-[12px] text-ink-3">Outros anúncios do mesmo produto (catálogo ou outro tipo de anúncio) não entram.</p>
       <div class="flex flex-wrap gap-2">
