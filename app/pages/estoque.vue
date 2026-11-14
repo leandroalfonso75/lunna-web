@@ -191,7 +191,7 @@ watchEffect(() => {
                     <img v-if="r.thumbnail" :src="r.thumbnail" alt="" class="h-10 w-10 shrink-0 rounded object-cover" loading="lazy" />
                     <div class="min-w-0">
                       <p class="truncate font-medium text-ink" :title="r.title ?? ''">{{ r.title ?? r.sku ?? r.user_product_id }}</p>
-                      <p class="text-[11px] text-ink-3">{{ r.sku ?? 'sem SKU' }}<template v-if="r.item_id"> · {{ r.item_id }}</template><template v-if="r.price"> · {{ brl(r.price) }}</template></p>
+                      <p class="text-[11px] text-ink-3">{{ r.sku ?? 'sem SKU' }}<template v-if="r.variation_label"> · {{ r.variation_label }}</template><template v-if="r.item_id"> · {{ r.item_id }}</template><template v-if="r.price"> · {{ brl(r.price) }}</template></p>
                       <p class="text-[11px]">
                         <span v-if="r.star" class="mr-1 font-semibold text-warning">produto estrela</span>
                         <span v-if="r.restricted" class="mr-1 font-semibold text-danger">com restrição no Full</span>
@@ -204,6 +204,7 @@ watchEffect(() => {
                 <td class="px-2 py-2"><span v-if="r.urgency" class="pill" :class="URGENCY_TONE[r.urgency] ?? 'pill-neutral'">{{ r.urgency_label }}</span></td>
                 <td class="px-2 py-2 text-right" data-numeric>
                   <template v-if="r.replenish"><span class="block font-semibold text-ink">{{ int(r.suggested) }}</span><span class="text-[11px] text-ink-3">até {{ r.deadline_label }}</span></template>
+                  <span v-else-if="r.legacy" class="block text-[11px] text-ink-3" title="Anúncio do formato antigo (com variações, sem User Product): a API de reposição do Mercado Livre não traz recomendação para ele">sem recomendação do ML<template v-if="r.coverage_days !== null && r.coverage_days !== undefined"> · cobre {{ int(r.coverage_days) }} dias</template></span>
                   <span v-else class="text-ink-3">—</span>
                 </td>
                 <td class="px-2 py-2 text-right" :class="(r.olist_available ?? 0) <= 0 ? 'text-danger' : 'text-ink'" data-numeric>{{ r.olist_available === null ? '—' : int(r.olist_available) }}</td>

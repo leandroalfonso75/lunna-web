@@ -37,6 +37,10 @@ export interface StockFullRow {
   thumbnail: string | null
   item_id: string | null
   price: number | null
+  /** anúncio do formato antigo (variações, sem User Product): o ML não dá recomendação */
+  legacy?: boolean
+  variation_label?: string | null
+  coverage_days?: number | null
   in_full: boolean
   restricted: boolean
   star: boolean
