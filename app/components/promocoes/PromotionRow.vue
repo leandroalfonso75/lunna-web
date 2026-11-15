@@ -30,6 +30,9 @@ function offerLine(o: PromotionOfferShort | null) {
   if (!o) return null
   return { title: o.name || o.label, price: o.price, margin: o.margin_pct, profit: o.profit, valid: o.valid, action: o.action, validity: promotionValidity(o, true) }
 }
+
+/** Data curta (dd/mm) da troca programada. */
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 </script>
 
 <template>
@@ -136,7 +139,10 @@ function offerLine(o: PromotionOfferShort | null) {
       <span v-if="row.review_round" class="block text-[11px] font-medium text-ink-2" data-test="rodada-revisar" :title="row.review_round.note ?? undefined">
         {{ row.review_round.label }}<template v-if="row.review_round.note"> · {{ row.review_round.note }}</template>
       </span>
-      <span v-if="row.review" class="block text-[11px] text-ink-3" :title="row.review.suggestion ?? row.review.reasons.map((r) => `${r.reason} (${r.offers})`).join(' · ')">
+      <span v-if="row.status.key === 'programado' && row.scheduled" class="block text-[11px] font-medium text-ink-2" data-test="programado">
+        {{ row.scheduled.name || row.scheduled.label }}<template v-if="row.scheduled.price"> a {{ brl(row.scheduled.price) }}</template> a partir de {{ shortDate(row.scheduled.effective_at) }}
+      </span>
+      <span v-else-if="row.review" class="block text-[11px] text-ink-3" :title="row.review.suggestion ?? row.review.reasons.map((r) => `${r.reason} (${r.offers})`).join(' · ')">
         {{ row.review.label }}
       </span>
     </td>

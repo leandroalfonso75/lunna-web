@@ -43,6 +43,7 @@ const STATUS_TABS = [
   { value: 'ok', label: 'Na melhor' },
   { value: 'sem_custo', label: 'Sem custo' },
   { value: 'para_revisar', label: 'Para revisar', tone: 'text-danger' },
+  { value: 'programado', label: 'Programado', tone: 'text-success' },
   { value: 'nao_automatizados', label: 'Não automatizados', tone: 'text-warning' },
   { value: 'catalogo', label: 'Catálogo', tone: 'text-success' }
 ]
@@ -148,7 +149,7 @@ function groupRound(children: PromotionItemRow[]) {
 const TONE: Record<string, string> = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger', neutral: 'text-ink-3' }
 const STATUS_SHORT: Record<string, string> = {
   trocar: 'trocar', acima_maxima: 'acima da máx.', sem_promocao: 'sem promoção', ok: 'na melhor', abaixo_minima: 'abaixo da mín.',
-  sem_custo: 'sem custo', para_revisar: 'para revisar'
+  sem_custo: 'sem custo', para_revisar: 'para revisar', programado: 'programado'
 }
 const tone = (t: string) => TONE[t] ?? 'text-ink-2'
 
@@ -163,7 +164,7 @@ const cards = computed(() => {
     { key: 'with', label: 'Em promoção', value: int(s.with_promotion), hint: `de ${int(s.items)} anúncios ativos`, status: '' },
     { key: 'without', label: 'Sem promoção', value: int(s.without_promotion), hint: 'podem entrar numa oferta', tone: s.without_promotion ? 'text-warning' : '', status: 'sem_promocao' },
     { key: 'switch', label: 'Trocas que rendem mais', value: int(s.to_switch), hint: `+${brl(s.switch_gain)} por unidade somando todas`, tone: s.to_switch ? 'text-warning' : '', status: 'trocar' },
-    { key: 'review', label: 'Para revisar', value: int(s.to_review), hint: 'nenhuma oferta cabe nas regras; nada foi aplicado', tone: s.to_review ? 'text-danger' : '', status: 'para_revisar' }
+    { key: 'review', label: 'Para revisar', value: int(s.to_review), hint: s.scheduled ? `nenhuma oferta cabe nas regras · outros ${int(s.scheduled)} já programados (guia Programado)` : 'nenhuma oferta cabe nas regras; nada foi aplicado', tone: s.to_review ? 'text-danger' : '', status: 'para_revisar' }
   ]
 })
 
