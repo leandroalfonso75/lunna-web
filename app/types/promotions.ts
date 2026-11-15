@@ -103,6 +103,8 @@ export interface PromotionItemRow {
   /** Em "Para revisar": a rodada em que entrou (ou "Depois da rodada de…") e o que a última rodada disse dele. */
   review_round?: { at: string | null; run_id: number | null; after_last: boolean; label: string; note: string | null } | null
   /** Status "Programado": a troca que a automação já marcou para quando a promoção atual acabar. */
+  /** Status "Mínima inalcançável": nem o preço cheio atinge a mínima; a oferta mais perto dela (a que a automação usa). */
+  unreachable?: { min_pct: number; full_price_margin: number | null; closest: PromotionOfferShort | null; loss: boolean } | null
   scheduled?: { effective_at: string; name: string | null; type: string | null; price: number | null; margin_pct: number | null; label: string | null } | null
   /** Em "Para revisar": a regra que barrou a promoção atual e as que barraram as ofertas. */
   review: {
@@ -225,6 +227,7 @@ export interface PromotionsResponse {
     below_min: number
     to_review: number
     scheduled?: number
+    unreachable?: number
     without_cost: number
   }
   counts: Record<string, number>

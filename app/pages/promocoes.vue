@@ -44,6 +44,7 @@ const STATUS_TABS = [
   { value: 'sem_custo', label: 'Sem custo' },
   { value: 'para_revisar', label: 'Para revisar', tone: 'text-danger' },
   { value: 'programado', label: 'Programado', tone: 'text-success' },
+  { value: 'minima_inalcancavel', label: 'Mínima inalcançável', tone: 'text-warning' },
   { value: 'nao_automatizados', label: 'Não automatizados', tone: 'text-warning' },
   { value: 'catalogo', label: 'Catálogo', tone: 'text-success' }
 ]
@@ -149,13 +150,19 @@ function groupRound(children: PromotionItemRow[]) {
 const TONE: Record<string, string> = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger', neutral: 'text-ink-3' }
 const STATUS_SHORT: Record<string, string> = {
   trocar: 'trocar', acima_maxima: 'acima da máx.', sem_promocao: 'sem promoção', ok: 'na melhor', abaixo_minima: 'abaixo da mín.',
-  sem_custo: 'sem custo', para_revisar: 'para revisar', programado: 'programado'
+  sem_custo: 'sem custo', para_revisar: 'para revisar', programado: 'programado', minima_inalcancavel: 'mín. inalcançável'
 }
 const tone = (t: string) => TONE[t] ?? 'text-ink-2'
 
 const pages = computed(() => (response.value ? Math.max(1, Math.ceil(response.value.total / response.value.per_page)) : 1))
 const promotionName = computed(() => response.value?.promotions.find((p) => p.promotion_id === filters.promotionId)?.name ?? filters.promotionId)
 const hasFilters = computed(() => !!(filters.status || filters.promotionId || filters.q))
+
+/** Card "Para revisar": quantos já estão resolvidos pela automação (programados ou na oferta mais perto da mínima). */
+function reviewHint(s: { scheduled?: number; unreachable?: number }) {
+  const extra = [s.scheduled ? `${int(s.scheduled)} programados` : '', s.unreachable ? `${int(s.unreachable)} com mínima inalcançável` : ''].filter(Boolean)
+  return extra.length ? `nenhuma oferta cabe nas regras · fora daqui: ${extra.join(' e ')}` : 'nenhuma oferta cabe nas regras; nada foi aplicado'
+}
 
 const cards = computed(() => {
   const s = response.value?.summary
@@ -164,7 +171,7 @@ const cards = computed(() => {
     { key: 'with', label: 'Em promoção', value: int(s.with_promotion), hint: `de ${int(s.items)} anúncios ativos`, status: '' },
     { key: 'without', label: 'Sem promoção', value: int(s.without_promotion), hint: 'podem entrar numa oferta', tone: s.without_promotion ? 'text-warning' : '', status: 'sem_promocao' },
     { key: 'switch', label: 'Trocas que rendem mais', value: int(s.to_switch), hint: `+${brl(s.switch_gain)} por unidade somando todas`, tone: s.to_switch ? 'text-warning' : '', status: 'trocar' },
-    { key: 'review', label: 'Para revisar', value: int(s.to_review), hint: s.scheduled ? `nenhuma oferta cabe nas regras · outros ${int(s.scheduled)} já programados (guia Programado)` : 'nenhuma oferta cabe nas regras; nada foi aplicado', tone: s.to_review ? 'text-danger' : '', status: 'para_revisar' }
+    { key: 'review', label: 'Para revisar', value: int(s.to_review), hint: reviewHint(s), tone: s.to_review ? 'text-danger' : '', status: 'para_revisar' }
   ]
 })
 

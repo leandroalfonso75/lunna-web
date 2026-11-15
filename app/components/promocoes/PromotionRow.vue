@@ -142,6 +142,12 @@ const shortDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { d
       <span v-if="row.status.key === 'programado' && row.scheduled" class="block text-[11px] font-medium text-ink-2" data-test="programado">
         {{ row.scheduled.name || row.scheduled.label }}<template v-if="row.scheduled.price"> a {{ brl(row.scheduled.price) }}</template> a partir de {{ shortDate(row.scheduled.effective_at) }}
       </span>
+      <span v-else-if="row.status.key === 'minima_inalcancavel' && row.unreachable" class="block text-[11px] text-ink-2" data-test="inalcancavel"
+            title="Nem o preço cheio atinge a margem mínima: a automação deixa na oferta mais perto dela. Reveja o preço ou o custo.">
+        mínima {{ pct(row.unreachable.min_pct) }} · preço cheio {{ row.unreachable.full_price_margin !== null ? pct(row.unreachable.full_price_margin) : '—' }}
+        <template v-if="row.unreachable.loss"> · prejuízo em qualquer oferta: fica como está</template>
+        <template v-else-if="row.unreachable.closest"> · mais perto: {{ row.unreachable.closest.name || row.unreachable.closest.label }} {{ pct(row.unreachable.closest.margin_pct ?? 0) }}</template>
+      </span>
       <span v-else-if="row.review" class="block text-[11px] text-ink-3" :title="row.review.suggestion ?? row.review.reasons.map((r) => `${r.reason} (${r.offers})`).join(' · ')">
         {{ row.review.label }}
       </span>
