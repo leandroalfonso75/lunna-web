@@ -124,11 +124,11 @@ function reloadSoon() {
   reloadTimer = setTimeout(() => { void load(true) }, 12_000)
 }
 
-// "Já respondi no Mercado Livre": relê a reclamação no ML agora (e de novo em 10 s).
+// "Já respondi no Mercado Livre": relê a reclamação no ML agora (e de novo em 10 s) e tira de A atender (16/11/2026).
 async function refreshClaim(claimId: number) {
   try {
     const res = await $api<{ to_attend: boolean }>(`/api/claims/${claimId}/refresh`, { method: 'POST', query: { account_id: session.selectedAccountId } })
-    toast.success(res.to_attend ? 'Reclamação relida no Mercado Livre: ainda aguarda você. O Lunna confere de novo em alguns segundos.' : 'Reclamação atualizada: não aguarda mais você.')
+    toast.success(res.to_attend ? 'Reclamação relida no Mercado Livre: ainda aguarda você. O Lunna confere de novo em alguns segundos.' : 'Marcada como respondida: saiu de A atender. Volta se chegar mensagem nova do Mercado Livre ou do comprador.')
     await load(true)
     reloadSoon()
   } catch (err) {
