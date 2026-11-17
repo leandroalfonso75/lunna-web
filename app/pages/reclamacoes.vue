@@ -74,6 +74,20 @@ async function saveContest(claimId: number, status: ContestStatus, text: string)
     savingContest.value = false
   }
 }
+// "Refazer com IA" (17/11/2026): a IA lê o caso inteiro (relato e mensagens) e reescreve a contestação. Não envia nada.
+const regenerating = ref<number | null>(null)
+async function regenerateContest(claimId: number) {
+  regenerating.value = claimId
+  try {
+    await $api(`/api/claims/${claimId}/contest/ai`, { method: 'POST', query: { account_id: session.selectedAccountId } })
+    toast.success('Contestação reescrita a partir do caso inteiro. Revise antes de usar.')
+    await loadContests()
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível reescrever agora.'))
+  } finally {
+    regenerating.value = null
+  }
+}
 // guias dentro de Contestar: "A contestar" (pendentes, pelo prazo) e "Contestadas" (já contestadas, mais recentes primeiro)
 const contestTab = ref<'pendentes' | 'contestadas'>('pendentes')
 const contestPendingRows = () => (contests.value?.claims ?? []).filter((c) => c.contest.status === 'pendente')
@@ -439,7 +453,9 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
         :claim="c"
         :can-edit="session.isAdmin"
         :saving="savingContest"
+        :regenerating="regenerating === c.claim_id"
         @save="saveContest"
+        @regenerate="regenerateContest"
       />
     </div>
 

@@ -135,6 +135,9 @@ export interface ContestClaim {
   generic_draft?: string
   contest: { status: ContestStatus; text: string | null; contested_at: string | null; user: string | null }
   link: string | null
+  /** contestação escrita pela IA lendo o caso inteiro (17/11/2026): argumento, o que anexar e pontos fracos */
+  ai?: { generated_at: string; argument: string | null; attach: string[]; weak_points: string[] } | null
+  ai_error?: string | null
 }
 
 export interface ContestsResponse {

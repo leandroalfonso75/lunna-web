@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import LogisticBadge from '../ui/LogisticBadge.vue'
-import { ClipboardDocumentIcon, ClockIcon } from '@heroicons/vue/24/outline'
+import { ClipboardDocumentIcon, ClockIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import { computed, ref, watch } from 'vue'
 import { dateShort } from '../../lib/format'
 import type { ContestClaim, ContestStatus } from '../../types/claims'
@@ -10,13 +10,15 @@ import type { ContestClaim, ContestStatus } from '../../types/claims'
  * ML e o texto sugerido (editável) para o vendedor colar na contestação no Mercado Livre. O Lunna não envia nada:
  * só guarda o andamento (pendente/contestada/aceita/negada) e o texto usado.
  */
-const props = defineProps<{ claim: ContestClaim; canEdit: boolean; saving: boolean }>()
-const emit = defineEmits<{ save: [claimId: number, status: ContestStatus, text: string] }>()
+const props = defineProps<{ claim: ContestClaim; canEdit: boolean; saving: boolean; regenerating?: boolean }>()
+const emit = defineEmits<{ save: [claimId: number, status: ContestStatus, text: string]; regenerate: [claimId: number] }>()
 
 const saved = () => props.claim.contest.text || props.claim.draft
 const text = ref(saved())
 const status = ref<ContestStatus>(props.claim.contest.status)
 watch(() => props.claim.contest, (c) => { status.value = c.status })
+// texto novo da IA: troca o da caixa (se o usuário não estava editando)
+watch(() => props.claim.draft, (d, old) => { if (!props.claim.contest.text && text.value === old) text.value = d })
 const edited = computed(() => text.value !== saved())
 const copied = ref(false)
 
@@ -98,7 +100,7 @@ function save(next?: ContestStatus) {
         <p v-if="claim.model && !contested" class="rounded-card border border-blue-600 bg-blue-100 px-2 py-1 text-[11px] text-blue-800" data-test="contestar-modelo">
           Texto baseado na contestação <strong>aceita pelo ML</strong> #{{ claim.model.claim_id }}
           (mesmo grupo e motivo), ajustado aos fatos deste caso.
-          <button v-if="claim.generic_draft && text !== claim.generic_draft" type="button" class="btn-link text-[11px]" @click="text = claim.generic_draft">Usar o texto padrão</button>
+          <button v-if="claim.generic_draft && text !== claim.generic_draft" type="button" class="btn-link text-[11px]" @click="text = claim.generic_draft!">Usar o texto padrão</button>
         </p>
         <div v-if="claim.model && !contested" class="rounded-card border border-warning bg-warning-soft px-2 py-1 text-[11px] text-ink" data-test="contestar-peculiaridades">
           <p class="font-semibold">Peculiaridades deste caso (revise o texto)</p>
@@ -107,10 +109,19 @@ function save(next?: ContestStatus) {
           </ul>
           <p v-else>Os fatos que o Lunna compara são iguais aos do caso-modelo. Confira mesmo assim o relato do comprador e as provas ao lado.</p>
         </div>
-        <textarea v-model="text" class="input h-[114px] w-full resize-y py-2 text-[12px] leading-relaxed" data-test="contestar-texto" />
+        <div v-if="claim.ai && !contested" class="rounded-card border border-primary/40 bg-surface-2 px-2 py-1 text-[11px] text-ink-2" data-test="contestar-ia">
+          <p><SparklesIcon class="inline h-3.5 w-3.5 text-primary" aria-hidden="true" /> Escrita pela IA lendo o relato e todas as mensagens da reclamação.</p>
+          <p v-if="claim.ai.argument"><strong>Argumento:</strong> {{ claim.ai.argument }}</p>
+          <p v-if="claim.ai.attach.length"><strong>Anexe no ML, se tiver:</strong> {{ claim.ai.attach.join(' · ') }}</p>
+          <p v-if="claim.ai.weak_points.length" class="text-warning"><strong>Pontos fracos:</strong> {{ claim.ai.weak_points.join(' · ') }}</p>
+        </div>
+        <textarea v-model="text" class="input h-[260px] w-full resize-y py-2 text-[12px] leading-relaxed" data-test="contestar-texto" />
         <div class="flex flex-wrap items-center gap-2">
           <button type="button" class="btn-secondary h-8" data-test="contestar-copiar" @click="copy">
             <ClipboardDocumentIcon class="h-4 w-4" aria-hidden="true" /> {{ copied ? 'Copiado!' : 'Copiar texto' }}
+          </button>
+          <button v-if="!contested" type="button" class="btn-secondary h-8" :disabled="regenerating" data-test="contestar-ia-refazer" @click="emit('regenerate', claim.claim_id)">
+            <SparklesIcon class="h-4 w-4" aria-hidden="true" /> {{ regenerating ? 'Lendo o caso…' : claim.ai ? 'Refazer com IA' : 'Escrever com IA' }}
           </button>
           <a v-if="claim.link" :href="claim.link" target="_blank" rel="noopener" class="btn-link text-[12px]">Abrir a venda no Mercado Livre</a>
         </div>
