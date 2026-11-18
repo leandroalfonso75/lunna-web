@@ -123,6 +123,8 @@ export interface PromotionItemRow {
   notes: string | null
   /** "Não automatizar promoções neste anúncio": a rotina e o lote não mexem; a melhor oferta segue sugerida. */
   manual: boolean
+  /** "Ciente, nada a ser feito": fora da guia "Para revisar" (fica na guia "Ciente") enquanto seguir em revisão. */
+  review_dismissed?: boolean
 }
 
 /** Produto com variações: uma linha para o produto pai (Olist) e os anúncios de todas as variações dentro. */

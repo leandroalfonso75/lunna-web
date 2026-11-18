@@ -76,4 +76,15 @@ describe('useToast', () => {
     vi.advanceTimersByTime(5000)
     expect(toast.toasts).toEqual([])
   })
+
+  it('aviso com ação (ex.: Desfazer): act() roda a ação e fecha o aviso', () => {
+    const toast = useToast()
+    const run = vi.fn()
+    toast.show('success', 'Ciente', 8000, { label: 'Desfazer', run })
+    expect(toast.toasts[0]).toMatchObject({ text: 'Ciente', action: { label: 'Desfazer' } })
+    const shown = toast.toasts.at(0)
+    if (shown) toast.act(shown)
+    expect(run).toHaveBeenCalledOnce()
+    expect(toast.toasts).toEqual([])
+  })
 })

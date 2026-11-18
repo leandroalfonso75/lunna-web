@@ -57,6 +57,9 @@ describe('createPromotionsClient', () => {
       method: 'PATCH', query: { account_id: 'acc1' }, body: { enabled: false, apply_to_sku: true, apply_to_variations: false }
     })
 
+    await client.setReviewDismissed('acc1', 'MLB1', true)
+    expect(api).toHaveBeenLastCalledWith('/api/promotions/items/MLB1/review_dismissed', { method: 'PATCH', query: { account_id: 'acc1' }, body: { dismissed: true } })
+
     await client.simulate('acc1')
     expect(api).toHaveBeenLastCalledWith('/api/promotions/runs', { method: 'POST', query: { account_id: 'acc1' } })
 

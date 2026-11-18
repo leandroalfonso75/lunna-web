@@ -325,6 +325,7 @@ watch(() => route.fullPath, closeDrawer)
       >
         <div class="flex items-start justify-between gap-3">
           <span>{{ t.text }}</span>
+          <button v-if="t.action" type="button" class="shrink-0 font-semibold underline" data-test="toast-acao" @click="toast.act(t)">{{ t.action.label }}</button>
           <button type="button" class="shrink-0 font-semibold" :aria-label="`Fechar aviso: ${t.text}`" @click="toast.dismiss(t.id)">×</button>
         </div>
       </div>

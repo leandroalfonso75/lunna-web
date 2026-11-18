@@ -24,6 +24,8 @@ const props = defineProps<{
   groupCount?: number
   /** Há um próximo anúncio na lista (mostra "Próximo" e "Confirmar e ir para o próximo"). */
   hasNext?: boolean
+  /** "Ciente"/"Voltar para revisar" em andamento neste anúncio. */
+  reviewBusy?: boolean
 }>()
 const emit = defineEmits<{
   save: [input: PromotionSettingsInput]
@@ -31,6 +33,8 @@ const emit = defineEmits<{
   leave: [goNext: boolean]
   next: []
   automation: [enabled: boolean, spread: { sku: boolean; variations: boolean }]
+  /** "Ciente, nada a ser feito" (true) ou "Voltar para revisar" (false). */
+  review: [dismissed: boolean]
 }>()
 
 /** Ação esperando confirmação: o que vai acontecer, em texto, antes de mexer no Mercado Livre. `spreadable` = ao entrar
@@ -334,6 +338,12 @@ function isBest(o: { promotion_id: string | null; type: string; action: string; 
             Aplicar a melhor oferta
           </button>
           <button v-if="detail.current" type="button" class="btn-link text-[12px]" :disabled="acting" @click="askLeave">Sair da promoção</button>
+          <button v-if="detail.status.key === 'para_revisar' && !detail.manual" type="button" class="btn-secondary h-8 px-3 text-[12px]" :disabled="acting || reviewBusy"
+            :data-test="detail.review_dismissed ? 'voltar-revisar' : 'ciente'"
+            :title="detail.review_dismissed ? 'Volta o anúncio para a guia Para revisar' : 'Tira o anúncio de Para revisar sem mudar nada nele (ele volta se sair da revisão e entrar de novo)'"
+            @click="emit('review', !detail.review_dismissed)">
+            {{ detail.review_dismissed ? 'Voltar para revisar' : 'Ciente, nada a ser feito' }}
+          </button>
           <button v-if="hasNext" type="button" class="btn-link text-[12px]" :disabled="acting" data-test="proximo" title="Abre o próximo anúncio da lista sem mudar nada neste" @click="emit('next')">
             Próximo anúncio →
           </button>

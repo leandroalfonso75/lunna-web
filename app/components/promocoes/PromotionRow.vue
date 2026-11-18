@@ -14,8 +14,10 @@ defineProps<{
   selected: boolean
   /** Dentro de um produto com variações: recuo e sem foto. */
   nested?: boolean
+  /** "Ciente"/"Voltar para revisar" em andamento neste anúncio. */
+  reviewBusy?: boolean
 }>()
-const emit = defineEmits<{ toggle: []; check: [] }>()
+const emit = defineEmits<{ toggle: []; check: []; review: [dismissed: boolean] }>()
 
 const TONE: Record<string, string> = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger', neutral: 'text-ink-3' }
 const tone = (t: string) => TONE[t] ?? 'text-ink-2'
@@ -151,6 +153,12 @@ const shortDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { d
       <span v-else-if="row.review" class="block text-[11px] text-ink-3" :title="row.review.suggestion ?? row.review.reasons.map((r) => `${r.reason} (${r.offers})`).join(' · ')">
         {{ row.review.label }}
       </span>
+      <button v-if="isAdmin && row.status.key === 'para_revisar' && !row.manual" type="button" class="btn-link mt-1 block text-left text-[11px]" :disabled="reviewBusy"
+        :data-test="row.review_dismissed ? 'voltar-revisar' : 'ciente'"
+        :title="row.review_dismissed ? 'Volta o anúncio para a guia Para revisar' : 'Tira o anúncio de Para revisar sem mudar nada nele (ele volta se sair da revisão e entrar de novo)'"
+        @click.stop="emit('review', !row.review_dismissed)">
+        {{ row.review_dismissed ? 'Voltar para revisar' : 'Ciente, nada a ser feito' }}
+      </button>
     </td>
   </tr>
 </template>

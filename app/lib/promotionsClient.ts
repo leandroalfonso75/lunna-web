@@ -48,6 +48,10 @@ export function createPromotionsClient(api: ApiFn) {
         body: { enabled, apply_to_sku: spread.sku, apply_to_variations: spread.variations }
       })
     },
+    /** "Ciente, nada a ser feito": tira o anúncio de "Para revisar" (dismissed = false devolve). Só administradores. */
+    setReviewDismissed(accountId: string, itemId: string, dismissed: boolean): Promise<PromotionItemDetail> {
+      return api(`/api/promotions/items/${itemId}/review_dismissed`, { method: 'PATCH', query: { account_id: accountId }, body: { dismissed } })
+    },
     /** CSV com todas as promoções da Central e os anúncios de cada uma (ativos e candidatos). */
     export(accountId: string): Promise<Blob> {
       return api('/api/promotions/export', { query: { account_id: accountId }, responseType: 'blob' })

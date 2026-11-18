@@ -19,7 +19,7 @@ import type { PromotionGroupRow, PromotionItemRow, PromotionSpread, PromotionTar
  */
 const session = useSessionStore()
 const promos = usePromotions()
-const { filters, tab, response, loading, stale, loadError, syncing, syncMessage, exporting, selected, detail, detailLoading, detailError, saving, saveError, acting, actionResult, checked, bulkMessage, history, historyLoading } = promos
+const { filters, tab, response, loading, stale, loadError, syncing, syncMessage, exporting, selected, detail, detailLoading, detailError, saving, saveError, acting, actionResult, checked, bulkMessage, history, historyLoading, reviewBusy } = promos
 
 const header = usePageHeader()
 watchEffect(() => {
@@ -43,6 +43,7 @@ const STATUS_TABS = [
   { value: 'ok', label: 'Na melhor' },
   { value: 'sem_custo', label: 'Sem custo' },
   { value: 'para_revisar', label: 'Para revisar', tone: 'text-danger' },
+  { value: 'revisar_ciente', label: 'Ciente', tone: 'text-ink-3' },
   { value: 'programado', label: 'Programado', tone: 'text-success' },
   { value: 'minima_inalcancavel', label: 'Mínima inalcançável', tone: 'text-warning' },
   { value: 'nao_automatizados', label: 'Não automatizados', tone: 'text-warning' },
@@ -138,8 +139,9 @@ const BASE_COLUMNS = [
   { key: 'gain', label: 'Ganho/un.', sort: 'gain', width: 'w-[7%]', align: 'right' },
   { key: 'status', label: 'Situação', width: 'w-[12%]', align: 'left' }
 ]
-/** Em "Para revisar", a coluna Situação ordena pela rodada em que o anúncio entrou (padrão: mais recente primeiro). */
-const COLUMNS = computed(() => BASE_COLUMNS.map((c) => (c.key === 'status' && filters.status === 'para_revisar' ? { ...c, label: 'Situação · rodada', sort: 'review_round' } : c)))
+/** Em "Para revisar" (e "Ciente"), a coluna Situação ordena pela rodada em que o anúncio entrou (padrão: mais recente primeiro). */
+const REVIEW_VIEWS = ['para_revisar', 'revisar_ciente']
+const COLUMNS = computed(() => BASE_COLUMNS.map((c) => (c.key === 'status' && REVIEW_VIEWS.includes(filters.status) ? { ...c, label: 'Situação · rodada', sort: 'review_round' } : c)))
 /** Rodada mais recente entre as variações de um produto em "Para revisar". */
 function groupRound(children: PromotionItemRow[]) {
   const list = children.filter((c) => c.review_round)
@@ -405,13 +407,14 @@ function runBulk() {
                   <template v-if="isOpen(row)">
                     <template v-for="child in row.children" :key="child.item_id">
                       <PromotionRow :row="child" :is-admin="session.isAdmin" :checked="checked.includes(child.item_id)" :selected="selected === child.item_id" nested
-                        @toggle="toggle(child)" @check="toggleCheck(child.item_id)" />
+                        :review-busy="reviewBusy.includes(child.item_id)" @toggle="toggle(child)" @check="toggleCheck(child.item_id)" @review="(d) => promos.setReviewDismissed(child.item_id, d)" />
                       <tr v-if="selected === child.item_id && groupPanel !== row.key" class="border-b border-line bg-surface-2">
                         <td :colspan="COLUMNS.length" class="border-l-4 border-l-primary px-4 py-4">
                           <PromotionItemPanel
                             :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
-                            :acting="acting" :action-result="actionResult" :has-next="hasNext"
+                            :acting="acting" :action-result="actionResult" :has-next="hasNext" :review-busy="reviewBusy.includes(child.item_id)"
                             @save="promos.saveSettings" @apply="onApply" @leave="onLeave" @next="goNext" @automation="promos.setAutomation"
+                            @review="(d) => promos.setReviewDismissed(child.item_id, d)"
                           />
                         </td>
                       </tr>
@@ -422,13 +425,14 @@ function runBulk() {
                 <!-- anúncio solto -->
                 <template v-else>
                   <PromotionRow :row="row" :is-admin="session.isAdmin" :checked="checked.includes(row.item_id)" :selected="selected === row.item_id"
-                    @toggle="toggle(row)" @check="toggleCheck(row.item_id)" />
+                    :review-busy="reviewBusy.includes(row.item_id)" @toggle="toggle(row)" @check="toggleCheck(row.item_id)" @review="(d) => promos.setReviewDismissed(row.item_id, d)" />
                   <tr v-if="selected === row.item_id" class="border-b border-line bg-surface-2">
                     <td :colspan="COLUMNS.length" class="border-l-4 border-l-primary px-4 py-4">
                       <PromotionItemPanel
                         :detail="detail" :loading="detailLoading" :error="detailError" :is-admin="session.isAdmin" :saving="saving" :save-error="saveError"
-                        :acting="acting" :action-result="actionResult" :has-next="hasNext"
+                        :acting="acting" :action-result="actionResult" :has-next="hasNext" :review-busy="reviewBusy.includes(row.item_id)"
                         @save="promos.saveSettings" @apply="onApply" @leave="onLeave" @next="goNext" @automation="promos.setAutomation"
+                        @review="(d) => promos.setReviewDismissed(row.item_id, d)"
                       />
                     </td>
                   </tr>

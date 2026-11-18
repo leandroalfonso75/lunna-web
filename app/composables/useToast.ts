@@ -2,10 +2,17 @@ import { reactive } from 'vue'
 
 export type ToastKind = 'success' | 'error' | 'info'
 
+/** Botão opcional no aviso (ex.: "Desfazer"); clicar roda a ação e fecha o aviso. */
+export interface ToastAction {
+  label: string
+  run: () => void
+}
+
 export interface Toast {
   id: number
   kind: ToastKind
   text: string
+  action?: ToastAction
 }
 
 /**
@@ -32,7 +39,7 @@ function dismiss(id: number) {
   if (index !== -1) toasts.splice(index, 1)
 }
 
-function show(kind: ToastKind, text: string, durationMs = DEFAULT_DURATION_MS): number {
+function show(kind: ToastKind, text: string, durationMs = DEFAULT_DURATION_MS, action?: ToastAction): number {
   // No SSR esta lista é module-scope do processo Node inteiro (não por
   // requisição): um toast criado ali entra no HTML de outra pessoa, e o
   // `setTimeout` que o remove nunca roda no servidor. `-1` (e não `0`)
@@ -40,7 +47,7 @@ function show(kind: ToastKind, text: string, durationMs = DEFAULT_DURATION_MS): 
   if (import.meta.server) return -1
 
   const id = nextId++
-  toasts.push({ id, kind, text })
+  toasts.push(action ? { id, kind, text, action } : { id, kind, text })
   if (durationMs > 0) {
     timers.set(
       id,
@@ -57,6 +64,11 @@ export function useToast() {
     success: (text: string) => show('success', text),
     error: (text: string) => show('error', text),
     info: (text: string) => show('info', text),
-    dismiss
+    dismiss,
+    /** Roda a ação do aviso e o fecha. */
+    act: (t: Toast) => {
+      dismiss(t.id)
+      t.action?.run()
+    }
   }
 }

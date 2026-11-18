@@ -1,10 +1,12 @@
 import { reactive, ref, watch } from 'vue'
 import { apiErrorMessage } from '../lib/apiErrors'
+import { markReviewDismissed } from '../lib/promotionReview'
 import { buildPromotionsQuery, createPromotionsClient } from '../lib/promotionsClient'
 import { withTransientRetry } from '../lib/transientRetry'
 import { useSessionStore } from '../stores/session'
 import type { PromotionActionLog, PromotionAutomation, PromotionItemDetail, PromotionSettingsInput, PromotionSpread, PromotionsFilters, PromotionsResponse, PromotionTarget } from '../types/promotions'
 import { usePolling } from './usePolling'
+import { useToast } from './useToast'
 
 const DEBOUNCE_MS = 300
 
@@ -17,6 +19,7 @@ export function usePromotions() {
   const { $api } = useNuxtApp()
   const client = createPromotionsClient($api)
   const session = useSessionStore()
+  const toast = useToast()
 
   const filters = reactive<PromotionsFilters>({ status: '', promotionId: '', q: '', sort: 'gain', dir: 'desc', page: 1, perPage: 50 })
   const tab = ref<'anuncios' | 'promocoes' | 'historico' | 'rotina'>('anuncios')
@@ -75,9 +78,9 @@ export function usePromotions() {
 
   function change(patch: Partial<PromotionsFilters>, debounced = false) {
     Object.assign(filters, patch, { page: 1 })
-    // "Para revisar" abre ordenado pela rodada em que o anúncio entrou, da mais recente para a mais antiga
+    // "Para revisar" (e "Ciente") abre ordenado pela rodada em que o anúncio entrou, da mais recente para a mais antiga
     if (patch.status !== undefined) {
-      if (patch.status === 'para_revisar') Object.assign(filters, { sort: 'review_round', dir: 'desc' })
+      if (patch.status === 'para_revisar' || patch.status === 'revisar_ciente') Object.assign(filters, { sort: 'review_round', dir: 'desc' })
       else if (filters.sort === 'review_round') Object.assign(filters, { sort: 'gain', dir: 'desc' })
     }
     schedule(debounced)
@@ -126,12 +129,14 @@ export function usePromotions() {
   async function apply(target?: PromotionTarget, spread?: PromotionSpread): Promise<boolean> {
     const accountId = session.selectedAccountId
     if (!accountId || !selected.value || acting.value) return false
+    const itemId = selected.value
     acting.value = true
     actionResult.value = null
     try {
-      const res = await client.apply(accountId, selected.value, target, spread)
+      const res = await client.apply(accountId, itemId, target, spread)
       detail.value = res.item
       actionResult.value = { ok: res.ok, message: res.message }
+      if (res.ok) leaveReview(itemId, res.item, res.message)
       schedule(false)
       return res.ok
     } catch (err) {
@@ -145,12 +150,14 @@ export function usePromotions() {
   async function leave(): Promise<boolean> {
     const accountId = session.selectedAccountId
     if (!accountId || !selected.value || acting.value) return false
+    const itemId = selected.value
     acting.value = true
     actionResult.value = null
     try {
-      const res = await client.leave(accountId, selected.value)
+      const res = await client.leave(accountId, itemId)
       detail.value = res.item
       actionResult.value = { ok: res.ok, message: res.message }
+      if (res.ok) leaveReview(itemId, res.item, res.message)
       schedule(false)
       return res.ok
     } catch (err) {
@@ -250,15 +257,61 @@ export function usePromotions() {
   async function saveSettings(input: PromotionSettingsInput) {
     const accountId = session.selectedAccountId
     if (!accountId || !selected.value || saving.value) return
+    const itemId = selected.value
     saving.value = true
     saveError.value = ''
     try {
-      detail.value = await client.saveSettings(accountId, selected.value, input)
+      detail.value = await client.saveSettings(accountId, itemId, input)
+      leaveReview(itemId, detail.value, 'Limites salvos.')
       schedule(false)
     } catch (err) {
       saveError.value = apiErrorMessage(err, 'Não foi possível salvar as margens.')
     } finally {
       saving.value = false
+    }
+  }
+
+  /**
+   * Na guia "Para revisar", uma ação que deu certo no anúncio (aplicar mesmo assim, a cabível, outro valor, sair, salvar
+   * os limites) o tira da lista na hora (a API já o marcou "Ciente"); o painel fecha e o resultado vai para um aviso.
+   */
+  function leaveReview(itemId: string, item: PromotionItemDetail, message: string) {
+    if (filters.status !== 'para_revisar' || !response.value) return
+    const out = markReviewDismissed(response.value, itemId, true, filters.status, item.status.key === 'para_revisar')
+    if (!out.removed) return
+    response.value = out.response
+    if (selected.value === itemId) close()
+    toast.success(`${message} O anúncio saiu de Para revisar.`)
+  }
+
+  /** Itens com "Ciente"/"Voltar para revisar" em andamento (evita clique duplo). */
+  const reviewBusy = ref<string[]>([])
+
+  /**
+   * "Ciente, nada a ser feito" (dismissed = true) ou "Voltar para revisar" (false): grava na API e acerta a lista e as
+   * contagens na hora, sem esperar recarregar. O aviso de "Ciente" traz "Desfazer".
+   */
+  async function setReviewDismissed(itemId: string, dismissed: boolean) {
+    const accountId = session.selectedAccountId
+    if (!accountId || reviewBusy.value.includes(itemId)) return
+    reviewBusy.value = [...reviewBusy.value, itemId]
+    try {
+      const item = await client.setReviewDismissed(accountId, itemId, dismissed)
+      const out = response.value ? markReviewDismissed(response.value, itemId, dismissed, filters.status) : null
+      if (out) response.value = out.response
+      if (selected.value === itemId) {
+        if (out?.removed) close()
+        else detail.value = item
+      }
+      if (dismissed) {
+        toast.show('success', 'Ciente: o anúncio saiu de Para revisar.', 8000, { label: 'Desfazer', run: () => setReviewDismissed(itemId, false).then(() => schedule(false)) })
+      } else {
+        toast.success('O anúncio voltou para Para revisar.')
+      }
+    } catch (err) {
+      toast.error(apiErrorMessage(err, dismissed ? 'Não foi possível marcar como ciente agora.' : 'Não foi possível voltar o anúncio para revisar agora.'))
+    } finally {
+      reviewBusy.value = reviewBusy.value.filter((x) => x !== itemId)
     }
   }
 
@@ -307,9 +360,9 @@ export function usePromotions() {
   return {
     client, filters, tab, response, loading, stale, loadError, syncing, syncMessage, exporting,
     selected, detail, detailLoading, detailError, saving, saveError,
-    acting, actionResult, checked, bulkMessage, history, historyLoading,
+    acting, actionResult, checked, bulkMessage, history, historyLoading, reviewBusy,
     change, sortBy, setPage, showPromotion, open, close, saveSettings, exportCsv, syncNow,
-    apply, leave, applyBestChecked, loadHistory, setAutomation, saveAutomation, dismissCatalogAlert,
+    apply, leave, applyBestChecked, loadHistory, setAutomation, saveAutomation, dismissCatalogAlert, setReviewDismissed,
     start: polling.start, stop: polling.stop, refreshNow: polling.refreshNow, refreshing: polling.refreshing
   }
 }
