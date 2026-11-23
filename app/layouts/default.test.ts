@@ -31,6 +31,11 @@ describe('layouts/default.vue (sidebar SaaS)', () => {
     expect(source).toContain("{ to: '/configuracoes', label: 'Configurações', icon: Cog6ToothIcon }")
   })
 
+  it('mostra a seção "Cadastros" com a rota de Produtos', () => {
+    expect(source).toContain("label: 'Cadastros'")
+    expect(source).toContain("{ to: '/produtos', label: 'Produtos', icon: CubeIcon }")
+  })
+
   it('o seletor de conta ML só aparece com pelo menos 1 conta', () => {
     expect(source).toContain('session.mlAccounts.length >= 1')
   })

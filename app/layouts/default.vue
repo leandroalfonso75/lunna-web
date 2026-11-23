@@ -5,6 +5,7 @@ import {
   ChartBarIcon,
   ChevronUpDownIcon,
   Cog6ToothIcon,
+  CubeIcon,
   HomeIcon,
   ListBulletIcon,
   XMarkIcon
@@ -40,6 +41,10 @@ const NAV_SECTIONS = [
       { to: '/anuncios', label: 'Anúncios', icon: ListBulletIcon },
       { to: '/curva-abc', label: 'Curva ABC', icon: ChartBarIcon }
     ]
+  },
+  {
+    label: 'Cadastros',
+    items: [{ to: '/produtos', label: 'Produtos', icon: CubeIcon }]
   },
   {
     label: 'Conta',
