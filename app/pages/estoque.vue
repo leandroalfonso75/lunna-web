@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
@@ -30,7 +30,28 @@ const full = ref<StockFullResponse | null>(null)
 const loading = ref(false)
 const error = ref('')
 const depotFilters = reactive({ q: '', view: '', sort: 'value', page: 1 })
-const fullFilters = reactive({ q: '', view: 'repor', page: 1 })
+// Ordenação por coluna, feita na API (pedido do usuário em 24/11/2026). Ao abrir: Sugerido, decrescente.
+const fullFilters = reactive({ q: '', view: 'repor', sort: 'suggested', dir: 'desc' as 'asc' | 'desc', page: 1 })
+const FULL_COLUMNS = [
+  { sort: 'title', label: 'Produto', width: 'w-[30%]', align: 'left' },
+  { sort: 'stock', label: 'No Full', width: 'w-[8%]', align: 'right' },
+  { sort: 'urgency', label: 'Urgência', width: 'w-[11%]', align: 'left' },
+  { sort: 'suggested', label: 'Sugerido', width: 'w-[10%]', align: 'right' },
+  { sort: 'olist', label: 'No depósito', width: 'w-[10%]', align: 'right' },
+  { sort: 'can_send', label: 'Enviar já', width: 'w-[10%]', align: 'right' },
+  { sort: 'to_buy', label: 'Comprar', width: 'w-[9%]', align: 'right' },
+  { sort: 'sold', label: 'Vendas 30 dias', width: 'w-[12%]', align: 'right' }
+] as const
+/** Mesma coluna inverte; coluna nova começa do maior para o menor (Produto, de A a Z). */
+function sortFullBy(key: string) {
+  if (fullFilters.sort === key) fullFilters.dir = fullFilters.dir === 'desc' ? 'asc' : 'desc'
+  else {
+    fullFilters.sort = key
+    fullFilters.dir = key === 'title' ? 'asc' : 'desc'
+  }
+  fullFilters.page = 1
+  reload()
+}
 const openRow = ref<string | null>(null)
 
 async function load() {
@@ -171,14 +192,17 @@ watchEffect(() => {
         <table class="w-full table-fixed border-collapse text-[12px]">
           <thead>
             <tr class="border-b border-line text-ink-2">
-              <th class="w-[30%] px-2 py-2 text-left font-semibold">Produto</th>
-              <th class="w-[8%] px-2 py-2 text-right font-semibold">No Full</th>
-              <th class="w-[11%] px-2 py-2 text-left font-semibold">Urgência</th>
-              <th class="w-[10%] px-2 py-2 text-right font-semibold">Sugerido</th>
-              <th class="w-[10%] px-2 py-2 text-right font-semibold">No depósito</th>
-              <th class="w-[10%] px-2 py-2 text-right font-semibold">Enviar já</th>
-              <th class="w-[9%] px-2 py-2 text-right font-semibold">Comprar</th>
-              <th class="w-[12%] px-2 py-2 text-right font-semibold">Vendas 30 dias</th>
+              <th v-for="c in FULL_COLUMNS" :key="c.sort" scope="col" class="px-2 py-2 font-semibold"
+                :class="[c.width, c.align === 'right' ? 'text-right' : 'text-left']"
+                :aria-sort="fullFilters.sort === c.sort ? (fullFilters.dir === 'asc' ? 'ascending' : 'descending') : undefined"
+              >
+                <button type="button" class="inline-flex items-center gap-1 font-semibold hover:text-ink" :class="fullFilters.sort === c.sort ? 'text-ink' : ''"
+                  :data-test="`ordenar-${c.sort}`" @click="sortFullBy(c.sort)">
+                  {{ c.label }}
+                  <ChevronUpIcon v-if="fullFilters.sort === c.sort && fullFilters.dir === 'asc'" class="h-3.5 w-3.5" aria-hidden="true" />
+                  <ChevronDownIcon v-else-if="fullFilters.sort === c.sort" class="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
