@@ -10,7 +10,9 @@ import { useSessionStore } from '../../stores/session'
  * fotos do próprio anúncio (e de anexos opcionais). O usuário aprova as que quer e publica no anúncio do Mercado
  * Livre (confirmação dupla: muda o anúncio na hora).
  */
-const props = defineProps<{ itemId: string; title: string; suggestedCount: number }>()
+// alsoItemIds (Anúncios › Editar, 24/11/2026): outros anúncios selecionados com os mesmos SKUs; as fotos aprovadas vão
+// também para eles, depois do anúncio principal.
+const props = defineProps<{ itemId: string; title: string; suggestedCount: number; alsoItemIds?: string[] }>()
 const emit = defineEmits<{ close: [] }>()
 
 interface Photo { id: number; kind: 'gerada' | 'referencia'; position: number; approved: boolean; ml_picture_id: string | null; cost_usd: number | null; model: string | null }
@@ -214,10 +216,24 @@ async function publish() {
   }
   publishing.value = true
   try {
-    const res = await $api<{ message: string; job: Job }>(`/api/photo_jobs/${job.value.id}/publish`, {
+    const jobId = job.value.id
+    const res = await $api<{ message: string; job: Job }>(`/api/photo_jobs/${jobId}/publish`, {
       method: 'POST', query: query(), body: { confirm: true, target_item_id: publishTarget.value, order: order.value }
     })
     toast.success(res.message)
+    const others = (props.alsoItemIds ?? []).filter((id) => id !== publishTarget.value)
+    const failed: string[] = []
+    for (const id of others) {
+      try {
+        await $api(`/api/photo_jobs/${jobId}/publish`, { method: 'POST', query: query(), body: { confirm: true, target_item_id: id, order: order.value } })
+      } catch (err) {
+        failed.push(`${id}: ${apiErrorMessage(err, 'recusado pelo Mercado Livre')}`)
+      }
+    }
+    if (others.length) {
+      if (failed.length) toast.error(`Fotos publicadas em ${others.length - failed.length} de ${others.length} outro(s) anúncio(s). ${failed.join(' · ')}`)
+      else toast.success(`As mesmas fotos foram publicadas também em ${others.length} outro(s) anúncio(s) do mesmo SKU.`)
+    }
     job.value = res.job
   } catch (err) {
     toast.error(apiErrorMessage(err, 'O Mercado Livre não aceitou a publicação.'))
@@ -379,8 +395,9 @@ onBeforeUnmount(() => {
             </select>
           </label>
           <button type="button" :class="confirmPublish ? 'btn-danger' : 'btn-primary'" class="h-9" :disabled="publishing || !approved.length" data-test="fotos-publicar" @click="publish">
-            {{ publishing ? 'Publicando…' : confirmPublish ? `Confirmar: publicar ${approved.length} em ${publishTarget}` : `Publicar ${approved.length} imagem(ns) no anúncio ${publishTarget}` }}
+            {{ publishing ? 'Publicando…' : confirmPublish ? `Confirmar: publicar ${approved.length} em ${publishTarget}` : `Publicar ${approved.length} imagem(ns) no anúncio ${publishTarget}` }}<template v-if="alsoItemIds?.length && !publishing"> e em mais {{ alsoItemIds.length }}</template>
           </button>
+          <span v-if="alsoItemIds?.length" class="w-full text-[12px] text-ink-2" data-test="fotos-outros">Também em: {{ alsoItemIds.join(', ') }} (mesmo SKU).</span>
           <span v-if="confirmPublish" class="text-[12px] text-danger">A galeria do anúncio no Mercado Livre muda na hora, na ordem acima. Clique de novo para confirmar.</span>
           <span v-else class="text-[12px] text-ink-3">As fotos atuais do anúncio continuam; a ordem e a capa são as que estão acima.</span>
         </div>

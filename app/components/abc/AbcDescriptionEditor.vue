@@ -11,7 +11,8 @@ import AbcSameSkuChoice, { type SameSkuItem } from './AbcSameSkuChoice.vue'
  * (a IA reescreve de forma mais chamativa, com as dúvidas dos compradores) e "Publicar" (muda no Mercado Livre na hora,
  * com confirmação; só admin). Texto puro: o Mercado Livre não aceita HTML, links, e-mail nem telefone.
  */
-const props = defineProps<{ itemId: string; variations?: number; sameSku?: SameSkuItem[] }>()
+// preselectSameSku (Anúncios › Editar, 24/11/2026): os outros anúncios selecionados com os mesmos SKUs já vêm marcados
+const props = defineProps<{ itemId: string; variations?: number; sameSku?: SameSkuItem[]; preselectSameSku?: boolean }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
 
 interface Info { title: string; current: string; length: number; max_length: number; questions: string[]; editable: boolean; reason?: string }
@@ -30,7 +31,7 @@ const suggesting = ref(false)
 const confirming = ref(false)
 const publishing = ref(false)
 const allVariations = ref(false)
-const alsoIds = ref<string[]>([])
+const alsoIds = ref<string[]>(props.preselectSameSku ? (props.sameSku ?? []).map((i) => i.item_id) : [])
 
 const length = computed(() => text.value.trim().length)
 const canPublish = computed(() => !!info.value?.editable && session.isAdmin && length.value >= 50 && text.value.trim() !== info.value?.current.trim())

@@ -53,6 +53,11 @@ export function dateTimeShort(iso: string | null | undefined): string {
   return parts.replace(',', '')
 }
 
+/** "DD/MM/AAAA" no fuso America/Sao_Paulo (ex.: data de criação do anúncio). */
+export function dateFull(iso: string | null | undefined): string {
+  return formatInTimeZone(iso, { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 /** "DD/MM" no fuso America/Sao_Paulo. */
 export function dateShort(iso: string | null | undefined): string {
   return formatInTimeZone(iso, { day: '2-digit', month: '2-digit' })

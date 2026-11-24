@@ -202,6 +202,10 @@ export interface ItemRow {
   alert_keys: string[]
   lean: boolean
   links: ItemLinks
+  /** Curva ABC (a mesma da seção Curva ABC); null = fora da curva (finalizado sem venda). 24/11/2026. */
+  curve?: 'A' | 'B' | 'C' | null
+  /** Data de criação do anúncio no Mercado Livre. */
+  date_created?: string | null
 }
 
 export interface ItemStatusCounts {

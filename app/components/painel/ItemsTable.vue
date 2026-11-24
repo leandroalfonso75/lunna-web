@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import LogisticBadge from '../ui/LogisticBadge.vue'
-import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
-import { onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
+import ItemsBulkEdit from './ItemsBulkEdit.vue'
+import { ChevronDownIcon, ChevronUpIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { useItemsTable } from '../../composables/useItemsTable'
 import { usePageHeader } from '../../composables/usePageHeader'
-import { brl, int, num, pct } from '../../lib/format'
+import { useToast } from '../../composables/useToast'
+import { apiErrorMessage } from '../../lib/apiErrors'
+import { brl, dateFull, int, num, pct } from '../../lib/format'
+import { useSessionStore } from '../../stores/session'
 import type { ItemsNumericFilterKey } from '../../lib/itemsQuery'
 import type { ItemEconomics, ItemRow } from '../../types/painel'
 
@@ -35,8 +39,12 @@ function feesHint(e: ItemEconomics): string {
  * o que o usuário digitou/clicou.
  */
 const COLUMNS: { key: string; label: string; sort?: string; filter?: 'text' | 'numeric'; placeholder?: string; width: string; hide?: boolean }[] = [
-  { key: 'title', label: 'Anúncio', sort: 'title', filter: 'text', placeholder: 'título ou ID', width: 'w-[20%] max-xl:w-[24%]' },
+  // caixa de seleção, curva ABC (bola) e data de criação: pedido do usuário em 24/11/2026
+  { key: 'select', label: '', width: 'w-[3%]' },
+  { key: 'curve', label: 'Curva', sort: 'curve', width: 'w-[5%]' },
+  { key: 'title', label: 'Anúncio', sort: 'title', filter: 'text', placeholder: 'título ou ID', width: 'w-[18%] max-xl:w-[22%]' },
   { key: 'sku', label: 'SKU', sort: 'sku', filter: 'text', placeholder: 'sem sku', width: 'w-[8%]' },
+  { key: 'date_created', label: 'Criado em', sort: 'date_created', width: 'w-[7%]' },
   { key: 'price', label: 'Preço', sort: 'price', filter: 'numeric', placeholder: '>50', width: 'w-[8%]' },
   { key: 'stock', label: 'Estoque', sort: 'stock', filter: 'numeric', placeholder: '>10', width: 'w-[6%]' },
   { key: 'cost', label: 'Custo', width: 'w-[8%]' },
@@ -95,6 +103,59 @@ function totalPages(): number {
   if (!response.value || !response.value.per_page) return 1
   return Math.max(1, Math.ceil(response.value.total / response.value.per_page))
 }
+
+// ---- curva ABC: bola azul (A), verde (B) e vermelha (C), como pedido em 24/11/2026 ----
+const CURVE_BALL: Record<string, string> = { A: 'bg-info', B: 'bg-success', C: 'bg-danger' }
+const CURVE_HINT: Record<string, string> = {
+  A: 'Curva A: os anúncios que somam a maior parte do faturamento dos últimos 30 dias',
+  B: 'Curva B: faturamento intermediário nos últimos 30 dias',
+  C: 'Curva C: pouco ou nenhum faturamento nos últimos 30 dias'
+}
+
+// ---- seleção, excluir e editar selecionados ----
+const session = useSessionStore()
+const toast = useToast()
+const { $api } = useNuxtApp()
+
+const selected = ref<string[]>([])
+const pageIds = computed(() => (response.value?.items ?? []).map((i) => i.id))
+const allOnPage = computed(() => pageIds.value.length > 0 && pageIds.value.every((id) => selected.value.includes(id)))
+const someOnPage = computed(() => !allOnPage.value && pageIds.value.some((id) => selected.value.includes(id)))
+// mudou a página ou os filtros: a seleção fica só com o que continua na tela
+watch(pageIds, (ids) => { selected.value = selected.value.filter((id) => ids.includes(id)) })
+
+function toggleSelect(id: string, on: boolean) {
+  selected.value = on ? [...new Set([...selected.value, id])] : selected.value.filter((x) => x !== id)
+}
+function toggleAll(on: boolean) {
+  selected.value = on ? [...new Set([...selected.value, ...pageIds.value])] : selected.value.filter((id) => !pageIds.value.includes(id))
+}
+
+interface DeleteResult { item_id: string; ok: boolean; message: string }
+const confirmingDelete = ref(false)
+const deleting = ref(false)
+const deleteResults = ref<DeleteResult[] | null>(null)
+const editingIds = ref<string[] | null>(null)
+
+async function deleteSelected() {
+  deleting.value = true
+  try {
+    const res = await $api<{ ok: boolean; message: string; results: DeleteResult[] }>('/api/items/bulk_delete', {
+      method: 'POST', query: { account_id: session.selectedAccountId }, body: { item_ids: selected.value, confirm: true }
+    })
+    confirmingDelete.value = false
+    if (res.ok) toast.success(res.message)
+    else deleteResults.value = res.results
+    selected.value = selected.value.filter((id) => !res.results.some((r) => r.ok && r.item_id === id))
+    table.refreshNow()
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível excluir os anúncios agora. Nada foi alterado.'))
+  } finally {
+    deleting.value = false
+  }
+}
+
+const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.title ?? id
 </script>
 
 <template>
@@ -174,7 +235,21 @@ function totalPages(): number {
       <button type="button" class="btn-link mt-3" @click="table.refreshNow">Tentar de novo</button>
     </div>
 
-    <div v-else class="card overflow-hidden">
+    <div v-if="selected.length && !loadError" class="sticky top-0 z-20 flex flex-wrap items-center gap-2 rounded-card border border-primary bg-primary-soft px-3 py-2" data-test="acoes-selecionados">
+      <span class="text-[13px] font-semibold text-ink" data-test="contagem-selecionados">{{ selected.length }} anúncio(s) selecionado(s)</span>
+      <button type="button" class="btn-link text-[12px]" @click="selected = []">Limpar seleção</button>
+      <div class="ml-auto flex flex-wrap items-center gap-2">
+        <button type="button" class="btn-secondary" data-test="editar-selecionados-botao" @click="editingIds = [...selected]">
+          <PencilSquareIcon class="h-4 w-4" aria-hidden="true" /> Editar anúncios selecionados
+        </button>
+        <button type="button" class="btn-danger" :disabled="!session.isAdmin" :title="session.isAdmin ? '' : 'Só administradores excluem anúncios no Mercado Livre'"
+          data-test="excluir-selecionados" @click="confirmingDelete = true">
+          <TrashIcon class="h-4 w-4" aria-hidden="true" /> Excluir anúncios selecionados
+        </button>
+      </div>
+    </div>
+
+    <div v-if="!loadError" class="card overflow-hidden">
       <div>
         <table class="w-full table-fixed border-collapse text-[12px]">
           <thead>
@@ -184,11 +259,18 @@ function totalPages(): number {
                 :key="column.key"
                 scope="col"
                 class="px-2 py-2 font-semibold text-ink-2"
-                :class="[column.width, ['title', 'sku'].includes(column.key) ? 'text-left' : 'text-right', column.hide ? 'max-xl:hidden' : '']"
+                :class="[column.width, ['title', 'sku', 'date_created'].includes(column.key) ? 'text-left' : ['select', 'curve'].includes(column.key) ? 'text-center' : 'text-right', column.hide ? 'max-xl:hidden' : '']"
                 :aria-sort="column.sort && !filters.id && response?.sort === column.sort ? (response?.dir === 'asc' ? 'ascending' : 'descending') : undefined"
               >
+                <input
+                  v-if="column.key === 'select'"
+                  type="checkbox" class="h-4 w-4 cursor-pointer align-middle"
+                  :checked="allOnPage" :indeterminate="someOnPage" :disabled="!pageIds.length"
+                  aria-label="Selecionar todos os anúncios desta página" data-test="selecionar-todos"
+                  @change="toggleAll(($event.target as HTMLInputElement).checked)"
+                />
                 <button
-                  v-if="column.sort && !filters.id"
+                  v-else-if="column.sort && !filters.id"
                   type="button"
                   class="inline-flex items-center gap-1 hover:text-ink"
                   :class="response?.sort === column.sort ? 'text-ink' : ''"
@@ -252,7 +334,23 @@ function totalPages(): number {
             </tr>
 
             <template v-for="item in response?.items ?? []" :key="item.id">
-              <tr class="group cursor-pointer border-b border-line hover:bg-surface-2" @click="toggleRow(item)">
+              <tr class="group cursor-pointer border-b border-line hover:bg-surface-2" :class="{ 'bg-primary-soft': selected.includes(item.id) }" data-test="linha-anuncio" @click="toggleRow(item)">
+                <td class="px-2 py-2 text-center" @click.stop>
+                  <input
+                    type="checkbox" class="h-4 w-4 cursor-pointer align-middle" :checked="selected.includes(item.id)"
+                    :aria-label="`Selecionar ${item.title}`" data-test="selecionar-anuncio"
+                    @change="toggleSelect(item.id, ($event.target as HTMLInputElement).checked)"
+                  />
+                </td>
+                <td class="px-2 py-2 text-center" data-test="col-curva">
+                  <span
+                    v-if="item.curve"
+                    class="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                    :class="CURVE_BALL[item.curve]" :title="CURVE_HINT[item.curve]" :aria-label="`Curva ${item.curve}`"
+                    :data-curve="item.curve"
+                  >{{ item.curve }}</span>
+                  <span v-else class="text-ink-3" title="Fora da Curva ABC (finalizado sem venda nos últimos 60 dias)">—</span>
+                </td>
                 <td class="px-2 py-2">
                   <p class="truncate text-[13px] font-medium text-ink" :title="item.title">{{ item.title }}</p>
                   <p class="truncate text-[12px] text-ink-3">
@@ -261,6 +359,7 @@ function totalPages(): number {
                   </p>
                 </td>
                 <td class="truncate px-2 py-2 text-ink-2" :title="item.sku ?? 'sem SKU'">{{ item.sku ?? 'sem SKU' }}</td>
+                <td class="px-2 py-2 text-ink-2" data-numeric data-test="col-criado">{{ item.date_created ? dateFull(item.date_created) : '—' }}</td>
                 <td class="px-2 py-2 text-right" data-numeric>
                   <span v-if="item.original_price" class="block text-[11px] text-ink-3 line-through">{{ brl(item.original_price) }}</span>
                   {{ brl(item.price) }}
@@ -477,5 +576,43 @@ function totalPages(): number {
         </div>
       </div>
     </div>
+
+    <!-- Confirmação da exclusão (pedido do usuário em 24/11/2026) -->
+    <div v-if="confirmingDelete" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="alertdialog" aria-modal="true" aria-labelledby="excluir-titulo" data-test="confirmar-exclusao" @click.self="!deleting && (confirmingDelete = false)">
+      <div class="card w-full max-w-lg space-y-4 p-5 text-[13px]">
+        <header class="flex items-start gap-3">
+          <ExclamationTriangleIcon class="h-6 w-6 shrink-0 text-danger" aria-hidden="true" />
+          <p id="excluir-titulo" class="text-[17px] font-semibold text-ink">Confirma a exclusão do(s) anúncio(s) selecionado(s)?</p>
+        </header>
+        <ul class="max-h-60 space-y-1 overflow-y-auto rounded-card border border-line p-3 text-ink-2">
+          <li v-for="id in selected" :key="id" class="truncate"><span class="text-ink-3">{{ id }}</span> · {{ titleOf(id) }}</li>
+        </ul>
+        <p class="rounded-card border border-danger bg-danger-soft p-3 text-ink">
+          {{ selected.length }} anúncio(s) serão finalizados e excluídos no Mercado Livre agora. Não tem volta: anúncio excluído não pode ser
+          reativado, só publicado de novo como anúncio novo (sem as vendas e avaliações).
+        </p>
+        <footer class="flex justify-end gap-2">
+          <button type="button" class="btn-secondary" :disabled="deleting" data-test="exclusao-nao" @click="confirmingDelete = false">Não</button>
+          <button type="button" class="btn-danger-solid" :disabled="deleting" data-test="exclusao-sim" @click="deleteSelected">{{ deleting ? 'Excluindo…' : 'Sim' }}</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Resultado quando o ML recusou algum -->
+    <div v-if="deleteResults" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" data-test="resultado-exclusao" @click.self="deleteResults = null">
+      <div class="card w-full max-w-lg space-y-3 p-5 text-[13px]">
+        <p class="text-[17px] font-semibold text-ink">Exclusão: {{ deleteResults.filter((r) => r.ok).length }} de {{ deleteResults.length }} anúncio(s)</p>
+        <ul class="max-h-72 space-y-2 overflow-y-auto">
+          <li v-for="r in deleteResults" :key="r.item_id" class="rounded-card border p-2" :class="r.ok ? 'border-line' : 'border-danger bg-danger-soft'">
+            <span class="font-semibold" :class="r.ok ? 'text-success' : 'text-danger'">{{ r.ok ? 'Excluído' : 'Não excluído' }}</span>
+            <span class="text-ink-3"> · {{ r.item_id }}</span>
+            <span v-if="!r.ok" class="block text-ink-2">{{ r.message }}</span>
+          </li>
+        </ul>
+        <div class="flex justify-end"><button type="button" class="btn-secondary" @click="deleteResults = null">Fechar</button></div>
+      </div>
+    </div>
+
+    <ItemsBulkEdit v-if="editingIds" :item-ids="editingIds" @close="editingIds = null" @changed="table.refreshNow" />
   </div>
 </template>

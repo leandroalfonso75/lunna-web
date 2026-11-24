@@ -4,6 +4,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useToast } from '../../composables/useToast'
 import { apiErrorMessage } from '../../lib/apiErrors'
 import { useSessionStore } from '../../stores/session'
+import AbcSameSkuChoice, { type SameSkuItem } from './AbcSameSkuChoice.vue'
 
 /**
  * Curva ABC > "Alterar ficha técnica AGORA" (pedido do usuário em 07/11/2026): os campos que faltam na ficha técnica
@@ -12,17 +13,21 @@ import { useSessionStore } from '../../stores/session'
  * Anúncio com variações (11/11/2026): cor e voltagem já ficam nas variações e não são pedidas; campo de variação vale
  * para todas (per_variation "same"), menos o código universal (GTIN), que tem um campo por variação ("each").
  */
-const props = defineProps<{ itemId: string; variations?: number }>()
+/*
+ * full (Anúncios › Editar, 24/11/2026): ficha completa, com os campos já preenchidos (valor atual) além dos que faltam;
+ * publica só o que mudou. sameSku + preselectSameSku: os outros anúncios selecionados com os mesmos SKUs, já marcados.
+ */
+const props = defineProps<{ itemId: string; variations?: number; full?: boolean; sameSku?: SameSkuItem[]; preselectSameSku?: boolean }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
 
-interface Field { id: string; name: string; value_type: string; required: boolean; hint: string | null; values: { id: string; name: string }[]; free_text: boolean; units: { id: string; name: string }[]; default_unit: string | null; max_length: number | null; not_applicable: boolean; multivalued?: boolean; per_variation?: 'same' | 'each' | null }
+interface Field { id: string; name: string; value_type: string; required: boolean; hint: string | null; values: { id: string; name: string }[]; free_text: boolean; units: { id: string; name: string }[]; default_unit: string | null; max_length: number | null; not_applicable: boolean; multivalued?: boolean; per_variation?: 'same' | 'each' | null; filled?: boolean; current?: { value_id: string | null; value_name: string; not_applicable: boolean } }
 interface Info { title: string; fields: Field[]; variations?: { id: number; label: string }[] }
 interface Suggestion { value_id: string | null; value_name: string; why: string }
 
 const { $api } = useNuxtApp()
 const session = useSessionStore()
 const toast = useToast()
-const query = () => ({ account_id: session.selectedAccountId })
+const query = () => ({ account_id: session.selectedAccountId, ...(props.full ? { all: true } : {}) })
 
 const loading = ref(true)
 const info = ref<Info | null>(null)
@@ -35,20 +40,38 @@ const publishing = ref(false)
 /** Completar também as outras variações do anúncio pai, só com o que é comum (pedido do usuário em 13/11/2026). */
 const allVariations = ref(false)
 
+const alsoIds = ref<string[]>(props.preselectSameSku ? (props.sameSku ?? []).map((i) => i.item_id) : [])
+
 const isFilled = (v: Value) => !!(v.not_applicable || v.value_id || v.value_name.trim() || Object.values(v.variations ?? {}).some((x) => x.value_name.trim()))
-const filledCount = computed(() => Object.values(values).filter(isFilled).length)
+const fieldById = computed(() => Object.fromEntries((info.value?.fields ?? []).map((f) => [f.id, f])))
+/** Campo já preenchido no anúncio: só vai para o ML se o valor mudou. */
+function changedFromCurrent(f: Field, v: Value): boolean {
+  const c = f.current
+  if (!c) return isFilled(v)
+  if (!!v.not_applicable !== !!c.not_applicable) return true
+  if (v.not_applicable) return false
+  if (v.value_id || c.value_id) return (v.value_id ?? '') !== (c.value_id ?? '') || (!v.value_id && v.value_name.trim() !== c.value_name.trim())
+  return v.value_name.trim() !== c.value_name.trim()
+}
+/** O que vai para o ML: os campos que faltavam e foram preenchidos e, na ficha completa, os preenchidos que mudaram. */
+const payload = computed(() => Object.fromEntries(Object.entries(values).filter(([id, v]) => {
+  const f = fieldById.value[id]
+  return f?.filled ? changedFromCurrent(f, v) && isFilled(v) : isFilled(v)
+})))
+const filledCount = computed(() => Object.keys(payload.value).length)
+const missingFields = computed(() => (info.value?.fields ?? []).filter((f) => !f.filled))
 
 /** GTIN de uma variação (um campo por variação). */
 function onVariationText(f: Field, variationId: number, text: string) {
   const cur = values[f.id] ?? { value_id: null, value_name: '' }
   values[f.id] = { ...cur, not_applicable: false, variations: { ...(cur.variations ?? {}), [String(variationId)]: { value_name: text } } }
 }
-const missingCount = computed(() => (info.value?.fields.length ?? 0) - filledCount.value)
+const missingCount = computed(() => missingFields.value.filter((f) => !values[f.id] || !isFilled(values[f.id] as Value)).length)
 
 onMounted(async () => {
   try {
     info.value = await $api<Info>(`/api/items/${props.itemId}/specs`, { query: query() })
-    for (const f of info.value.fields) values[f.id] = { value_id: null, value_name: '' }
+    for (const f of info.value.fields) values[f.id] = f.current ? { ...f.current } : { value_id: null, value_name: '' }
   } catch (err) {
     toast.error(apiErrorMessage(err, 'Não foi possível ler a ficha técnica no Mercado Livre.'))
   } finally {
@@ -79,9 +102,10 @@ async function suggest() {
     const res = await $api<{ values: Record<string, Suggestion> }>(`/api/items/${props.itemId}/specs/suggest`, { method: 'POST', query: query() })
     suggestions.value = res.values
     // já preenche os campos vazios com as sugestões
+    // nos campos já preenchidos a sugestão só aparece, com "Aplicar sugestão"
     for (const [id, s] of Object.entries(res.values)) {
       const cur = values[id]
-      if (cur && !cur.not_applicable && !cur.value_id && !cur.value_name.trim()) values[id] = { value_id: s.value_id, value_name: s.value_name }
+      if (cur && !fieldById.value[id]?.filled && !cur.not_applicable && !cur.value_id && !cur.value_name.trim()) values[id] = { value_id: s.value_id, value_name: s.value_name }
     }
     const n = Object.keys(res.values).length
     if (n) toast.success(`${n} característica(s) sugerida(s). Confira antes de publicar.`)
@@ -106,10 +130,10 @@ function apply(id: string) {
 async function publish() {
   publishing.value = true
   try {
-    const res = await $api<{ message: string; variations?: { ok: boolean }[] | null }>(`/api/items/${props.itemId}/specs`, {
-      method: 'POST', query: query(), body: { values, confirm: true, apply_to_variations: allVariations.value }
+    const res = await $api<{ message: string; variations?: { ok: boolean }[] | null; same_sku?: { ok: boolean }[] | null }>(`/api/items/${props.itemId}/specs`, {
+      method: 'POST', query: query(), body: { values: payload.value, confirm: true, apply_to_variations: allVariations.value, also_item_ids: alsoIds.value }
     })
-    if (res.variations?.some((v) => !v.ok)) toast.error(res.message)
+    if ([...(res.variations ?? []), ...(res.same_sku ?? [])].some((v) => !v.ok)) toast.error(res.message)
     else toast.success(res.message)
     emit('changed')
     emit('close')
@@ -144,14 +168,18 @@ async function publish() {
             <button type="button" class="btn-secondary h-9" :disabled="suggesting" data-test="ficha-sugerir" @click="suggest">
               <SparklesIcon class="h-4 w-4" aria-hidden="true" /> {{ suggesting ? 'Sugerindo…' : 'Sugerir características' }}
             </button>
-            <span class="text-ink-3">{{ info.fields.length }} campo(s) faltando · {{ filledCount }} preenchido(s)</span>
+            <span v-if="full" class="text-ink-3" data-test="ficha-contagem">{{ info.fields.length - missingFields.length }} preenchido(s) · {{ missingFields.length }} faltando · {{ filledCount }} alteração(ões)</span>
+            <span v-else class="text-ink-3">{{ info.fields.length }} campo(s) faltando · {{ filledCount }} preenchido(s)</span>
           </div>
 
           <ul class="space-y-3" data-test="ficha-campos">
             <li v-for="f in info.fields" :key="f.id" class="rounded-card border border-line p-3">
               <div class="flex flex-wrap items-end gap-2">
                 <label class="min-w-0 flex-1">
-                  <span class="mb-1 block font-semibold text-ink">{{ f.name }}<span v-if="f.required" class="ml-1 text-danger" title="Obrigatório">*</span></span>
+                  <span class="mb-1 block font-semibold text-ink">{{ f.name }}<span v-if="f.required" class="ml-1 text-danger" title="Obrigatório">*</span>
+                    <span v-if="full && !f.filled" class="pill-warning ml-2 text-[11px] font-normal">faltando</span>
+                    <span v-else-if="f.filled && values[f.id] && changedFromCurrent(f, values[f.id] as Value)" class="pill-primary ml-2 text-[11px] font-normal" data-test="ficha-alterado">alterado</span>
+                  </span>
                   <span v-if="f.per_variation === 'same' && info.variations?.length" class="mb-1 block text-[12px] text-ink-3">Vale para as {{ info.variations.length }} variações ({{ info.variations.map((v) => v.label).join(', ') }}).</span>
                   <span v-if="f.per_variation === 'each'" class="block space-y-1.5" data-test="ficha-por-variacao">
                     <span v-for="v in info.variations ?? []" :key="v.id" class="flex items-center gap-2">
@@ -179,6 +207,10 @@ async function publish() {
                   @click="apply(f.id)"
                 >Aplicar sugestão</button>
               </div>
+              <p v-if="f.filled && f.current && values[f.id] && changedFromCurrent(f, values[f.id] as Value)" class="mt-1 text-[12px] text-ink-3">
+                Antes: {{ f.current.not_applicable ? 'não se aplica' : f.current.value_name }}
+                <button type="button" class="btn-link ml-1 text-[12px]" @click="values[f.id] = { ...f.current }">desfazer</button>
+              </p>
               <p v-if="suggestions[f.id]" class="mt-1 text-[12px] text-ink-3">Sugestão: <strong class="text-ink">{{ suggestions[f.id]?.value_name }}</strong><template v-if="suggestions[f.id]?.why"> · {{ suggestions[f.id]?.why }}</template></p>
               <label v-if="f.not_applicable" class="mt-2 inline-flex items-center gap-2 text-ink-2" data-test="ficha-nao-se-aplica">
                 <input type="checkbox" :checked="!!values[f.id]?.not_applicable" @change="toggleNA(f, ($event.target as HTMLInputElement).checked)">
@@ -201,7 +233,8 @@ async function publish() {
               </label>
             </template>
             <template v-else>
-              <span class="text-ink">{{ filledCount }} característica(s) mudam no Mercado Livre agora{{ allVariations && variations ? `, neste anúncio e nas outras ${variations} variações` : '' }}. Confirmar?</span>
+              <AbcSameSkuChoice v-model="alsoIds" :items="sameSku ?? []" />
+              <span class="text-ink">{{ filledCount }} característica(s) mudam no Mercado Livre agora{{ allVariations && variations ? `, neste anúncio e nas outras ${variations} variações` : '' }}{{ alsoIds.length ? ` e em mais ${alsoIds.length} anúncio(s) do mesmo SKU` : '' }}. Confirmar?</span>
               <button type="button" class="btn-primary h-9" :disabled="publishing" data-test="ficha-confirmar" @click="publish">{{ publishing ? 'Publicando…' : 'Sim, publicar' }}</button>
               <button type="button" class="btn-secondary h-9" :disabled="publishing" @click="confirming = false">Cancelar</button>
             </template>
