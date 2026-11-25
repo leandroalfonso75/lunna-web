@@ -40,6 +40,8 @@ export interface ItemsControlsState {
   createdOlderThan?: number | null
   /** "Quantidade de Vendas" (25/11/2026): "none" (sem vendas) ou o mínimo de vendas; null = sem filtro. */
   sales?: string | null
+  /** Aba Anúncios › Tradicional (25/11/2026): "traditional" = só os que não são de catálogo; vazio = todos. */
+  kind?: 'traditional' | null
 }
 
 export interface EffectiveSort {
@@ -69,6 +71,7 @@ export function buildItemsQuery(accountId: string, state: ItemsControlsState): R
   }
 
   params.status = state.status
+  if (state.kind) params.kind = state.kind
   if (state.createdOlderThan && state.createdOlderThan > 0) params.created_older_than = String(state.createdOlderThan)
   if (state.sales) params.sales = state.sales
   if (state.alert) params.alert = state.alert

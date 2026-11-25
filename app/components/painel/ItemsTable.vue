@@ -70,12 +70,15 @@ const STATUS_TABS: { value: 'active' | 'paused' | 'closed' | 'all'; label: strin
 
 // "Anúncios criados há mais de N dias": filtro da página, acima das abas Todos e Catálogo (24/11/2026)
 // e "Quantidade de Vendas" (25/11/2026), cumulativos
-const props = defineProps<{ createdOlderThan?: number | null; sales?: string | null }>()
+// kind="traditional": aba Tradicional (25/11/2026), só anúncios que não são de catálogo, com a sincronização com catálogo
+const props = defineProps<{ createdOlderThan?: number | null; sales?: string | null; kind?: 'traditional' | null }>()
 
 const table = useItemsTable()
 const { filters, response, loading, stale, loadError, account, sync, generatedAt, refreshing } = table
 filters.createdOlderThan = props.createdOlderThan ?? null
 filters.sales = props.sales ?? null
+filters.kind = props.kind ?? null
+const traditional = computed(() => props.kind === 'traditional')
 watch(() => props.createdOlderThan, (days) => table.setCreatedOlderThan(days ?? null))
 watch(() => props.sales, (sales) => table.setSales(sales ?? null))
 
@@ -139,21 +142,43 @@ function toggleAll(on: boolean) {
   selected.value = on ? [...new Set([...selected.value, ...pageIds.value])] : selected.value.filter((id) => !pageIds.value.includes(id))
 }
 
-interface DeleteResult { item_id: string; ok: boolean; message: string }
+interface DeleteResult { item_id: string; ok: boolean; message: string; catalog_of?: string | null }
+interface LinkedCatalogs { item_id: string; catalogs: string[] }
 const confirmingDelete = ref(false)
 const deleting = ref(false)
+const preparingDelete = ref(false)
 const deleteResults = ref<DeleteResult[] | null>(null)
 const editingIds = ref<string[] | null>(null)
+// tradicionais selecionados sincronizados com catálogo: o catálogo sai junto (25/11/2026); a API diz quais são
+const linkedCatalogs = ref<LinkedCatalogs[]>([])
+const linkedCatalogCount = computed(() => linkedCatalogs.value.reduce((n, l) => n + l.catalogs.length, 0))
+
+async function openDelete() {
+  preparingDelete.value = true
+  try {
+    const res = await $api<{ linked: LinkedCatalogs[] }>('/api/items/delete_preview', {
+      query: { account_id: session.selectedAccountId, 'item_ids[]': selected.value }
+    })
+    linkedCatalogs.value = res.linked
+    confirmingDelete.value = true
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível conferir os anúncios selecionados agora. Nada foi alterado.'))
+  } finally {
+    preparingDelete.value = false
+  }
+}
 
 async function deleteSelected() {
   deleting.value = true
   try {
     const res = await $api<{ ok: boolean; message: string; results: DeleteResult[] }>('/api/items/bulk_delete', {
-      method: 'POST', query: { account_id: session.selectedAccountId }, body: { item_ids: selected.value, confirm: true }
+      method: 'POST', query: { account_id: session.selectedAccountId },
+      body: { item_ids: selected.value, confirm: true, with_catalog: linkedCatalogs.value.length > 0 }
     })
     confirmingDelete.value = false
+    // com catálogo junto, mostra o resultado de cada anúncio (tradicional e catálogo), mesmo dando tudo certo
     if (res.ok) toast.success(res.message)
-    else deleteResults.value = res.results
+    if (!res.ok || res.results.some((r) => r.catalog_of)) deleteResults.value = res.results
     selected.value = selected.value.filter((id) => !res.results.some((r) => r.ok && r.item_id === id))
     table.refreshNow()
   } catch (err) {
@@ -251,8 +276,8 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
           <PencilSquareIcon class="h-4 w-4" aria-hidden="true" /> Editar anúncios selecionados
         </button>
         <button type="button" class="btn-danger" :disabled="!session.isAdmin" :title="session.isAdmin ? '' : 'Só administradores excluem anúncios no Mercado Livre'"
-          data-test="excluir-selecionados" @click="confirmingDelete = true">
-          <TrashIcon class="h-4 w-4" aria-hidden="true" /> Excluir anúncios selecionados
+          data-test="excluir-selecionados" :aria-busy="preparingDelete" @click="!preparingDelete && openDelete()">
+          <TrashIcon class="h-4 w-4" aria-hidden="true" /> {{ preparingDelete ? 'Conferindo…' : 'Excluir anúncios selecionados' }}
         </button>
       </div>
     </div>
@@ -364,6 +389,17 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
                   <p class="truncate text-[12px] text-ink-3">
                     {{ item.id }} · {{ item.status_label }}
                     <LogisticBadge v-if="item.full" type="fulfillment" class="ml-1" />
+                  </p>
+                  <p v-if="traditional && item.catalog_sync" class="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]" data-test="sync-catalogo" @click.stop>
+                    <span
+                      class="rounded-full px-2 py-0.5 font-semibold"
+                      :class="item.catalog_sync.length ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'"
+                    >{{ item.catalog_sync.length ? 'Sincronizado com catálogo' : 'Não sincronizado com catálogo' }}</span>
+                    <a
+                      v-for="c in item.catalog_sync" :key="c.item_id"
+                      :href="c.permalink" target="_blank" rel="noopener" class="btn-link text-[11px]"
+                      :title="`Abrir o anúncio de catálogo ${c.item_id}`" data-test="link-catalogo"
+                    >{{ c.item_id }}</a>
                   </p>
                 </td>
                 <td class="truncate px-2 py-2 text-ink-2" :title="item.sku ?? 'sem SKU'">{{ item.sku ?? 'sem SKU' }}</td>
@@ -595,8 +631,19 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
         <ul class="max-h-60 space-y-1 overflow-y-auto rounded-card border border-line p-3 text-ink-2">
           <li v-for="id in selected" :key="id" class="truncate"><span class="text-ink-3">{{ id }}</span> · {{ titleOf(id) }}</li>
         </ul>
+        <div v-if="linkedCatalogs.length" class="space-y-1 rounded-card border border-danger bg-danger-soft p-3 text-ink" data-test="aviso-catalogo">
+          <p class="font-semibold">
+            {{ linkedCatalogs.length === 1 ? 'Este anúncio é sincronizado' : 'Estes anúncios são sincronizados' }} com anúncio de catálogo.
+            O anúncio de catálogo também será excluído:
+          </p>
+          <ul class="space-y-0.5">
+            <li v-for="l in linkedCatalogs" :key="l.item_id">
+              {{ l.item_id }} → catálogo <span class="font-semibold">{{ l.catalogs.join(', ') }}</span>
+            </li>
+          </ul>
+        </div>
         <p class="rounded-card border border-danger bg-danger-soft p-3 text-ink">
-          {{ selected.length }} anúncio(s) serão finalizados e excluídos no Mercado Livre agora. Não tem volta: anúncio excluído não pode ser
+          {{ selected.length + linkedCatalogCount }} anúncio(s) serão finalizados e excluídos no Mercado Livre agora. Não tem volta: anúncio excluído não pode ser
           reativado, só publicado de novo como anúncio novo (sem as vendas e avaliações).
         </p>
         <footer class="flex justify-end gap-2">
@@ -614,6 +661,7 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
           <li v-for="r in deleteResults" :key="r.item_id" class="rounded-card border p-2" :class="r.ok ? 'border-line' : 'border-danger bg-danger-soft'">
             <span class="font-semibold" :class="r.ok ? 'text-success' : 'text-danger'">{{ r.ok ? 'Excluído' : 'Não excluído' }}</span>
             <span class="text-ink-3"> · {{ r.item_id }}</span>
+            <span v-if="r.catalog_of" class="text-ink-3"> (catálogo sincronizado a {{ r.catalog_of }})</span>
             <span v-if="!r.ok" class="block text-ink-2">{{ r.message }}</span>
           </li>
         </ul>

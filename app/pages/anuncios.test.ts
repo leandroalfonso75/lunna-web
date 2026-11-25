@@ -12,7 +12,7 @@ import { buildItemsQuery, type ItemsControlsState } from '../lib/itemsQuery'
 const AnunciosPage = (await import('./anuncios.vue')).default
 const stubs = {
   PageHeader: true,
-  ItemsTable: { props: ['createdOlderThan', 'sales'], template: '<div data-test="items-stub">{{ createdOlderThan ?? "nenhum" }}</div><div data-test="items-sales">{{ sales ?? "nenhum" }}</div>' },
+  ItemsTable: { props: ['createdOlderThan', 'sales', 'kind'], template: '<div v-if="kind" data-test="items-stub-traditional">{{ createdOlderThan ?? "nenhum" }}|{{ sales ?? "nenhum" }}</div><template v-else><div data-test="items-stub">{{ createdOlderThan ?? "nenhum" }}</div><div data-test="items-sales">{{ sales ?? "nenhum" }}</div></template>' },
   CatalogTable: { props: ['createdOlderThan', 'sales'], template: '<div data-test="catalog-stub">{{ createdOlderThan ?? "nenhum" }}</div><div data-test="catalog-sales">{{ sales ?? "nenhum" }}</div>' }
 }
 const mountPage = () => mount(AnunciosPage, { global: { stubs } })
@@ -121,6 +121,22 @@ describe('anuncios.vue: filtro Quantidade de Vendas', () => {
   })
 })
 
+describe('anuncios.vue: aba Tradicional (25/11/2026)', () => {
+  it('fica ao lado de Catálogo e mostra a tabela só de tradicionais, com os mesmos filtros', async () => {
+    const w = mountPage()
+    expect(w.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Todos', 'Catálogo', 'Tradicional'])
+    expect(w.find('[data-test="items-stub-traditional"]').exists()).toBe(false)
+    await w.get('[data-test="filtro-criacao-periodo"]').setValue('90')
+    await w.get('[data-test="filtro-criacao-aplicar"]').trigger('click')
+    await w.get('[data-test="filtro-vendas-periodo"]').setValue('5-9')
+    await w.get('[data-test="filtro-vendas-aplicar"]').trigger('click')
+    await w.get('[data-test="aba-tradicional"]').trigger('click')
+    expect(w.get('[data-test="aba-tradicional"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-test="items-stub-traditional"]').text()).toBe('90|5-9')
+    expect(w.find('[data-test="catalog-stub"]').exists()).toBe(false)
+  })
+})
+
 describe('buildItemsQuery', () => {
   const base: ItemsControlsState = { status: 'active', alert: null, q: '', type: '', shipping: '', id: null, titleFilter: '', skuFilter: '',
     numericFilters: {}, sort: 'units_7d', dir: null, page: 1, perPage: 50 }
@@ -128,5 +144,7 @@ describe('buildItemsQuery', () => {
     expect(buildItemsQuery('acc', base).created_older_than).toBeUndefined()
     expect(buildItemsQuery('acc', base).sales).toBeUndefined()
     expect(buildItemsQuery('acc', { ...base, createdOlderThan: 90, sales: '5-9' })).toMatchObject({ created_older_than: '90', sales: '5-9' })
+    expect(buildItemsQuery('acc', base).kind).toBeUndefined()
+    expect(buildItemsQuery('acc', { ...base, kind: 'traditional' }).kind).toBe('traditional')
   })
 })

@@ -11,15 +11,17 @@ import { useSessionStore } from '../stores/session'
 /**
  * `/anuncios` (SPEC §7.7): tabela completa de anúncios com filtros (`ItemsTable.vue`, dona do cabeçalho) e a aba
  * Catálogo (pedido do usuário em 08/11/2026): anúncios de catálogo, sincronização com tradicional e ganhando/perdendo.
- * Acima das abas, cumulativos e valendo para as duas (aplicados na API):
+ * Aba Tradicional (25/11/2026), ao lado de Catálogo: a mesma tabela só com os anúncios que não são de catálogo, dizendo se
+ * cada um é sincronizado com catálogo e com o link do anúncio de catálogo (excluir avisa que o catálogo sai junto).
+ * Acima das abas, cumulativos e valendo para todas (aplicados na API):
  * - "Anúncios criados há mais de" 30, 60, 90, 180, 365 dias ou personalizado (24/11/2026; `created_older_than`);
  * - "Quantidade de Vendas": sem vendas, faixas (1 a 4 … 5.000 a 9.999) ou personalizado de/até, pelo total vendido do
  *   anúncio no Mercado Livre (25/11/2026; `sales`).
  * Cada filtro só vale depois de clicar em Aplicar (25/11/2026).
  */
 const session = useSessionStore()
-const tab = ref<'todos' | 'catalogo'>('todos')
-const TABS = [{ value: 'todos', label: 'Todos' }, { value: 'catalogo', label: 'Catálogo' }] as const
+const tab = ref<'todos' | 'catalogo' | 'tradicional'>('todos')
+const TABS = [{ value: 'todos', label: 'Todos' }, { value: 'catalogo', label: 'Catálogo' }, { value: 'tradicional', label: 'Tradicional' }] as const
 
 const CREATED_OPTIONS = [
   { value: '', label: 'Qualquer data' },
@@ -85,5 +87,6 @@ function salesSummary(v: string) {
     </div>
     <ItemsTable v-show="tab === 'todos'" :created-older-than="createdOlderThan" :sales="sales" />
     <CatalogTable v-if="tab === 'catalogo'" :created-older-than="createdOlderThan" :sales="sales" />
+    <ItemsTable v-if="tab === 'tradicional'" kind="traditional" :created-older-than="createdOlderThan" :sales="sales" />
   </div>
 </template>

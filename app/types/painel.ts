@@ -165,6 +165,13 @@ export interface ItemEconomics {
   fees_split: boolean
 }
 
+/** Anúncio de catálogo sincronizado a um tradicional (link para o anúncio publicado). */
+export interface CatalogSyncLink {
+  item_id: string
+  permalink: string
+  status: string | null
+}
+
 export interface ItemRow {
   id: string
   title: string
@@ -178,6 +185,8 @@ export interface ItemRow {
   full: boolean
   free_shipping: boolean
   catalog: boolean
+  /** Tradicional: anúncios de catálogo sincronizados (vazio = não sincronizado); catálogo: null (25/11/2026). */
+  catalog_sync?: CatalogSyncLink[] | null
   variations: number
   stock: number | null
   stock_state: ThreeState | null

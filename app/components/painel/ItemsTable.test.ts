@@ -7,6 +7,7 @@ import { useSessionStore } from '../../stores/session'
 /**
  * Anúncios (pedido do usuário em 24/11/2026): bola da curva ABC (azul A, verde B, vermelha C), data de criação, caixa de
  * seleção, "Excluir anúncios selecionados" com confirmação (Sim/Não) e "Editar anúncios selecionados".
+ * Aba Tradicional (25/11/2026): sincronização com catálogo, link do catálogo e exclusão que leva o catálogo junto.
  * Nada vai ao Mercado Livre: a API é simulada.
  */
 const api = vi.fn()
@@ -27,8 +28,14 @@ const table = {
 }
 vi.mock('../../composables/useItemsTable', () => ({ useItemsTable: () => table }))
 
+/** delete_preview devolve `linked`; bulk_delete devolve `deleteRes`. */
+function mockApi(deleteRes: unknown, linked: unknown[] = []) {
+  api.mockImplementation((url: string) => Promise.resolve(url === '/api/items/delete_preview' ? { linked } : deleteRes))
+}
+const deleteCalls = () => api.mock.calls.filter((c) => c[0] === '/api/items/bulk_delete')
+
 const ItemsTable = (await import('./ItemsTable.vue')).default
-const mountTable = () => mount(ItemsTable, { global: { stubs: { LogisticBadge: true, ItemsBulkEdit: { props: ['itemIds'], template: '<div data-test="bulk-edit-stub">{{ itemIds.join(",") }}</div>' } } } })
+const mountTable = (props: Record<string, unknown> = {}) => mount(ItemsTable, { props, global: { stubs: { LogisticBadge: true, ItemsBulkEdit: { props: ['itemIds'], template: '<div data-test="bulk-edit-stub">{{ itemIds.join(",") }}</div>' } } } })
 
 beforeEach(() => {
   setActivePinia(createPinia())
@@ -77,32 +84,37 @@ describe('ItemsTable', () => {
   })
 
   it('excluir pede confirmação: Não não envia nada; Sim exclui com confirm=true', async () => {
-    api.mockResolvedValue({ ok: true, message: '2 anúncio(s) excluído(s) do Mercado Livre.', results: [{ item_id: 'MLB1', ok: true, message: 'ok' }, { item_id: 'MLB2', ok: true, message: 'ok' }] })
+    mockApi({ ok: true, message: '2 anúncio(s) excluído(s) do Mercado Livre.', results: [{ item_id: 'MLB1', ok: true, message: 'ok' }, { item_id: 'MLB2', ok: true, message: 'ok' }] })
     const w = mountTable()
     const boxes = w.findAll('[data-test="selecionar-anuncio"]')
     await boxes[0]?.setValue(true)
     await boxes[1]?.setValue(true)
 
     await w.get('[data-test="excluir-selecionados"]').trigger('click')
+    await flushPromises()
     expect(w.get('[data-test="confirmar-exclusao"]').text()).toContain('Confirma a exclusão do(s) anúncio(s) selecionado(s)?')
+    expect(w.find('[data-test="aviso-catalogo"]').exists()).toBe(false)
     await w.get('[data-test="exclusao-nao"]').trigger('click')
     expect(w.find('[data-test="confirmar-exclusao"]').exists()).toBe(false)
-    expect(api).not.toHaveBeenCalled()
+    expect(deleteCalls()).toEqual([])
 
     await w.get('[data-test="excluir-selecionados"]').trigger('click')
+    await flushPromises()
     await w.get('[data-test="exclusao-sim"]').trigger('click')
     await flushPromises()
-    expect(api).toHaveBeenCalledWith('/api/items/bulk_delete', expect.objectContaining({ method: 'POST', body: { item_ids: ['MLB1', 'MLB2'], confirm: true } }))
+    expect(api).toHaveBeenCalledWith('/api/items/bulk_delete', expect.objectContaining({ method: 'POST', body: { item_ids: ['MLB1', 'MLB2'], confirm: true, with_catalog: false } }))
+    expect(w.find('[data-test="resultado-exclusao"]').exists()).toBe(false)
     expect(toast.success).toHaveBeenCalledWith('2 anúncio(s) excluído(s) do Mercado Livre.')
     expect(table.refreshNow).toHaveBeenCalled()
     expect(w.find('[data-test="acoes-selecionados"]').exists()).toBe(false)
   })
 
   it('mostra o que o Mercado Livre recusou', async () => {
-    api.mockResolvedValue({ ok: false, message: '0 de 1', results: [{ item_id: 'MLB3', ok: false, message: 'O Mercado Livre recusou: Item with stock in fulfillment cannot be closed' }] })
+    mockApi({ ok: false, message: '0 de 1', results: [{ item_id: 'MLB3', ok: false, message: 'O Mercado Livre recusou: Item with stock in fulfillment cannot be closed' }] })
     const w = mountTable()
     await w.findAll('[data-test="selecionar-anuncio"]')[2]?.setValue(true)
     await w.get('[data-test="excluir-selecionados"]').trigger('click')
+    await flushPromises()
     await w.get('[data-test="exclusao-sim"]').trigger('click')
     await flushPromises()
     expect(w.get('[data-test="resultado-exclusao"]').text()).toContain('cannot be closed')
@@ -123,5 +135,62 @@ describe('ItemsTable', () => {
     await boxes[0]?.setValue(true)
     await w.get('[data-test="editar-selecionados-botao"]').trigger('click')
     expect(w.get('[data-test="bulk-edit-stub"]').text()).toBe('MLB2,MLB1')
+  })
+})
+
+describe('ItemsTable: aba Tradicional', () => {
+  beforeEach(() => {
+    const items = [
+      { ...row('MLBT1', 'A', null), catalog_sync: [{ item_id: 'MLBC1', permalink: 'https://produto.mercadolivre.com.br/MLBC1', status: 'active' }] },
+      { ...row('MLBT2', 'B', null), catalog_sync: [] }
+    ]
+    response.value = { ...response.value, items, total: 2 }
+  })
+
+  it('diz se é sincronizado com catálogo e o código do catálogo é link para o anúncio', () => {
+    const w = mountTable({ kind: 'traditional' })
+    const sync = w.findAll('[data-test="sync-catalogo"]')
+    expect(sync.map((x) => x.text().replace(/\s+/g, ' '))).toEqual(['Sincronizado com catálogoMLBC1', 'Não sincronizado com catálogo'])
+    const link = w.get('[data-test="link-catalogo"]')
+    expect(link.text()).toBe('MLBC1')
+    expect(link.attributes()).toMatchObject({ href: 'https://produto.mercadolivre.com.br/MLBC1', target: '_blank' })
+  })
+
+  it('na aba Todos não mostra a linha de sincronização', () => {
+    expect(mountTable().find('[data-test="sync-catalogo"]').exists()).toBe(false)
+  })
+
+  it('excluir um sincronizado avisa que o catálogo sai junto e, com Sim, exclui os dois e mostra cada resultado', async () => {
+    mockApi({ ok: true, message: '2 anúncio(s) excluído(s) do Mercado Livre.', results: [
+      { item_id: 'MLBC1', ok: true, message: 'Excluído do Mercado Livre.', catalog_of: 'MLBT1' },
+      { item_id: 'MLBT1', ok: true, message: 'Excluído do Mercado Livre.', catalog_of: null }
+    ] }, [{ item_id: 'MLBT1', catalogs: ['MLBC1'] }])
+    const w = mountTable({ kind: 'traditional' })
+    await w.findAll('[data-test="selecionar-anuncio"]')[0]?.setValue(true)
+    await w.get('[data-test="excluir-selecionados"]').trigger('click')
+    await flushPromises()
+    expect(api).toHaveBeenCalledWith('/api/items/delete_preview', { query: { account_id: 'acc', 'item_ids[]': ['MLBT1'] } })
+    const aviso = w.get('[data-test="aviso-catalogo"]').text().replace(/\s+/g, ' ')
+    expect(aviso).toContain('O anúncio de catálogo também será excluído')
+    expect(aviso).toContain('MLBT1 → catálogo MLBC1')
+    expect(w.get('[data-test="confirmar-exclusao"]').text()).toContain('2 anúncio(s) serão finalizados')
+
+    await w.get('[data-test="exclusao-sim"]').trigger('click')
+    await flushPromises()
+    expect(deleteCalls()[0]?.[1]).toMatchObject({ body: { item_ids: ['MLBT1'], confirm: true, with_catalog: true } })
+    const result = w.get('[data-test="resultado-exclusao"]').text()
+    expect(result).toContain('MLBC1 (catálogo sincronizado a MLBT1)')
+    expect(result).toContain('MLBT1')
+    expect(result).toContain('2 de 2')
+  })
+
+  it('Não no aviso do catálogo não exclui nada', async () => {
+    mockApi({}, [{ item_id: 'MLBT1', catalogs: ['MLBC1'] }])
+    const w = mountTable({ kind: 'traditional' })
+    await w.findAll('[data-test="selecionar-anuncio"]')[0]?.setValue(true)
+    await w.get('[data-test="excluir-selecionados"]').trigger('click')
+    await flushPromises()
+    await w.get('[data-test="exclusao-nao"]').trigger('click')
+    expect(deleteCalls()).toEqual([])
   })
 })
