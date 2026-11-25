@@ -13,8 +13,9 @@ import { useSessionStore } from '../stores/session'
  * Catálogo (pedido do usuário em 08/11/2026): anúncios de catálogo, sincronização com tradicional e ganhando/perdendo.
  * Acima das abas, cumulativos e valendo para as duas (aplicados na API):
  * - "Anúncios criados há mais de" 30, 60, 90, 180, 365 dias ou personalizado (24/11/2026; `created_older_than`);
- * - "Quantidade de Vendas": sem vendas, +5, +10, +25, +50, +100, +500, +1000, +5000 ou personalizado, pelo total vendido
- *   do anúncio no Mercado Livre (25/11/2026; `sales`).
+ * - "Quantidade de Vendas": sem vendas, faixas (1 a 4 … 5.000 a 9.999) ou personalizado de/até, pelo total vendido do
+ *   anúncio no Mercado Livre (25/11/2026; `sales`).
+ * Cada filtro só vale depois de clicar em Aplicar (25/11/2026).
  */
 const session = useSessionStore()
 const tab = ref<'todos' | 'catalogo'>('todos')
@@ -29,19 +30,27 @@ const CREATED_OPTIONS = [
   { value: '365', label: '365 dias' },
   { value: 'custom', label: 'Personalizado' }
 ] as const
+// Faixas de vendas (revisto em 25/11/2026): Sem vendas, 1 a 4, 5 a 9, 10 a 24, 25 a 49, 50 a 99, 100 a 499, 500 a 999,
+// 1.000 a 4.999, 5.000 a 9.999 e Personalizado (de/até). Valor para a API: "none" ou "A-B".
+const fmt = (n: number) => n.toLocaleString('pt-BR')
+const SALES_RANGES: [number, number][] = [[1, 4], [5, 9], [10, 24], [25, 49], [50, 99], [100, 499], [500, 999], [1000, 4999], [5000, 9999]]
 const SALES_OPTIONS = [
   { value: '', label: 'Qualquer quantidade' },
   { value: 'none', label: 'Sem vendas' },
-  ...[5, 10, 25, 50, 100, 500, 1000, 5000].map((n) => ({ value: String(n), label: `+${n.toLocaleString('pt-BR')} vendas` })),
+  ...SALES_RANGES.map(([a, b]) => ({ value: `${a}-${b}`, label: `${fmt(a)} a ${fmt(b)} vendas` })),
   { value: 'custom', label: 'Personalizado' }
-] as const
+]
 
 const created = ref<string | null>(null)
 const sales = ref<string | null>(null)
 const createdOlderThan = computed(() => (created.value ? Number(created.value) : null))
 
-const createdSummary = (v: string) => `criados há mais de ${v} dias`
-const salesSummary = (v: string) => (v === 'none' ? 'sem nenhuma venda' : `com ${Number(v).toLocaleString('pt-BR')} vendas ou mais`)
+const createdSummary = (v: string) => `criados há mais de ${fmt(Number(v))} dias`
+function salesSummary(v: string) {
+  if (v === 'none') return 'sem nenhuma venda'
+  const [a, b] = v.split('-')
+  return b ? `de ${fmt(Number(a))} a ${fmt(Number(b))} vendas` : `${fmt(Number(a))} vendas ou mais`
+}
 </script>
 
 <template>
@@ -58,7 +67,7 @@ const salesSummary = (v: string) => (v === 'none' ? 'sem nenhuma venda' : `com $
       </ListingFilterSelect>
       <ListingFilterSelect
         v-model="sales" input-id="quantidade-vendas" label="Quantidade de Vendas" :options="SALES_OPTIONS"
-        custom-unit="vendas ou mais" custom-placeholder="ex.: 15" :max-digits="7" :summary="salesSummary" test-id="filtro-vendas"
+        custom-unit="vendas" custom-placeholder="ex.: 15" custom-range :max-digits="7" :summary="salesSummary" test-id="filtro-vendas"
       >
         <template #icon><ShoppingCartIcon class="h-5 w-5 text-ink-3" aria-hidden="true" /></template>
       </ListingFilterSelect>
