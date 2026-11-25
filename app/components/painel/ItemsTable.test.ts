@@ -28,9 +28,9 @@ const table = {
 }
 vi.mock('../../composables/useItemsTable', () => ({ useItemsTable: () => table }))
 
-/** delete_preview devolve `linked`; bulk_delete devolve `deleteRes`. */
-function mockApi(deleteRes: unknown, linked: unknown[] = []) {
-  api.mockImplementation((url: string) => Promise.resolve(url === '/api/items/delete_preview' ? { linked } : deleteRes))
+/** delete_preview devolve `linked` (e `preview` extra); bulk_delete devolve `deleteRes`. */
+function mockApi(deleteRes: unknown, linked: unknown[] = [], preview: Record<string, unknown> = {}) {
+  api.mockImplementation((url: string) => Promise.resolve(url === '/api/items/delete_preview' ? { linked, ...preview } : deleteRes))
 }
 const deleteCalls = () => api.mock.calls.filter((c) => c[0] === '/api/items/bulk_delete')
 
@@ -192,5 +192,45 @@ describe('ItemsTable: aba Tradicional', () => {
     await flushPromises()
     await w.get('[data-test="exclusao-nao"]').trigger('click')
     expect(deleteCalls()).toEqual([])
+  })
+})
+
+describe('ItemsTable: anúncio pai (filtros de criação/vendas, 25/11/2026)', () => {
+  beforeEach(() => {
+    const items = [
+      { ...row('MLBP1', 'A', '2026-10-20T12:00:00Z'), family: { count: 3, sold_total: 7, date_created: '2024-01-15T12:00:00Z', item_ids: ['MLBP1', 'MLBP2', 'MLBP3'] } },
+      { ...row('MLBS', 'C', null), family: null }
+    ]
+    response.value = { ...response.value, items, total: 2, grouped_by_parent: true }
+  })
+
+  it('mostra que é pai com variações, as vendas somadas, a data do pai e abre a lista pela seta', async () => {
+    const w = mountTable()
+    expect(w.findAll('[data-test="anuncio-pai"]')).toHaveLength(1)
+    expect(w.get('[data-test="variacoes-toggle"]').text()).toBe('3 variações · 7 vendas')
+    expect(w.findAll('[data-test="col-criado"]').map((c) => c.text())).toEqual(['15/01/2024', '—'])
+    expect(w.find('[data-test="variacoes-lista"]').exists()).toBe(false)
+    await w.get('[data-test="variacoes-toggle"]').trigger('click')
+    expect(w.get('[data-test="variacoes-lista"]').text()).toBe('3 variações deste anúncio pai: MLBP1, MLBP2, MLBP3')
+  })
+
+  it('excluir o pai avisa que as variações saem junto e envia with_variations', async () => {
+    mockApi({ ok: true, message: '3 anúncio(s) excluído(s) do Mercado Livre.', results: [
+      { item_id: 'MLBP1', ok: true, message: 'ok' }, { item_id: 'MLBP2', ok: true, message: 'ok' }, { item_id: 'MLBP3', ok: true, message: 'ok' }
+    ] }, [], { item_ids: ['MLBP1', 'MLBP2', 'MLBP3'], variations: [{ item_id: 'MLBP1', others: ['MLBP2', 'MLBP3'] }] })
+    const w = mountTable()
+    await w.findAll('[data-test="selecionar-anuncio"]')[0]?.setValue(true)
+    await w.get('[data-test="excluir-selecionados"]').trigger('click')
+    await flushPromises()
+    expect(api).toHaveBeenCalledWith('/api/items/delete_preview', { query: { account_id: 'acc', 'item_ids[]': ['MLBP1'], with_variations: true } })
+    const aviso = w.get('[data-test="aviso-variacoes"]').text().replace(/\s+/g, ' ')
+    expect(aviso).toContain('todas as variações também serão excluídas')
+    expect(aviso).toContain('MLBP1 + 2 variação(ões): MLBP2, MLBP3')
+    expect(w.get('[data-test="confirmar-exclusao"]').text()).toContain('3 anúncio(s) serão finalizados')
+
+    await w.get('[data-test="exclusao-sim"]').trigger('click')
+    await flushPromises()
+    expect(deleteCalls()[0]?.[1]).toMatchObject({ body: { item_ids: ['MLBP1'], confirm: true, with_catalog: false, with_variations: true } })
+    expect(w.get('[data-test="resultado-exclusao"]').text()).toContain('3 de 3')
   })
 })

@@ -172,6 +172,14 @@ export interface CatalogSyncLink {
   status: string | null
 }
 
+/** Família de variações que um anúncio pai representa na tabela (cada variação é um anúncio no ML). */
+export interface ItemFamily {
+  count: number
+  sold_total: number
+  date_created: string | null
+  item_ids: string[]
+}
+
 export interface ItemRow {
   id: string
   title: string
@@ -187,6 +195,8 @@ export interface ItemRow {
   catalog: boolean
   /** Tradicional: anúncios de catálogo sincronizados (vazio = não sincronizado); catálogo: null (25/11/2026). */
   catalog_sync?: CatalogSyncLink[] | null
+  /** Anúncio pai com variações (filtros de criação/vendas ligados, 25/11/2026): vendas somadas, criação do pai e as variações. */
+  family?: ItemFamily | null
   variations: number
   stock: number | null
   stock_state: ThreeState | null
@@ -235,6 +245,8 @@ export interface ItemsResponse {
   invalid_filters: string[]
   sort: string
   dir: SortDir
+  /** true quando os filtros de criação/vendas estão ligados: a tabela mostra só o anúncio pai de cada família. */
+  grouped_by_parent?: boolean
 }
 
 // --- /api/abc -------------------------------------------------------------

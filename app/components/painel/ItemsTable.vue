@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import LogisticBadge from '../ui/LogisticBadge.vue'
 import ItemsBulkEdit from './ItemsBulkEdit.vue'
-import { ChevronDownIcon, ChevronUpIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { useItemsTable } from '../../composables/useItemsTable'
 import { usePageHeader } from '../../composables/usePageHeader'
@@ -144,6 +144,8 @@ function toggleAll(on: boolean) {
 
 interface DeleteResult { item_id: string; ok: boolean; message: string; catalog_of?: string | null }
 interface LinkedCatalogs { item_id: string; catalogs: string[] }
+interface ParentVariations { item_id: string; others: string[] }
+interface DeletePreview { item_ids: string[]; variations: ParentVariations[]; linked: LinkedCatalogs[] }
 const confirmingDelete = ref(false)
 const deleting = ref(false)
 const preparingDelete = ref(false)
@@ -152,14 +154,26 @@ const editingIds = ref<string[] | null>(null)
 // tradicionais selecionados sincronizados com catálogo: o catálogo sai junto (25/11/2026); a API diz quais são
 const linkedCatalogs = ref<LinkedCatalogs[]>([])
 const linkedCatalogCount = computed(() => linkedCatalogs.value.reduce((n, l) => n + l.catalogs.length, 0))
+// anúncio pai (filtros de criação/vendas ligados, 25/11/2026): excluir o pai exclui todas as variações da família
+const parentVariations = ref<ParentVariations[]>([])
+const deleteCount = ref(0)
+const withVariations = computed(() => !!response.value?.grouped_by_parent)
+
+// variações do pai abertas na tabela (seta ao lado do nome, como em Produtos)
+const openFamilies = ref<string[]>([])
+function toggleFamily(id: string) {
+  openFamilies.value = openFamilies.value.includes(id) ? openFamilies.value.filter((x) => x !== id) : [...openFamilies.value, id]
+}
 
 async function openDelete() {
   preparingDelete.value = true
   try {
-    const res = await $api<{ linked: LinkedCatalogs[] }>('/api/items/delete_preview', {
-      query: { account_id: session.selectedAccountId, 'item_ids[]': selected.value }
-    })
+    const query: Record<string, unknown> = { account_id: session.selectedAccountId, 'item_ids[]': selected.value }
+    if (withVariations.value) query.with_variations = true
+    const res = await $api<DeletePreview>('/api/items/delete_preview', { query })
     linkedCatalogs.value = res.linked
+    parentVariations.value = res.variations ?? []
+    deleteCount.value = (res.item_ids?.length ?? selected.value.length) + linkedCatalogCount.value
     confirmingDelete.value = true
   } catch (err) {
     toast.error(apiErrorMessage(err, 'Não foi possível conferir os anúncios selecionados agora. Nada foi alterado.'))
@@ -173,12 +187,12 @@ async function deleteSelected() {
   try {
     const res = await $api<{ ok: boolean; message: string; results: DeleteResult[] }>('/api/items/bulk_delete', {
       method: 'POST', query: { account_id: session.selectedAccountId },
-      body: { item_ids: selected.value, confirm: true, with_catalog: linkedCatalogs.value.length > 0 }
+      body: { item_ids: selected.value, confirm: true, with_catalog: linkedCatalogs.value.length > 0, ...(withVariations.value ? { with_variations: true } : {}) }
     })
     confirmingDelete.value = false
     // com catálogo junto, mostra o resultado de cada anúncio (tradicional e catálogo), mesmo dando tudo certo
     if (res.ok) toast.success(res.message)
-    if (!res.ok || res.results.some((r) => r.catalog_of)) deleteResults.value = res.results
+    if (!res.ok || res.results.some((r) => r.catalog_of) || parentVariations.value.length) deleteResults.value = res.results
     selected.value = selected.value.filter((id) => !res.results.some((r) => r.ok && r.item_id === id))
     table.refreshNow()
   } catch (err) {
@@ -386,6 +400,16 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
                 </td>
                 <td class="px-2 py-2">
                   <p class="truncate text-[13px] font-medium text-ink" :title="item.title">{{ item.title }}</p>
+                  <p v-if="item.family" class="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]" data-test="anuncio-pai" @click.stop>
+                    <button
+                      type="button" class="inline-flex items-center gap-0.5 rounded-full bg-info-soft px-2 py-0.5 font-semibold text-info"
+                      :aria-expanded="openFamilies.includes(item.id)" :title="`Anúncio pai: ${item.family.count} variações somando ${int(item.family.sold_total)} vendas`"
+                      data-test="variacoes-toggle" @click="toggleFamily(item.id)"
+                    >
+                      <ChevronRightIcon class="h-3 w-3 transition-transform" :class="{ 'rotate-90': openFamilies.includes(item.id) }" aria-hidden="true" />
+                      {{ item.family.count }} variações · {{ int(item.family.sold_total) }} vendas
+                    </button>
+                  </p>
                   <p class="truncate text-[12px] text-ink-3">
                     {{ item.id }} · {{ item.status_label }}
                     <LogisticBadge v-if="item.full" type="fulfillment" class="ml-1" />
@@ -403,7 +427,7 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
                   </p>
                 </td>
                 <td class="truncate px-2 py-2 text-ink-2" :title="item.sku ?? 'sem SKU'">{{ item.sku ?? 'sem SKU' }}</td>
-                <td class="px-2 py-2 text-ink-2" data-numeric data-test="col-criado">{{ item.date_created ? dateFull(item.date_created) : '—' }}</td>
+                <td class="px-2 py-2 text-ink-2" data-numeric data-test="col-criado">{{ (item.family?.date_created ?? item.date_created) ? dateFull((item.family?.date_created ?? item.date_created) as string) : '—' }}</td>
                 <td class="px-2 py-2 text-right" data-numeric>
                   <span v-if="item.original_price" class="block text-[11px] text-ink-3 line-through">{{ brl(item.original_price) }}</span>
                   {{ brl(item.price) }}
@@ -476,6 +500,13 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
                     <span data-numeric>{{ item.quality_score }}</span>
                   </div>
                   <span v-else class="block text-right text-ink-3">—</span>
+                </td>
+              </tr>
+
+              <tr v-if="item.family && openFamilies.includes(item.id)" class="border-b border-line bg-surface-2">
+                <td :colspan="COLUMNS.length" class="px-4 py-2 text-[12px] text-ink-2" data-test="variacoes-lista">
+                  <span class="font-semibold text-ink">{{ item.family.count }} variações deste anúncio pai:</span>
+                  {{ item.family.item_ids.join(', ') }}
                 </td>
               </tr>
 
@@ -631,6 +662,14 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
         <ul class="max-h-60 space-y-1 overflow-y-auto rounded-card border border-line p-3 text-ink-2">
           <li v-for="id in selected" :key="id" class="truncate"><span class="text-ink-3">{{ id }}</span> · {{ titleOf(id) }}</li>
         </ul>
+        <div v-if="parentVariations.length" class="space-y-1 rounded-card border border-danger bg-danger-soft p-3 text-ink" data-test="aviso-variacoes">
+          <p class="font-semibold">Anúncio pai com variações: todas as variações também serão excluídas.</p>
+          <ul class="space-y-0.5">
+            <li v-for="v in parentVariations" :key="v.item_id">
+              {{ v.item_id }} + {{ v.others.length }} variação(ões): <span class="text-ink-2">{{ v.others.join(', ') }}</span>
+            </li>
+          </ul>
+        </div>
         <div v-if="linkedCatalogs.length" class="space-y-1 rounded-card border border-danger bg-danger-soft p-3 text-ink" data-test="aviso-catalogo">
           <p class="font-semibold">
             {{ linkedCatalogs.length === 1 ? 'Este anúncio é sincronizado' : 'Estes anúncios são sincronizados' }} com anúncio de catálogo.
@@ -643,7 +682,7 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
           </ul>
         </div>
         <p class="rounded-card border border-danger bg-danger-soft p-3 text-ink">
-          {{ selected.length + linkedCatalogCount }} anúncio(s) serão finalizados e excluídos no Mercado Livre agora. Não tem volta: anúncio excluído não pode ser
+          {{ deleteCount }} anúncio(s) serão finalizados e excluídos no Mercado Livre agora. Não tem volta: anúncio excluído não pode ser
           reativado, só publicado de novo como anúncio novo (sem as vendas e avaliações).
         </p>
         <footer class="flex justify-end gap-2">
