@@ -25,7 +25,8 @@ interface CatalogResponse {
 }
 
 // "Anúncios criados há mais de N dias" (filtro da página, acima das abas; 24/11/2026): aplicado pela API
-const props = defineProps<{ createdOlderThan?: number | null }>()
+// e "Quantidade de Vendas" (25/11/2026), cumulativos
+const props = defineProps<{ createdOlderThan?: number | null; sales?: string | null }>()
 
 const { $api } = useNuxtApp()
 const session = useSessionStore()
@@ -41,6 +42,7 @@ async function load() {
   try {
     const query: Record<string, string> = { account_id: session.selectedAccountId }
     if (props.createdOlderThan) query.created_older_than = String(props.createdOlderThan)
+    if (props.sales) query.sales = props.sales
     data.value = await $api<CatalogResponse>('/api/items/catalog', { query })
   } catch (err) {
     toast.error(apiErrorMessage(err, 'Não foi possível carregar os anúncios de catálogo.'))
@@ -67,7 +69,7 @@ const STATE_TONE: Record<string, string> = {
 }
 
 watch(() => session.selectedAccountId, load)
-watch(() => props.createdOlderThan, load)
+watch(() => [props.createdOlderThan, props.sales], load)
 onMounted(load)
 </script>
 

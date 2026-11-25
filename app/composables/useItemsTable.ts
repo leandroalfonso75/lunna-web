@@ -161,6 +161,14 @@ export function useItemsTable() {
     schedule(false)
   }
 
+  /** "Quantidade de Vendas" (filtro da página, cumulativo com o de criação; 25/11/2026). */
+  function setSales(sales: string | null) {
+    if ((filters.sales ?? null) === sales) return
+    filters.sales = sales
+    resetPage()
+    schedule(false)
+  }
+
   function sortBy(column: string) {
     const effective = response.value ? { sort: response.value.sort, dir: response.value.dir as SortDir } : null
     const next = nextSort(effective, column)
@@ -246,6 +254,7 @@ export function useItemsTable() {
     setSkuFilter,
     setNumericFilter,
     setCreatedOlderThan,
+    setSales,
     sortBy,
     setPage,
     clearFilters,

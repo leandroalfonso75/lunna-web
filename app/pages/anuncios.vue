@@ -1,23 +1,26 @@
 <script setup lang="ts">
-import { CalendarDaysIcon } from '@heroicons/vue/24/outline'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { CalendarDaysIcon, ShoppingCartIcon } from '@heroicons/vue/24/outline'
+import { computed, ref } from 'vue'
 import CatalogTable from '../components/painel/CatalogTable.vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import ItemsTable from '../components/painel/ItemsTable.vue'
+import ListingFilterSelect from '../components/painel/ListingFilterSelect.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
 import { useSessionStore } from '../stores/session'
 
 /**
  * `/anuncios` (SPEC §7.7): tabela completa de anúncios com filtros (`ItemsTable.vue`, dona do cabeçalho) e a aba
  * Catálogo (pedido do usuário em 08/11/2026): anúncios de catálogo, sincronização com tradicional e ganhando/perdendo.
- * Acima das abas (pedido do usuário em 24/11/2026): "Anúncios criados há mais de" 30, 60, 90, 180, 365 dias ou um número
- * de dias informado (só números). Vale para as duas abas; o filtro é aplicado na API (`created_older_than`).
+ * Acima das abas, cumulativos e valendo para as duas (aplicados na API):
+ * - "Anúncios criados há mais de" 30, 60, 90, 180, 365 dias ou personalizado (24/11/2026; `created_older_than`);
+ * - "Quantidade de Vendas": sem vendas, +5, +10, +25, +50, +100, +500, +1000, +5000 ou personalizado, pelo total vendido
+ *   do anúncio no Mercado Livre (25/11/2026; `sales`).
  */
 const session = useSessionStore()
 const tab = ref<'todos' | 'catalogo'>('todos')
 const TABS = [{ value: 'todos', label: 'Todos' }, { value: 'catalogo', label: 'Catálogo' }] as const
 
-const PERIODS = [
+const CREATED_OPTIONS = [
   { value: '', label: 'Qualquer data' },
   { value: '30', label: '30 dias' },
   { value: '60', label: '60 dias' },
@@ -26,42 +29,19 @@ const PERIODS = [
   { value: '365', label: '365 dias' },
   { value: 'custom', label: 'Personalizado' }
 ] as const
-const MAX_DAYS = 36500
+const SALES_OPTIONS = [
+  { value: '', label: 'Qualquer quantidade' },
+  { value: 'none', label: 'Sem vendas' },
+  ...[5, 10, 25, 50, 100, 500, 1000, 5000].map((n) => ({ value: String(n), label: `+${n.toLocaleString('pt-BR')} vendas` })),
+  { value: 'custom', label: 'Personalizado' }
+] as const
 
-const period = ref<string>('')
-const customText = ref('')
-/** Dias efetivos do personalizado, aplicados depois de uma pausa na digitação. */
-const customDays = ref<number | null>(null)
-let customTimer: ReturnType<typeof setTimeout> | undefined
+const created = ref<string | null>(null)
+const sales = ref<string | null>(null)
+const createdOlderThan = computed(() => (created.value ? Number(created.value) : null))
 
-const toDays = (digits: string) => (digits && Number(digits) >= 1 ? Math.min(Number(digits), MAX_DAYS) : null)
-
-/** Campo personalizado: só números (o que não for dígito é removido na hora). */
-function onCustomInput(event: Event) {
-  const input = event.target as HTMLInputElement
-  const digits = input.value.replace(/\D/g, '').slice(0, 5)
-  if (input.value !== digits) input.value = digits
-  customText.value = digits
-  clearTimeout(customTimer)
-  customTimer = setTimeout(() => { customDays.value = toDays(digits) }, 400)
-}
-
-const createdOlderThan = computed<number | null>(() => {
-  if (period.value === 'custom') return customDays.value
-  return period.value ? Number(period.value) : null
-})
-
-watch(period, (value) => {
-  if (value === 'custom') customDays.value = toDays(customText.value)
-})
-
-function clearPeriod() {
-  period.value = ''
-  customText.value = ''
-  customDays.value = null
-}
-
-onBeforeUnmount(() => clearTimeout(customTimer))
+const createdSummary = (v: string) => `criados há mais de ${v} dias`
+const salesSummary = (v: string) => (v === 'none' ? 'sem nenhuma venda' : `com ${Number(v).toLocaleString('pt-BR')} vendas ou mais`)
 </script>
 
 <template>
@@ -69,22 +49,19 @@ onBeforeUnmount(() => clearTimeout(customTimer))
   <div v-else class="page space-y-6">
     <PageHeader />
 
-    <div class="flex flex-wrap items-center gap-2" data-test="filtro-criacao">
-      <CalendarDaysIcon class="h-5 w-5 text-ink-3" aria-hidden="true" />
-      <label for="criados-ha" class="text-[13px] font-medium text-ink-2">Anúncios criados há mais de</label>
-      <select id="criados-ha" v-model="period" class="input h-9 w-auto" data-test="filtro-criacao-periodo">
-        <option v-for="p in PERIODS" :key="p.value" :value="p.value">{{ p.label }}</option>
-      </select>
-      <template v-if="period === 'custom'">
-        <input
-          :value="customText" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" autocomplete="off"
-          class="input h-9 w-24 text-right" placeholder="ex.: 45" aria-label="Número de dias" data-test="filtro-criacao-dias"
-          @input="onCustomInput"
-        />
-        <span class="text-[13px] text-ink-2">dias</span>
-      </template>
-      <button v-if="period" type="button" class="btn-link text-[12px]" data-test="filtro-criacao-limpar" @click="clearPeriod">Limpar</button>
-      <span v-if="createdOlderThan" class="text-[12px] text-ink-3" data-test="filtro-criacao-resumo">mostrando só os criados há mais de {{ createdOlderThan }} dias</span>
+    <div class="space-y-2">
+      <ListingFilterSelect
+        v-model="created" input-id="criados-ha" label="Anúncios criados há mais de" :options="CREATED_OPTIONS"
+        custom-unit="dias" custom-placeholder="ex.: 45" :max-digits="5" :max-value="36500" :summary="createdSummary" test-id="filtro-criacao"
+      >
+        <template #icon><CalendarDaysIcon class="h-5 w-5 text-ink-3" aria-hidden="true" /></template>
+      </ListingFilterSelect>
+      <ListingFilterSelect
+        v-model="sales" input-id="quantidade-vendas" label="Quantidade de Vendas" :options="SALES_OPTIONS"
+        custom-unit="vendas ou mais" custom-placeholder="ex.: 15" :max-digits="7" :summary="salesSummary" test-id="filtro-vendas"
+      >
+        <template #icon><ShoppingCartIcon class="h-5 w-5 text-ink-3" aria-hidden="true" /></template>
+      </ListingFilterSelect>
     </div>
 
     <div class="flex gap-1 border-b border-line" role="tablist" aria-label="Abas de anúncios">
@@ -97,7 +74,7 @@ onBeforeUnmount(() => clearTimeout(customTimer))
         @click="tab = t.value"
       >{{ t.label }}</button>
     </div>
-    <ItemsTable v-show="tab === 'todos'" :created-older-than="createdOlderThan" />
-    <CatalogTable v-if="tab === 'catalogo'" :created-older-than="createdOlderThan" />
+    <ItemsTable v-show="tab === 'todos'" :created-older-than="createdOlderThan" :sales="sales" />
+    <CatalogTable v-if="tab === 'catalogo'" :created-older-than="createdOlderThan" :sales="sales" />
   </div>
 </template>

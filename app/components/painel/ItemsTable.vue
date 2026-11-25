@@ -69,12 +69,15 @@ const STATUS_TABS: { value: 'active' | 'paused' | 'closed' | 'all'; label: strin
 ]
 
 // "Anúncios criados há mais de N dias": filtro da página, acima das abas Todos e Catálogo (24/11/2026)
-const props = defineProps<{ createdOlderThan?: number | null }>()
+// e "Quantidade de Vendas" (25/11/2026), cumulativos
+const props = defineProps<{ createdOlderThan?: number | null; sales?: string | null }>()
 
 const table = useItemsTable()
 const { filters, response, loading, stale, loadError, account, sync, generatedAt, refreshing } = table
 filters.createdOlderThan = props.createdOlderThan ?? null
+filters.sales = props.sales ?? null
 watch(() => props.createdOlderThan, (days) => table.setCreatedOlderThan(days ?? null))
+watch(() => props.sales, (sales) => table.setSales(sales ?? null))
 
 const header = usePageHeader()
 watchEffect(() => {

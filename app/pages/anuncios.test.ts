@@ -8,8 +8,8 @@ import { buildItemsQuery, type ItemsControlsState } from '../lib/itemsQuery'
 const AnunciosPage = (await import('./anuncios.vue')).default
 const stubs = {
   PageHeader: true,
-  ItemsTable: { props: ['createdOlderThan'], template: '<div data-test="items-stub">{{ createdOlderThan ?? "nenhum" }}</div>' },
-  CatalogTable: { props: ['createdOlderThan'], template: '<div data-test="catalog-stub">{{ createdOlderThan ?? "nenhum" }}</div>' }
+  ItemsTable: { props: ['createdOlderThan', 'sales'], template: '<div data-test="items-stub">{{ createdOlderThan ?? "nenhum" }}</div><div data-test="items-sales">{{ sales ?? "nenhum" }}</div>' },
+  CatalogTable: { props: ['createdOlderThan', 'sales'], template: '<div data-test="catalog-stub">{{ createdOlderThan ?? "nenhum" }}</div><div data-test="catalog-sales">{{ sales ?? "nenhum" }}</div>' }
 }
 
 beforeEach(() => {
@@ -60,11 +60,54 @@ describe('anuncios.vue: filtro de criação', () => {
   })
 })
 
+describe('anuncios.vue: filtro Quantidade de Vendas (25/11/2026)', () => {
+  it('fica logo abaixo do filtro de criação, com as opções pedidas', () => {
+    const w = mount(AnunciosPage, { global: { stubs } })
+    const html = w.html()
+    expect(html.indexOf('filtro-criacao')).toBeLessThan(html.indexOf('filtro-vendas'))
+    expect(html.indexOf('filtro-vendas')).toBeLessThan(html.indexOf('aba-todos'))
+    expect(w.get('label[for="quantidade-vendas"]').text()).toBe('Quantidade de Vendas')
+    expect(w.findAll('[data-test="filtro-vendas-periodo"] option').map((o) => o.text())).toEqual([
+      'Qualquer quantidade', 'Sem vendas', '+5 vendas', '+10 vendas', '+25 vendas', '+50 vendas', '+100 vendas', '+500 vendas', '+1.000 vendas', '+5.000 vendas', 'Personalizado'
+    ])
+  })
+
+  it('é cumulativo com o de criação e vale para as duas abas', async () => {
+    const w = mount(AnunciosPage, { global: { stubs } })
+    await w.get('[data-test="filtro-criacao-periodo"]').setValue('90')
+    await w.get('[data-test="filtro-vendas-periodo"]').setValue('none')
+    expect(w.get('[data-test="items-stub"]').text()).toBe('90')
+    expect(w.get('[data-test="items-sales"]').text()).toBe('none')
+    expect(w.get('[data-test="filtro-vendas-resumo"]').text()).toBe('sem nenhuma venda')
+
+    await w.get('[data-test="filtro-vendas-periodo"]').setValue('1000')
+    expect(w.get('[data-test="items-sales"]').text()).toBe('1000')
+    expect(w.get('[data-test="filtro-vendas-resumo"]').text()).toBe('com 1.000 vendas ou mais')
+    await w.get('[data-test="aba-catalogo"]').trigger('click')
+    expect(w.get('[data-test="catalog-sales"]').text()).toBe('1000')
+    expect(w.get('[data-test="catalog-stub"]').text()).toBe('90')
+  })
+
+  it('personalizado: só números, N vendas ou mais', async () => {
+    const w = mount(AnunciosPage, { global: { stubs } })
+    await w.get('[data-test="filtro-vendas-periodo"]').setValue('custom')
+    const input = w.get('[data-test="filtro-vendas-dias"]')
+    await input.setValue('1,5 0')
+    expect((input.element as HTMLInputElement).value).toBe('150')
+    vi.advanceTimersByTime(450)
+    await w.vm.$nextTick()
+    expect(w.get('[data-test="items-sales"]').text()).toBe('150')
+    expect(w.text()).toContain('vendas ou mais')
+  })
+})
+
 describe('buildItemsQuery', () => {
   const base: ItemsControlsState = { status: 'active', alert: null, q: '', type: '', shipping: '', id: null, titleFilter: '', skuFilter: '',
     numericFilters: {}, sort: 'units_7d', dir: null, page: 1, perPage: 50 }
   it('manda created_older_than só quando há filtro', () => {
     expect(buildItemsQuery('acc', base).created_older_than).toBeUndefined()
     expect(buildItemsQuery('acc', { ...base, createdOlderThan: 90 }).created_older_than).toBe('90')
+    expect(buildItemsQuery('acc', base).sales).toBeUndefined()
+    expect(buildItemsQuery('acc', { ...base, createdOlderThan: 90, sales: 'none' })).toMatchObject({ created_older_than: '90', sales: 'none' })
   })
 })
