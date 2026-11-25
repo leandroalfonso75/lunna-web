@@ -36,6 +36,8 @@ export interface ItemsControlsState {
   dir: 'asc' | 'desc' | null
   page: number
   perPage: number
+  /** "Anúncios criados há mais de N dias" (filtro acima das abas, 24/11/2026); null = sem filtro. */
+  createdOlderThan?: number | null
 }
 
 export interface EffectiveSort {
@@ -65,6 +67,7 @@ export function buildItemsQuery(accountId: string, state: ItemsControlsState): R
   }
 
   params.status = state.status
+  if (state.createdOlderThan && state.createdOlderThan > 0) params.created_older_than = String(state.createdOlderThan)
   if (state.alert) params.alert = state.alert
   if (state.q.trim()) params.q = state.q.trim()
   if (state.type) params.type = state.type

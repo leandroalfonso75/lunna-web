@@ -153,6 +153,14 @@ export function useItemsTable() {
     schedule(true)
   }
 
+  /** "Anúncios criados há mais de N dias" (filtro da página, acima das abas Todos e Catálogo; 24/11/2026). */
+  function setCreatedOlderThan(days: number | null) {
+    if ((filters.createdOlderThan ?? null) === days) return
+    filters.createdOlderThan = days
+    resetPage()
+    schedule(false)
+  }
+
   function sortBy(column: string) {
     const effective = response.value ? { sort: response.value.sort, dir: response.value.dir as SortDir } : null
     const next = nextSort(effective, column)
@@ -237,6 +245,7 @@ export function useItemsTable() {
     setTitleFilter,
     setSkuFilter,
     setNumericFilter,
+    setCreatedOlderThan,
     sortBy,
     setPage,
     clearFilters,
