@@ -153,6 +153,14 @@ function removeVariation(i: number) {
   form.variations = form.variations.filter((_, k) => k !== i)
 }
 const rowKey = (v: Variation, i: number) => v.key ?? `nova-${i}`
+const AXIS_PLACEHOLDERS: Record<string, string> = { Cor: 'Azul, Verde, Preto', Tamanho: 'P, M, G, GG', Voltagem: '127V, 220V', Tom: '104, 105, 109' }
+// quantas variações a grade vai ter (produto dos valores de cada tipo)
+const gridPreview = computed(() => {
+  const counts = form.variation_axes.map((a) => (axisValues[a] ?? '').split(/[,;\n]/).map((x) => x.trim()).filter(Boolean).length)
+  if (!counts.length || counts.some((n) => !n)) return 'Digite os valores de cada tipo.'
+  const total = counts.reduce((a, b) => a * b, 1)
+  return counts.length > 1 ? `${counts.join(' × ')} = ${total} variações` : `${total} variações`
+})
 const variationLabel = (v: Variation) => form.variation_axes.map((a) => v.attrs[a]).filter(Boolean).join(' / ')
 
 function rememberHit(hit: SkuHit) { found[hit.sku] = hit }
@@ -317,22 +325,28 @@ const TABS = [
     <section v-if="form.kind === 'variations'" class="card space-y-4 p-5" data-test="produto-variacoes">
       <div>
         <p class="text-[15px] font-semibold text-ink">2. Variações</p>
-        <p class="text-[12px] text-ink-3">Escolha o que varia (até 3), digite os valores separados por vírgula e monte a grade. Uma variação pode ser um kit: marque "É kit" e escolha o item dela; o que vai em todas fica em "Itens em todas as variações-kit".</p>
+        <p class="text-[12px] text-ink-3">
+          Escolha os <strong>tipos de variação</strong> do produto: pode combinar até 3 (ex.: roupas com <strong>Cor</strong> e <strong>Tamanho</strong>).
+          Em cada tipo, digite os valores separados por vírgula e clique em "Montar grade": a grade cria todas as combinações (Azul / P, Azul / M, Verde / P…).
+          Uma variação pode ser um kit: marque "É kit" e escolha o item dela; o que vai em todas fica em "Itens em todas as variações-kit".
+        </p>
       </div>
-      <div class="flex flex-wrap items-end gap-3">
-        <div v-for="axis in form.variation_axes" :key="axis" class="min-w-[220px] flex-1">
-          <div class="mb-1 flex items-center justify-between text-[13px] font-semibold text-ink">
-            {{ axis }}
-            <button v-if="canEdit" type="button" class="btn-link p-0 text-[12px]" @click="removeAxis(axis)">remover</button>
-          </div>
-          <input v-model="axisValues[axis]" class="input h-9" :disabled="!canEdit" :placeholder="axis === 'Voltagem' ? '127V, 220V' : 'Vermelho, Preto'" :data-test="`eixo-${axis}`" />
+      <div v-if="form.variation_axes.length" class="space-y-2" data-test="tipos-variacao">
+        <div v-for="(axis, i) in form.variation_axes" :key="axis" class="grid items-center gap-2 md:grid-cols-[200px_1fr_auto]">
+          <span class="text-[13px] font-semibold text-ink">{{ i + 1 }}º tipo: {{ axis }}</span>
+          <input v-model="axisValues[axis]" class="input h-9" :disabled="!canEdit" :placeholder="AXIS_PLACEHOLDERS[axis] ?? 'valor 1, valor 2, valor 3'" :data-test="`eixo-${axis}`" />
+          <button v-if="canEdit" type="button" class="btn-link p-0 text-[12px]" :aria-label="`Remover ${axis}`" @click="removeAxis(axis)">remover</button>
         </div>
-        <div v-if="canEdit && form.variation_axes.length < 3" class="flex items-center gap-1">
-          <input v-model="newAxis" class="input h-9 w-36" placeholder="Outro eixo" list="eixos" data-test="eixo-novo" @keydown.enter.prevent="addAxis(newAxis)" />
-          <datalist id="eixos"><option v-for="s in AXIS_SUGGESTIONS" :key="s" :value="s" /></datalist>
-          <button type="button" class="btn-secondary h-9" data-test="eixo-adicionar" @click="addAxis(newAxis)">Adicionar</button>
-        </div>
-        <button v-if="canEdit && form.variation_axes.length" type="button" class="btn-primary h-9" data-test="montar-grade" @click="makeGrid">Montar grade</button>
+      </div>
+      <div v-if="canEdit && form.variation_axes.length < 3" class="flex flex-wrap items-center gap-2 rounded-card border border-dashed border-line px-3 py-2" data-test="adicionar-tipo">
+        <span class="text-[13px] text-ink-2">{{ form.variation_axes.length ? 'Adicionar outro tipo de variação:' : 'Adicionar tipo de variação:' }}</span>
+        <button v-for="s in AXIS_SUGGESTIONS.filter((x) => !form.variation_axes.includes(x))" :key="s" type="button" class="btn-secondary h-8 px-3 text-[13px]" :data-test="`tipo-sugestao-${s}`" @click="addAxis(s)">+ {{ s }}</button>
+        <input v-model="newAxis" class="input h-8 w-48" placeholder="Outro tipo de variação" data-test="eixo-novo" @keydown.enter.prevent="addAxis(newAxis)" />
+        <button type="button" class="btn-secondary h-8 px-3 text-[13px]" :disabled="!newAxis.trim()" data-test="eixo-adicionar" @click="addAxis(newAxis)">Adicionar</button>
+      </div>
+      <div v-if="canEdit && form.variation_axes.length" class="flex items-center gap-3">
+        <button type="button" class="btn-primary h-9" data-test="montar-grade" @click="makeGrid">Montar grade</button>
+        <span class="text-[12px] text-ink-3">{{ gridPreview }}</span>
       </div>
       <div v-if="canEdit && form.variation_axes.length" class="flex flex-wrap items-center gap-2 rounded-card border border-line bg-surface-2 px-3 py-2 text-[13px]" data-test="variacoes-planilha">
         <span class="text-ink-2">SKU, EAN, preço e estoque também por planilha:</span>
@@ -343,9 +357,6 @@ const TABS = [
         </label>
         <span class="w-full text-[11px] text-ink-3">O modelo vem com as variações da grade já preenchidas (uma linha por variação). Preencha SKU, EAN, preço e estoque no Excel, salve em CSV e envie.</span>
         <span v-if="sheetResult" class="w-full text-[12px] text-ink" data-test="planilha-resultado">{{ sheetResult }}</span>
-      </div>
-      <div v-if="canEdit && !form.variation_axes.length" class="flex flex-wrap gap-2">
-        <button v-for="s in AXIS_SUGGESTIONS" :key="s" type="button" class="btn-secondary h-8 px-3 text-[13px]" @click="addAxis(s)">+ {{ s }}</button>
       </div>
 
       <div v-if="form.variations.length" class="overflow-x-auto">

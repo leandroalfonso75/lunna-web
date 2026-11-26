@@ -122,4 +122,23 @@ describe('CatalogProductEditor', () => {
     expect(call?.[1].body.data).toMatch(/^data:image\/png;base64,/)
     expect(call?.[1].body.name).toMatch(/^colada-/)
   })
+
+  it('combina dois tipos de variação (Cor e Tamanho): os botões dos outros tipos continuam e a grade traz todas as combinações', async () => {
+    asAdmin()
+    const w = mount(CatalogProductEditor, { props: { product: product({ kind: 'variations' }) } })
+
+    await w.get('[data-test="tipo-sugestao-Cor"]').trigger('click')
+    expect(w.find('[data-test="tipo-sugestao-Cor"]').exists()).toBe(false)
+    expect(w.find('[data-test="tipo-sugestao-Tamanho"]').exists()).toBe(true) // segue dando para adicionar outro tipo
+    await w.get('[data-test="tipo-sugestao-Tamanho"]').trigger('click')
+    await w.get('[data-test="eixo-Cor"]').setValue('Azul, Verde')
+    await w.get('[data-test="eixo-Tamanho"]').setValue('P, M, G')
+    expect(w.text()).toContain('2 × 3 = 6 variações')
+    await w.get('[data-test="montar-grade"]').trigger('click')
+
+    expect(w.findAll('[data-test="variacao-linha"]').map((r) => r.find('td').text())).toEqual(['Azul / P', 'Azul / M', 'Azul / G', 'Verde / P', 'Verde / M', 'Verde / G'])
+    await w.get('[data-test="eixo-novo"]').setValue('Material')
+    await w.get('[data-test="eixo-adicionar"]').trigger('click')
+    expect(w.find('[data-test="adicionar-tipo"]').exists()).toBe(false) // limite de 3 tipos
+  })
 })
