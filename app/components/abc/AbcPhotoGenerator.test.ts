@@ -99,4 +99,21 @@ describe('AbcPhotoGenerator', () => {
     const call = api.mock.calls.find(([url]) => url === '/api/photo_jobs/7/publish')
     expect(call?.[1].body.order).toEqual(['new:1', 'ml:A', 'ml:B'])
   })
+
+  it('"Adicionar foto" pede mais uma imagem no mesmo pedido e volta a acompanhar a geração', async () => {
+    const w = setup()
+    await flushPromises()
+    const base = api.getMockImplementation()!
+    api.mockImplementation(async (url: string, opts?: { method?: string }) => {
+      if (url === '/api/photo_jobs/7/add_photo') return { ...job(), status: 'gerando', count: 3 }
+      return base(url, opts)
+    })
+
+    await w.get('[data-test="fotos-adicionar"]').trigger('click')
+    await flushPromises()
+
+    expect(api).toHaveBeenCalledWith('/api/photo_jobs/7/add_photo', { method: 'POST', query: { account_id: 'acc' } })
+    expect(w.text()).toContain('Gerando 2 de 3')
+    expect(w.find('[data-test="fotos-adicionar"]').exists()).toBe(false) // enquanto gera
+  })
 })

@@ -308,6 +308,26 @@ async function publish() {
   }
 }
 
+// "Adicionar foto" (pedido do usuário em 25/11/2026): gera mais uma imagem no mesmo pedido (mesmas referências e
+// instruções), até 10; a tela volta a acompanhar a geração.
+const MAX_PHOTOS = 10
+const adding = ref(false)
+const canAdd = computed(() => !!job.value && session.isAdmin && (job.value.status === 'pronto' || job.value.status === 'erro') && job.value.count < MAX_PHOTOS)
+
+async function addPhoto() {
+  if (!job.value) return
+  adding.value = true
+  try {
+    const j = await $api<Job>(`/api/photo_jobs/${job.value.id}/add_photo`, { method: 'POST', query: query() })
+    confirmPublish.value = false
+    setJob(j)
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível pedir mais uma imagem.'))
+  } finally {
+    adding.value = false
+  }
+}
+
 function newRequest() {
   job.value = null
   confirmPublish.value = false
@@ -390,7 +410,18 @@ onBeforeUnmount(() => {
           <span v-else-if="job.status === 'publicado'" class="font-semibold text-success">Publicadas no anúncio {{ job.published_item_id ?? itemId }} em {{ new Date(job.published_at ?? '').toLocaleString('pt-BR') }}.</span>
           <span v-else class="text-ink-2">Escolha as que quer publicar.</span>
           <span v-if="job.cost_usd" class="text-ink-3" :title="moneyTitle(job.cost_usd)" data-test="fotos-custo">· custo da geração: {{ money(job.cost_brl, job.cost_usd) }}</span>
-          <button type="button" class="btn-link ml-auto" @click="newRequest">Novo pedido</button>
+          <button
+            v-if="canAdd"
+            type="button"
+            class="btn-secondary ml-auto h-8 px-3 text-[13px]"
+            :disabled="adding"
+            title="Gera mais uma imagem neste pedido, com as mesmas referências (usa créditos da OpenRouter)"
+            data-test="fotos-adicionar"
+            @click="addPhoto"
+          >
+            {{ adding ? 'Pedindo…' : '+ Adicionar foto' }}
+          </button>
+          <button type="button" class="btn-link" :class="canAdd ? '' : 'ml-auto'" @click="newRequest">Novo pedido</button>
         </div>
         <p v-if="job.error" class="rounded-card bg-danger-soft p-2 text-[13px] text-danger">{{ job.error }}</p>
         <p v-if="job.publish_error" class="rounded-card bg-danger-soft p-2 text-[13px] text-danger">{{ job.publish_error }}</p>
