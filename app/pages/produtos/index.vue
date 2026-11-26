@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ArrowPathIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
-import { computed, ref, watch, watchEffect } from 'vue'
-import OlistProductRow from '../components/produtos/OlistProductRow.vue'
-import RemoveProductsDialog from '../components/produtos/RemoveProductsDialog.vue'
-import { useOlistProducts } from '../composables/useOlistProducts'
-import { useSessionStore } from '../stores/session'
-import { usePageHeader } from '../composables/usePageHeader'
-import { dateTimeShort, int } from '../lib/format'
+import { ArrowPathIcon, MagnifyingGlassIcon, SparklesIcon } from '@heroicons/vue/24/outline'
+import { computed, onMounted, ref, watch, watchEffect } from 'vue'
+import OlistProductRow from '../../components/produtos/OlistProductRow.vue'
+import RemoveProductsDialog from '../../components/produtos/RemoveProductsDialog.vue'
+import { useOlistProducts } from '../../composables/useOlistProducts'
+import { useSessionStore } from '../../stores/session'
+import { usePageHeader } from '../../composables/usePageHeader'
+import { brl, dateTimeShort, int } from '../../lib/format'
+import { KIND_LABELS, STATUS_LABELS, catalogClient, type CatalogSummary } from '../../lib/catalogProducts'
 
 /**
  * `/produtos` — produtos cadastrados no Olist ERP, guardados no banco do Lunna
@@ -14,6 +15,12 @@ import { dateTimeShort, int } from '../lib/format'
  * por enquanto: preço e estoque ainda não são editados por aqui.
  */
 const header = usePageHeader()
+// Produtos cadastrados no Lunna ("Criar Produto com IA", 26/11/2026)
+const { $api } = useNuxtApp()
+const lunnaProducts = ref<CatalogSummary[]>([])
+onMounted(async () => {
+  lunnaProducts.value = (await catalogClient($api as never).list().catch(() => ({ products: [] as CatalogSummary[] }))).products
+})
 const olist = useOlistProducts()
 const session = useSessionStore()
 
@@ -81,6 +88,15 @@ watchEffect(() => {
           <template v-else>Ainda sem sincronização.</template>
         </p>
       </div>
+      <NuxtLink
+        v-if="session.isAdmin"
+        to="/produtos/ia/novo"
+        class="btn-primary h-12 shrink-0 px-6 text-[15px] font-semibold"
+        data-test="criar-produto-ia"
+      >
+        <SparklesIcon class="h-5 w-5" aria-hidden="true" />
+        Criar Produto com IA
+      </NuxtLink>
       <button
         v-if="olist.connected.value"
         type="button"
@@ -93,6 +109,23 @@ watchEffect(() => {
         Atualizar agora
       </button>
     </header>
+
+    <section v-if="lunnaProducts.length" class="card overflow-hidden" data-test="produtos-lunna">
+      <p class="border-b border-line bg-surface-2 px-4 py-2 text-[13px] font-semibold text-ink">Criados no Lunna <span class="font-normal text-ink-3">· ainda não exportados para o ERP</span></p>
+      <ul class="divide-y divide-line">
+        <li v-for="p in lunnaProducts" :key="p.id">
+          <NuxtLink :to="`/produtos/ia/${p.id}`" class="flex flex-wrap items-center gap-3 px-4 py-2 text-[13px] hover:bg-surface-2" data-test="produto-lunna">
+            <span class="min-w-0 flex-1 truncate font-semibold text-ink">{{ p.name || 'Sem nome' }}</span>
+            <span class="text-ink-3">{{ KIND_LABELS[p.kind] }}<template v-if="p.variations_count"> · {{ p.variations_count }} variações</template><template v-if="p.components_count"> · {{ p.components_count }} itens</template></span>
+            <span v-if="p.sku" class="font-mono text-[12px] text-ink-3">{{ p.sku }}</span>
+            <span v-if="p.price" class="text-ink-2">{{ brl(p.price) }}</span>
+            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="p.status === 'pronto' ? 'bg-success-soft text-success' : 'bg-surface-2 text-ink-2'">{{ STATUS_LABELS[p.status] }}</span>
+            <span v-if="p.review_count" class="text-[12px] text-warning">{{ p.review_count }} para conferir</span>
+            <span class="text-[12px] text-ink-3">{{ dateTimeShort(p.updated_at) }}</span>
+          </NuxtLink>
+        </li>
+      </ul>
+    </section>
 
     <div v-if="olist.olist.value && !olist.connected.value" class="card p-8 text-center" data-test="olist-desconectado">
       <p class="text-[15px] font-semibold text-ink">O Olist ERP ainda não está conectado.</p>
