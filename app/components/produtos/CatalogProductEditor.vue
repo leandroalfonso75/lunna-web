@@ -7,7 +7,7 @@ import { apiErrorMessage } from '../../lib/apiErrors'
 import { brl, dateTimeShort } from '../../lib/format'
 import { useSessionStore } from '../../stores/session'
 import {
-  AXIS_SUGGESTIONS, ICMS_ORIGINS, KIND_LABELS, SPED_TYPES, STATUS_LABELS, TITLE_MAX, buildGrid, catalogClient, compositionCost, validGtin,
+  AXIS_SUGGESTIONS, ICMS_ORIGINS, KIND_LABELS, SPED_TYPES, STATUS_LABELS, TITLE_MAX, buildGrid, catalogClient, compositionCost, importVariationsSheet, validGtin, variationsSheet,
   type CatalogProduct, type ComponentInfo, type SkuHit, type Variation
 } from '../../lib/catalogProducts'
 
@@ -71,21 +71,60 @@ async function loadThumb(id: number) {
 watch(refImages, (list) => list.forEach((a) => void loadThumb(a.id)), { immediate: true })
 onBeforeUnmount(() => Object.values(thumbs).forEach((u) => URL.revokeObjectURL(u)))
 
-function onFiles(e: Event) {
-  const files = Array.from((e.target as HTMLInputElement).files ?? []).slice(0, 6 - refImages.value.length)
-  for (const f of files) {
-    const reader = new FileReader()
-    reader.onload = async () => {
-      try {
-        const asset = await client.addAsset(form.id, String(reader.result), f.name)
-        form.assets = [...form.assets, asset]
-      } catch (err) {
-        toast.error(apiErrorMessage(err, 'Não foi possível anexar a imagem.'))
-      }
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+function uploadImage(file: Blob, name: string) {
+  if (!IMAGE_TYPES.includes(file.type)) { toast.error('Use imagens PNG, JPG ou WEBP.'); return }
+  if (refImages.value.length >= 6) { toast.error('No máximo 6 fotos de referência.'); return }
+  const reader = new FileReader()
+  reader.onload = async () => {
+    try {
+      const asset = await client.addAsset(form.id, String(reader.result), name)
+      form.assets = [...form.assets, asset]
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível anexar a imagem.'))
     }
-    reader.readAsDataURL(f)
   }
+  reader.readAsDataURL(file)
+}
+function onFiles(e: Event) {
+  Array.from((e.target as HTMLInputElement).files ?? []).slice(0, 6 - refImages.value.length).forEach((f) => uploadImage(f, f.name))
   ;(e.target as HTMLInputElement).value = ''
+}
+// Colar (Ctrl+V) um print ou imagem copiada (26/11/2026), além do upload de arquivo; texto colado segue normal.
+function onPaste(e: ClipboardEvent) {
+  if (!canEdit.value) return
+  const files = Array.from(e.clipboardData?.items ?? []).filter((it) => it.kind === 'file' && it.type.startsWith('image/')).map((it) => it.getAsFile()).filter((f): f is File => !!f)
+  if (!files.length) return
+  e.preventDefault()
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+  files.forEach((f, i) => uploadImage(f, f.name && f.name !== 'image.png' ? f.name : `colada-${stamp}-${i + 1}.png`))
+}
+
+// Planilha das variações (26/11/2026): modelo com as variações já preenchidas e envio da planilha preenchida.
+const sheetResult = ref<string | null>(null)
+function downloadSheet() {
+  if (!form.variations.length) makeGrid()
+  if (!form.variations.length) { toast.error('Digite os valores das variações (ex.: Cor: azul, verde, preto) antes de baixar o modelo.'); return }
+  const blob = new Blob([variationsSheet(form.variation_axes, form.variations)], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `variacoes-${(form.name || 'produto').toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'produto'}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+async function onSheet(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!/\.(csv|txt)$/i.test(file.name)) { toast.error('Envie a planilha em CSV (no Excel: Salvar como › CSV).'); return }
+  const res = importVariationsSheet(await file.text(), form.variation_axes, form.variations)
+  form.variations = res.variations
+  loadAxisValues()
+  sheetResult.value = `Planilha lida: ${res.updated} variação(ões) atualizada(s)${res.added ? `, ${res.added} nova(s)` : ''}.${res.problems.length ? ` ${res.problems.join(' ')}` : ''}`
+  if (res.problems.length) toast.error(res.problems[0]!)
+  else toast.success('Planilha aplicada. Confira a grade e clique em Salvar.')
 }
 async function removeImage(id: number) {
   await client.removeAsset(id).catch(() => null)
@@ -241,11 +280,12 @@ const TABS = [
         <label class="text-[13px]">
           <span class="mb-1 block font-semibold text-ink">Texto (manual, especificações, descrição do fornecedor…)</span>
           <textarea v-model="form.references.text" rows="4" class="input h-auto py-2" :disabled="!canEdit" data-test="produto-texto" />
+          <span class="mt-1 block text-[12px] text-ink-3" data-test="produto-texto-dica">Sugerimos colar aqui a ficha técnica, descrição, perguntas e respostas e avaliações do(s) anúncio(s) utilizado(s) como referência no campo anterior.</span>
         </label>
       </div>
       <div>
         <p class="mb-1 text-[13px] font-semibold text-ink">Fotos do produto <span class="font-normal text-ink-3">(até 6)</span></p>
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2" @paste="onPaste">
           <div v-for="a in refImages" :key="a.id" class="relative h-20 w-20 overflow-hidden rounded border border-line" data-test="produto-foto-ref">
             <img v-if="thumbs[a.id]" :src="thumbs[a.id]" alt="" class="h-full w-full object-cover" />
             <PhotoIcon v-else class="m-auto h-8 w-8 text-ink-3" />
@@ -255,6 +295,16 @@ const TABS = [
             Anexar fotos
             <input type="file" accept="image/png,image/jpeg,image/webp" multiple class="hidden" data-test="produto-anexar" @change="onFiles" />
           </label>
+          <div
+            v-if="canEdit && refImages.length < 6"
+            tabindex="0"
+            role="button"
+            class="flex h-20 min-w-[220px] flex-1 items-center justify-center rounded border-2 border-dashed border-line px-3 text-center text-[12px] text-ink-3 outline-none focus:border-primary focus:text-primary"
+            aria-label="Área para colar imagem: clique e pressione Ctrl+V"
+            data-test="produto-colar"
+          >
+            Clique aqui e cole (Ctrl+V) um print ou uma imagem copiada
+          </div>
         </div>
       </div>
       <label class="block text-[13px]">
@@ -283,6 +333,16 @@ const TABS = [
           <button type="button" class="btn-secondary h-9" data-test="eixo-adicionar" @click="addAxis(newAxis)">Adicionar</button>
         </div>
         <button v-if="canEdit && form.variation_axes.length" type="button" class="btn-primary h-9" data-test="montar-grade" @click="makeGrid">Montar grade</button>
+      </div>
+      <div v-if="canEdit && form.variation_axes.length" class="flex flex-wrap items-center gap-2 rounded-card border border-line bg-surface-2 px-3 py-2 text-[13px]" data-test="variacoes-planilha">
+        <span class="text-ink-2">SKU, EAN, preço e estoque também por planilha:</span>
+        <button type="button" class="btn-secondary h-8 px-3 text-[13px]" data-test="planilha-baixar" @click="downloadSheet">Baixar modelo de planilha</button>
+        <label class="btn-secondary h-8 cursor-pointer px-3 text-[13px]">
+          Enviar planilha preenchida
+          <input type="file" accept=".csv,text/csv" class="hidden" data-test="planilha-enviar" @change="onSheet" />
+        </label>
+        <span class="w-full text-[11px] text-ink-3">O modelo vem com as variações da grade já preenchidas (uma linha por variação). Preencha SKU, EAN, preço e estoque no Excel, salve em CSV e envie.</span>
+        <span v-if="sheetResult" class="w-full text-[12px] text-ink" data-test="planilha-resultado">{{ sheetResult }}</span>
       </div>
       <div v-if="canEdit && !form.variation_axes.length" class="flex flex-wrap gap-2">
         <button v-for="s in AXIS_SUGGESTIONS" :key="s" type="button" class="btn-secondary h-8 px-3 text-[13px]" @click="addAxis(s)">+ {{ s }}</button>
@@ -367,7 +427,8 @@ const TABS = [
               <select v-model="form.sale_format" class="input"><option value="unidade">Unidade</option><option value="kit">Kit</option><option value="pack">Pack</option></select></label>
             <label class="text-[13px]"><span class="mb-1 block font-semibold">Unidade</span><input v-model="form.unit" class="input" placeholder="UN" /></label>
             <label class="text-[13px]"><span class="mb-1 block font-semibold">Preço de venda (R$)</span><input v-model="form.price" type="number" step="0.01" min="0" class="input" data-test="campo-preco" /></label>
-            <label class="text-[13px]"><span class="mb-1 block font-semibold">Custo (R$)</span><input v-model="form.cost_price" type="number" step="0.01" min="0" class="input" />
+            <label class="text-[13px]"><span class="mb-1 block font-semibold">Custo (R$) <span class="font-normal text-ink-3">· opcional</span></span><input v-model="form.cost_price" type="number" step="0.01" min="0" class="input" data-test="campo-custo" />
+              <span class="mt-1 block text-[11px] text-ink-3" data-test="custo-dica">O custo será atualizado pelo valor de custo informado no lançamento do seu estoque, pelo método PEPS (Primeiro que entra, primeira que sai)</span>
               <span v-if="form.kind === 'kit' && kitCost !== null" class="mt-1 block text-[11px] text-ink-3">componentes somam {{ brl(kitCost) }} · <button type="button" class="btn-link p-0 text-[11px]" @click="form.cost_price = kitCost">usar</button></span></label>
           </div>
 

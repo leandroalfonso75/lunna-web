@@ -7,6 +7,7 @@ import type { CatalogProduct } from '../../lib/catalogProducts'
 /** "Criar Produto com IA" (26/11/2026): referências, variação que é kit, rascunho pela IA e campos fiscais só como sugestão. */
 const api = vi.fn()
 vi.stubGlobal('useNuxtApp', () => ({ $api: api }))
+vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => undefined }))
 vi.mock('../../composables/useToast', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 
 const CatalogProductEditor = (await import('./CatalogProductEditor.vue')).default
@@ -97,5 +98,28 @@ describe('CatalogProductEditor', () => {
     expect(w.find('[data-test="kit-busca"]').exists()).toBe(true)
     await w.get('[data-test="kit-sem-skus"]').setValue(true)
     expect(w.find('[data-test="kit-busca"]').exists()).toBe(false)
+  })
+
+  it('mostra as orientações do custo (PEPS) e do texto das referências', async () => {
+    asAdmin()
+    const w = mount(CatalogProductEditor, { props: { product: product() } })
+    expect(w.get('[data-test="produto-texto-dica"]').text()).toContain('ficha técnica, descrição, perguntas e respostas e avaliações')
+    expect(w.get('[data-test="custo-dica"]').text()).toContain('método PEPS (Primeiro que entra, primeira que sai)')
+  })
+
+  it('colar (Ctrl+V) um print anexa a imagem de referência', async () => {
+    asAdmin()
+    api.mockResolvedValue({ id: 9, kind: 'referencia', name: 'colada.png', mime: 'image/png', variation_key: null, position: 1 })
+    const w = mount(CatalogProductEditor, { props: { product: product() } })
+    const file = new File([new Uint8Array([137, 80, 78, 71])], 'image.png', { type: 'image/png' })
+    const paste = new Event('paste', { bubbles: true }) as ClipboardEvent
+    Object.defineProperty(paste, 'clipboardData', { value: { items: [{ kind: 'file', type: 'image/png', getAsFile: () => file }] } })
+    w.get('[data-test="produto-colar"]').element.dispatchEvent(paste)
+    await new Promise((r) => setTimeout(r, 50))
+    await flushPromises()
+
+    const call = api.mock.calls.find(([url]) => url === '/api/catalog_products/5/assets')
+    expect(call?.[1].body.data).toMatch(/^data:image\/png;base64,/)
+    expect(call?.[1].body.name).toMatch(/^colada-/)
   })
 })

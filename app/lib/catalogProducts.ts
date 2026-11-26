@@ -76,6 +76,84 @@ export function compositionCost(components: Component[], info: Record<string, Co
   return Math.round(total * 100) / 100
 }
 
+// ----- Planilha das variações (26/11/2026): CSV com ";" e BOM, que o Excel brasileiro abre em colunas.
+const SHEET_FIXED = ['SKU', 'EAN', 'Preço', 'Estoque inicial']
+
+function csvCell(v: string | number | null | undefined): string {
+  const s = v === null || v === undefined ? '' : String(v)
+  return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+/** Modelo da planilha: uma coluna por eixo (Cor, Voltagem…) já com as variações preenchidas, e SKU, EAN, preço, estoque. */
+export function variationsSheet(axes: string[], variations: Variation[]): string {
+  const money = (n: number | null) => (n === null || n === undefined ? '' : String(n).replace('.', ','))
+  const lines = [[...axes, ...SHEET_FIXED].map(csvCell).join(';')]
+  for (const v of variations) lines.push([...axes.map((a) => v.attrs[a] ?? ''), v.sku ?? '', v.gtin ?? '', money(v.price), v.stock ?? ''].map(csvCell).join(';'))
+  return '\uFEFF' + lines.join('\r\n') + '\r\n'
+}
+
+/** Lê CSV (";" ou ","), com aspas. */
+export function parseCsv(text: string): string[][] {
+  const src = text.replace(/^\uFEFF/, '')
+  const firstLine = src.split(/\r?\n/, 1)[0] ?? ''
+  const sep = (firstLine.match(/;/g)?.length ?? 0) >= (firstLine.match(/,/g)?.length ?? 0) ? ';' : ','
+  const rows: string[][] = []
+  let row: string[] = []
+  let cell = ''
+  let quoted = false
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i]
+    if (quoted) {
+      if (ch === '"' && src[i + 1] === '"') { cell += '"'; i++ } else if (ch === '"') quoted = false
+      else cell += ch
+    } else if (ch === '"') quoted = true
+    else if (ch === sep) { row.push(cell); cell = '' } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && src[i + 1] === '\n') i++
+      row.push(cell); rows.push(row); row = []; cell = ''
+    } else cell += ch
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row) }
+  return rows.filter((r) => r.some((c) => c.trim() !== ''))
+}
+
+export interface SheetImport { variations: Variation[]; updated: number; added: number; problems: string[] }
+
+/** Aplica a planilha preenchida: casa as linhas pelos valores dos eixos; combinação nova vira variação nova. */
+export function importVariationsSheet(text: string, axes: string[], current: Variation[]): SheetImport {
+  const rows = parseCsv(text)
+  const problems: string[] = []
+  if (!rows.length) return { variations: current, updated: 0, added: 0, problems: ['A planilha está vazia.'] }
+  const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const header = rows[0]!.map(norm)
+  const col = (name: string) => header.indexOf(norm(name))
+  const missing = [...axes, 'SKU', 'EAN'].filter((n) => col(n) < 0)
+  if (missing.length) return { variations: current, updated: 0, added: 0, problems: [`Faltam as colunas: ${missing.join(', ')}. Use o modelo baixado.`] }
+  const iPrice = col('Preço') >= 0 ? col('Preço') : col('Preco')
+  const iStock = col('Estoque inicial')
+  const num = (s: string | undefined) => { const t = (s ?? '').trim().replace(/\./g, '').replace(',', '.'); return t === '' || Number.isNaN(Number(t)) ? null : Number(t) }
+  const plain = (s: string | undefined) => { const t = (s ?? '').trim(); return t === '' ? null : t }
+  const result = current.map((v) => ({ ...v, attrs: { ...v.attrs } }))
+  let updated = 0
+  let added = 0
+  rows.slice(1).forEach((r, k) => {
+    const attrs = Object.fromEntries(axes.map((a) => [a, (r[col(a)] ?? '').trim()]))
+    if (axes.some((a) => !attrs[a])) { problems.push(`Linha ${k + 2}: falta ${axes.filter((a) => !attrs[a]).join(', ')}.`); return }
+    const gtin = plain(r[col('EAN')])
+    if (gtin && !validGtin(gtin)) problems.push(`Linha ${k + 2}: EAN ${gtin} inválido (dígito verificador).`)
+    // preço com vírgula decimal ("129,90"); sem separador de milhar quando vier com ponto decimal ("129.90")
+    const rawPrice = (r[iPrice] ?? '').trim()
+    const price = iPrice < 0 ? undefined : (/^\d+\.\d{1,2}$/.test(rawPrice) ? Number(rawPrice) : num(rawPrice))
+    const stock = iStock < 0 ? undefined : num(r[iStock])
+    const fields = { sku: plain(r[col('SKU')]), gtin, ...(price !== undefined ? { price } : {}), ...(stock !== undefined ? { stock } : {}) }
+    const found = result.find((v) => axes.every((a) => norm(v.attrs[a] ?? '') === norm(attrs[a]!)))
+    if (found) { Object.assign(found, fields); updated++ } else {
+      result.push({ attrs, sku: null, gtin: null, price: null, stock: null, kit: false, components: [], ...fields })
+      added++
+    }
+  })
+  return { variations: result, updated, added, problems }
+}
+
 type Api = <T>(path: string, options?: Record<string, unknown>) => Promise<T>
 
 export function catalogClient(api: Api) {
