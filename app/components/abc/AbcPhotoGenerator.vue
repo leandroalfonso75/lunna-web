@@ -15,8 +15,8 @@ import { useSessionStore } from '../../stores/session'
 const props = defineProps<{ itemId: string; title: string; suggestedCount: number; alsoItemIds?: string[] }>()
 const emit = defineEmits<{ close: [] }>()
 
-interface Photo { id: number; kind: 'gerada' | 'referencia'; position: number; approved: boolean; ml_picture_id: string | null; cost_usd: number | null; model: string | null }
-interface Job { id: number; status: 'gerando' | 'pronto' | 'erro' | 'publicado'; count: number; instructions: string | null; error: string | null; publish_error: string | null; published_at: string | null; published_item_id: string | null; created_at: string; cost_usd: number; photos: Photo[] }
+interface Photo { id: number; kind: 'gerada' | 'referencia'; position: number; approved: boolean; rejected?: boolean; ml_picture_id: string | null; cost_usd: number | null; cost_brl?: number | null; model: string | null }
+interface Job { id: number; status: 'gerando' | 'pronto' | 'erro' | 'publicado'; count: number; instructions: string | null; error: string | null; publish_error: string | null; published_at: string | null; published_item_id: string | null; created_at: string; cost_usd: number; cost_brl?: number | null; usd_brl?: number | null; photos: Photo[] }
 interface Alternative { item_id: string; status: string; pictures: number }
 
 const { $api } = useNuxtApp()
@@ -47,7 +47,8 @@ const coverWarning = ref<{ token: string; previous: string[]; reasons: string[] 
 const coverOk = ref<string | null>(null)
 let poll: ReturnType<typeof setInterval> | undefined
 
-const generated = computed(() => (job.value?.photos ?? []).filter((p) => p.kind === 'gerada'))
+// reprovada (25/11/2026) some da tela e da publicação; o custo dela segue no total do pedido
+const generated = computed(() => (job.value?.photos ?? []).filter((p) => p.kind === 'gerada' && !p.rejected))
 // já publicada = o pedido foi publicado e a imagem tem id no ML (ter id sozinho só quer dizer que subiu)
 const isPublished = (p: Photo) => job.value?.status === 'publicado' && !!p.ml_picture_id
 const approved = computed(() => generated.value.filter((p) => p.approved && !isPublished(p)))
@@ -134,6 +135,46 @@ async function approve(p: Photo) {
   }
 }
 
+/** Custos em R$ pela cotação do dia que a API manda (pedido do usuário em 25/11/2026); sem cotação, em US$. */
+const brlFormat = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+function money(brl: number | null | undefined, usd: number | null | undefined) {
+  if (brl !== null && brl !== undefined) return brlFormat.format(brl)
+  return usd !== null && usd !== undefined ? `US$ ${usd.toFixed(3)}` : ''
+}
+function moneyTitle(usd: number | null | undefined, model?: string | null) {
+  const rate = job.value?.usd_brl
+  const parts = [usd !== null && usd !== undefined ? `US$ ${usd.toFixed(3)} na OpenRouter` : '', rate ? `cotação US$ 1 = ${brlFormat.format(rate)}` : '', model ?? '']
+  return parts.filter(Boolean).join(' · ')
+}
+
+// Reprovar (pedido do usuário em 25/11/2026): avisa que a geração já foi paga; "Excluir mesmo assim" tira a imagem da
+// tela (e da ordem), "Manter imagem e Aprovar" aprova.
+const rejecting = ref<Photo | null>(null)
+const rejectBusy = ref(false)
+
+async function confirmReject() {
+  const p = rejecting.value
+  if (!p) return
+  rejectBusy.value = true
+  try {
+    await $api(`/api/photo_images/${p.id}`, { method: 'DELETE', query: query() })
+    p.approved = false
+    p.rejected = true
+    confirmPublish.value = false
+    rejecting.value = null
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'Não foi possível reprovar a imagem.'))
+  } finally {
+    rejectBusy.value = false
+  }
+}
+
+async function keepAndApprove() {
+  const p = rejecting.value
+  rejecting.value = null
+  if (p && !p.approved) await approve(p)
+}
+
 async function loadTargetPictures() {
   const res = await $api<{ pictures: { id: string; url: string }[] }>(`/api/items/${publishTarget.value}/photos`, { query: query() }).catch(() => null)
   targetPictures.value = res?.pictures ?? []
@@ -155,15 +196,39 @@ function thumb(token: string) {
 }
 
 function move(index: number, delta: number) {
-  const to = index + delta
-  if (to < 0 || to >= order.value.length) return
+  moveTo(index, index + delta)
+}
+
+/** Leva a foto da posição `from` para a posição `to` (setas e arrastar). Mexeu na capa: confere a nova. */
+function moveTo(from: number, to: number) {
+  if (from === to || to < 0 || to >= order.value.length || from < 0 || from >= order.value.length) return
   const previous = [...order.value]
   const next = [...order.value]
-  const [item] = next.splice(index, 1)
+  const [item] = next.splice(from, 1)
   next.splice(to, 0, item as string)
   order.value = next
   confirmPublish.value = false
-  if (to === 0 || index === 0) void checkCover(previous)
+  if (to === 0 || from === 0) void checkCover(previous)
+}
+
+// Arrastar para mudar a ordem (pedido do usuário em 25/11/2026): solta a foto na posição de outra.
+const dragFrom = ref<number | null>(null)
+const dragOver = ref<number | null>(null)
+function onDragStart(i: number, e: DragEvent) {
+  dragFrom.value = i
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(i))
+  }
+}
+function onDrop(i: number) {
+  if (dragFrom.value !== null) moveTo(dragFrom.value, i)
+  dragFrom.value = null
+  dragOver.value = null
+}
+function onDragEnd() {
+  dragFrom.value = null
+  dragOver.value = null
 }
 
 function makeCover(index: number) {
@@ -324,7 +389,7 @@ onBeforeUnmount(() => {
           <span v-if="job.status === 'gerando'" class="flex items-center gap-1 text-ink-2"><ArrowPathIcon class="h-4 w-4 animate-spin" /> Gerando {{ generated.length }} de {{ job.count }}… (cada imagem leva até 40 s)</span>
           <span v-else-if="job.status === 'publicado'" class="font-semibold text-success">Publicadas no anúncio {{ job.published_item_id ?? itemId }} em {{ new Date(job.published_at ?? '').toLocaleString('pt-BR') }}.</span>
           <span v-else class="text-ink-2">Escolha as que quer publicar.</span>
-          <span v-if="job.cost_usd" class="text-ink-3">· custo na OpenRouter: US$ {{ job.cost_usd.toFixed(3) }}</span>
+          <span v-if="job.cost_usd" class="text-ink-3" :title="moneyTitle(job.cost_usd)" data-test="fotos-custo">· custo da geração: {{ money(job.cost_brl, job.cost_usd) }}</span>
           <button type="button" class="btn-link ml-auto" @click="newRequest">Novo pedido</button>
         </div>
         <p v-if="job.error" class="rounded-card bg-danger-soft p-2 text-[13px] text-danger">{{ job.error }}</p>
@@ -335,10 +400,13 @@ onBeforeUnmount(() => {
             <div v-else class="aspect-square w-full animate-pulse bg-surface-2" />
             <figcaption class="flex items-center gap-2 p-2 text-[12px]">
               <span v-if="isPublished(p)" class="font-semibold text-success">Publicada</span>
-              <button v-else-if="session.isAdmin" type="button" :class="p.approved ? 'btn-primary' : 'btn-secondary'" class="h-7 px-2 text-[12px]" data-test="foto-aprovar" @click="approve(p)">
-                {{ p.approved ? '✓ Aprovada' : 'Aprovar' }}
-              </button>
-              <span v-if="p.cost_usd !== null" class="text-ink-3" :title="p.model ?? ''">US$ {{ p.cost_usd.toFixed(3) }}</span>
+              <template v-else-if="session.isAdmin">
+                <button type="button" :class="p.approved ? 'btn-primary' : 'btn-secondary'" class="h-7 px-2 text-[12px]" data-test="foto-aprovar" @click="approve(p)">
+                  {{ p.approved ? '✓ Aprovada' : 'Aprovar' }}
+                </button>
+                <button type="button" class="btn-secondary h-7 px-2 text-[12px] text-danger" data-test="foto-reprovar" @click="rejecting = p">Reprovar</button>
+              </template>
+              <span v-if="p.cost_usd !== null" class="text-ink-3" :title="moneyTitle(p.cost_usd, p.model)" data-test="foto-custo">{{ money(p.cost_brl, p.cost_usd) }}</span>
               <a v-if="images[p.id]" :href="images[p.id]" :download="`${itemId}-${p.position + 1}.png`" class="btn-link ml-auto">Baixar</a>
             </figcaption>
           </figure>
@@ -351,12 +419,23 @@ onBeforeUnmount(() => {
         <div v-if="session.isAdmin && job.status !== 'gerando' && job.status !== 'publicado' && approved.length && (!catalogListing || alternatives.length)" class="space-y-2 border-t border-line pt-3" data-test="fotos-ordem">
           <p class="text-[13px] font-semibold text-ink">
             Ordem das fotos no anúncio {{ publishTarget }}
-            <span class="font-normal text-ink-3">· a 1ª é a capa; use as setas ou "Tornar capa" ({{ order.length }} de 10)</span>
+            <span class="font-normal text-ink-3">· a 1ª é a capa; arraste as fotos, use as setas ou "Tornar capa" ({{ order.length }} de 10)</span>
           </p>
           <ol class="flex gap-2 overflow-x-auto pb-1">
-            <li v-for="(t, i) in order" :key="t" class="w-28 shrink-0 overflow-hidden rounded-card border-2" :class="i === 0 ? 'border-primary' : 'border-line'" data-test="fotos-ordem-item">
+            <li
+              v-for="(t, i) in order"
+              :key="t"
+              draggable="true"
+              class="w-28 shrink-0 cursor-grab overflow-hidden rounded-card border-2 transition active:cursor-grabbing"
+              :class="[i === 0 ? 'border-primary' : 'border-line', dragFrom === i ? 'opacity-40' : '', dragOver === i && dragFrom !== null && dragFrom !== i ? 'ring-2 ring-primary ring-offset-2' : '']"
+              data-test="fotos-ordem-item"
+              @dragstart="onDragStart(i, $event)"
+              @dragover.prevent="dragOver = i"
+              @drop.prevent="onDrop(i)"
+              @dragend="onDragEnd"
+            >
               <div class="relative">
-                <img v-if="thumb(t)" :src="thumb(t)" alt="" class="aspect-square w-full object-cover" />
+                <img v-if="thumb(t)" :src="thumb(t)" alt="" draggable="false" class="pointer-events-none aspect-square w-full object-cover" />
                 <div v-else class="aspect-square w-full animate-pulse bg-surface-2" />
                 <span class="absolute left-1 top-1 rounded-full bg-black/60 px-1.5 text-[11px] font-bold text-white">{{ i + 1 }}</span>
                 <span v-if="i === 0" class="absolute right-1 top-1 rounded-full bg-primary px-1.5 text-[10px] font-bold text-white">CAPA</span>
@@ -372,6 +451,20 @@ onBeforeUnmount(() => {
           <p v-if="checkingCover" class="flex items-center gap-1 text-[12px] text-ink-3"><ArrowPathIcon class="h-4 w-4 animate-spin" /> Conferindo se a nova capa segue o padrão do Mercado Livre…</p>
           <p v-else-if="coverOk && order[0] === coverOk" class="text-[12px] font-semibold text-success">A nova capa segue o padrão do Mercado Livre (fundo branco, sem texto).</p>
           <p v-if="order.length > 10" class="text-[12px] text-danger">O Mercado Livre aceita até 10 fotos: as que passarem do limite ficam de fora.</p>
+        </div>
+        <div v-if="rejecting" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="alertdialog" aria-modal="true" data-test="reprovar-aviso" @click.self="rejectBusy || (rejecting = null)">
+          <div class="card max-w-md space-y-3 p-5">
+            <p class="text-[16px] font-semibold text-danger">Reprovar esta imagem?</p>
+            <img v-if="images[rejecting.id]" :src="images[rejecting.id]" alt="" class="mx-auto h-40 w-40 rounded object-cover" />
+            <p class="text-[13px] text-ink">
+              A reprovação da imagem não exime do pagamento de sua geração<template v-if="rejecting.cost_usd !== null"> ({{ money(rejecting.cost_brl, rejecting.cost_usd) }})</template>:
+              o custo já foi cobrado pela OpenRouter e continua no total do pedido.
+            </p>
+            <div class="flex flex-wrap justify-end gap-2">
+              <button type="button" class="btn-secondary h-9" :disabled="rejectBusy" data-test="reprovar-manter" @click="keepAndApprove">Manter imagem e Aprovar</button>
+              <button type="button" class="btn-danger h-9" :disabled="rejectBusy" data-test="reprovar-excluir" @click="confirmReject">{{ rejectBusy ? 'Excluindo…' : 'Excluir mesmo assim' }}</button>
+            </div>
+          </div>
         </div>
         <div v-if="coverWarning" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="alertdialog" aria-modal="true" data-test="capa-aviso">
           <div class="card max-w-md space-y-3 p-5">
