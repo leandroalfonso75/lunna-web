@@ -105,7 +105,9 @@ const STATE: Record<string, { label: string; tone: string }> = {
   ok: { label: 'OK', tone: 'pill-success' }, baixo: { label: 'Cobertura baixa', tone: 'pill-warning' },
   sem_estoque: { label: 'Sem estoque', tone: 'pill-danger' }, parado: { label: 'Parado', tone: 'pill-neutral' }
 }
-const URGENCY_TONE: Record<string, string> = { URGENT: 'pill-danger', THIS_WEEK: 'pill-warning', NEXT_WEEK: 'pill-neutral', NO_URGENCY: 'pill-success' }
+const URGENCY_TONE: Record<string, string> = { URGENT: 'pill-danger', THIS_WEEK: 'pill-warning', NEXT_WEEK: 'pill-neutral', IN_TWO_WEEKS: 'pill-neutral', NO_URGENCY: 'pill-success' }
+/** Nunca mostra o código cru do Mercado Livre (ex.: IN_TWO_WEEKS): a API traduz; se chegar um código, texto padrão. */
+const urgencyText = (label: string | null) => (label && /^[A-Z0-9_]+$/.test(label) ? 'Prazo não classificado' : label)
 
 const depotCards = computed(() => {
   const s = depot.value?.summary
@@ -266,7 +268,7 @@ watchEffect(() => {
                   </div>
                 </td>
                 <td class="px-2 py-2 text-right font-semibold" :class="r.in_full && !r.stock ? 'text-danger' : 'text-ink'" data-numeric>{{ r.stock ?? '—' }}</td>
-                <td class="px-2 py-2"><span v-if="r.urgency" class="pill" :class="URGENCY_TONE[r.urgency] ?? 'pill-neutral'">{{ r.urgency_label }}</span></td>
+                <td class="px-2 py-2"><span v-if="r.urgency" class="pill" :class="URGENCY_TONE[r.urgency] ?? 'pill-neutral'">{{ urgencyText(r.urgency_label) }}</span></td>
                 <td class="px-2 py-2 text-right" data-numeric>
                   <template v-if="r.replenish"><span class="block font-semibold text-ink">{{ int(r.suggested) }}</span><span class="text-[11px] text-ink-3">até {{ r.deadline_label }}</span></template>
                   <span v-else-if="r.legacy" class="block text-[11px] text-ink-3" title="Anúncio do formato antigo (com variações, sem User Product): a API de reposição do Mercado Livre não traz recomendação para ele">sem recomendação do ML<template v-if="r.coverage_days !== null && r.coverage_days !== undefined"> · cobre {{ int(r.coverage_days) }} dias</template></span>
