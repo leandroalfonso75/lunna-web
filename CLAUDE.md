@@ -8,8 +8,8 @@ Front-end do Lunna, painel para vendedores do Mercado Livre. A API fica em `lunn
 - Regras de negócio: `lunna-api/docs/DECISOES.md`.
 
 ## Mapa de pastas (`app/`)
-- `pages/`: uma página por item do menu (`index` = Visão geral, `produtos`, `anuncios`, `vendas`, `reclamacoes`, `ads`,
-  `promocoes`, `curva-abc`, `financeiro`, `radar-ml`, `configuracoes/`).
+- `pages/`: uma página por item do menu (`index` = Visão geral, `produtos/` (lista e `ia/[id]` = Criar Produto com IA),
+  `anuncios`, `vendas`, `reclamacoes`, `ads`, `promocoes`, `curva-abc`, `financeiro`, `radar-ml`, `configuracoes/`).
 - `components/`: por seção (`painel/`, `produtos/`, `vendas/`, `reclamacoes/`, `ads/`, `promocoes/`, `abc/`, `financeiro/`, `settings/`).
 - `composables/`: estado e chamadas de cada tela (`usePainel`, `useItemsTable`, `useOlistProducts`, `useAbc`…).
 - `lib/`: clientes da API (`*Client.ts`), formatação (`format.ts`) e lógica pura (`radar.ts`, `itemsQuery.ts`).
@@ -23,6 +23,7 @@ Front-end do Lunna, painel para vendedores do Mercado Livre. A API fica em `lunn
 3. Dinheiro e porcentagem são formatados por `lib/format.ts` (pt-BR).
 4. Sem barra de rolagem horizontal nas tabelas; telas pequenas escondem colunas secundárias.
 5. Segredos nunca entram no front nem no git.
+6. O Lunna é multi-conta: nada da Lunna Shop (loja piloto) fixo nos textos ou sugestões (SKU, prefixos, exemplos).
 
 ## Comandos
 - Instalar: `npm install`. Rodar: `npm run dev` (porta 3000; a API local em `http://127.0.0.1:3100`).
