@@ -23,7 +23,7 @@ export interface CatalogProduct {
   id: number; kind: CatalogKind; status: CatalogStatus
   name: string | null; sku: string | null; gtin: string | null; unit: string; price: string | number | null; cost_price: string | number | null
   weight_net: string | number | null; weight_gross: string | number | null
-  package_width: number | null; package_height: number | null; package_length: number | null; package_source: 'usuario' | 'ia' | 'nao_encontrado' | null
+  package_width: number | null; package_height: number | null; package_length: number | null; package_source: 'usuario' | 'ia' | 'nao_encontrado' | 'erp' | null
   stock_control: boolean; initial_stock: string | number | null; min_stock: string | number | null; max_stock: string | number | null
   location: string | null; preparation_days: number | null
   ncm: string | null; cest: string | null; icms_origin: number | null; sped_item_type: string | null
@@ -179,10 +179,26 @@ export function compositionPrice(components: Component[], info: Record<string, {
 
 type Api = <T>(path: string, options?: Record<string, unknown>) => Promise<T>
 
+/** Estoque/custo de uma ficha vinda do ERP, lidos da cópia sincronizada (kit = componente que acaba primeiro). */
+export interface ErpKitPart { sku: string; name: string | null; quantity: number; available: number; kits: number; cost: number | null; found: boolean }
+export interface ErpStockInfo { stock: number | null; cost: number | null; parts: ErpKitPart[]; kit?: boolean }
+export interface ErpCatalogProduct extends CatalogProduct {
+  source: 'erp' | 'lunna'
+  erp_key: string | null
+  erp_id: number | null
+  erp_synced_at: string | null
+  erp_warnings: string[]
+  erp_payload: Record<string, unknown>
+  erp_name: string | null
+  erp_stock: (ErpStockInfo & { variations: Record<string, ErpStockInfo>; total_stock: number | null }) | null
+}
+
 export function catalogClient(api: Api) {
   return {
     list: (params: { q?: string; status?: string } = {}) => api<{ products: CatalogSummary[]; total: number }>('/api/catalog_products', { query: params }),
     get: (id: number | string) => api<CatalogProduct>(`/api/catalog_products/${id}`),
+    /** Ficha completa vinda do ERP (migração de 27/11/2026), pelo id do produto (ou da variação) no ERP. */
+    byErp: (erpId: number | string) => api<ErpCatalogProduct>(`/api/catalog_products/erp/${erpId}`),
     create: (kind: CatalogKind) => api<CatalogProduct>('/api/catalog_products', { method: 'POST', body: { kind } }),
     update: (id: number, body: Partial<CatalogProduct>) => api<CatalogProduct>(`/api/catalog_products/${id}`, { method: 'PATCH', body }),
     remove: (id: number) => api<unknown>(`/api/catalog_products/${id}`, { method: 'DELETE' }),

@@ -101,6 +101,7 @@ const costText = () => {
 
   <tr v-if="showDetail" class="border-b border-line bg-surface-2" data-test="produto-detalhe">
     <td colspan="10" class="px-6 py-4">
+      <NuxtLink :to="`/produtos/ficha/${product.id}`" class="btn-secondary mb-3 inline-flex" data-test="ver-ficha">Ver ficha completa</NuxtLink>
       <dl class="grid gap-x-8 gap-y-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
         <div><dt class="text-ink-3">ID no {{ erp }}</dt><dd class="font-mono">{{ product.id }}</dd></div>
         <div><dt class="text-ink-3">GTIN / EAN</dt><dd>{{ product.gtin || '—' }}</dd></div>
