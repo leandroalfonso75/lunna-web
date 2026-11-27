@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useErpName } from '../../composables/useErpName'
 import { ArrowPathIcon, MagnifyingGlassIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import { computed, onMounted, ref, watch, watchEffect } from 'vue'
 import OlistProductRow from '../../components/produtos/OlistProductRow.vue'
@@ -22,6 +23,7 @@ onMounted(async () => {
   lunnaProducts.value = (await catalogClient($api as never).list().catch(() => ({ products: [] as CatalogSummary[] }))).products
 })
 const olist = useOlistProducts()
+const { name: erp } = useErpName()
 const session = useSessionStore()
 
 // Seleção para as ações em lote (só administradores). Variação vai junto com o pai.
@@ -66,7 +68,7 @@ watch(olist.hidden, (h) => { action.value = h ? 'restaurar' : 'excluir' })
 
 watchEffect(() => {
   header.state.title = 'Produtos'
-  header.state.subtitle = 'Olist ERP'
+  header.state.subtitle = `ERP ${erp.value}`
   header.state.sync = null
   header.state.generatedAt = null
   header.state.refreshing = olist.syncing.value
@@ -79,7 +81,7 @@ watchEffect(() => {
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div class="min-w-0">
         <h1 class="page-title">Produtos</h1>
-        <p class="page-subtitle max-w-2xl">Produtos cadastrados no Olist ERP, com preços, custo e estoque (Olist, Full no Mercado Livre e total). Produtos com variações mostram a seta ao lado do nome.</p>
+        <p class="page-subtitle max-w-2xl">Produtos cadastrados no ERP {{ erp }}, com preços, custo e estoque ({{ erp }}, Full no Mercado Livre e total). Produtos com variações mostram a seta ao lado do nome.</p>
         <p v-if="olist.connected.value" class="mt-2 text-[13px] text-ink-2" data-test="produtos-sync" role="status">
           <template v-if="olist.syncing.value">Atualizando agora…</template>
           <template v-else-if="olist.lastSyncedAt.value">
@@ -130,12 +132,12 @@ watchEffect(() => {
     </section>
 
     <div v-if="olist.olist.value && !olist.connected.value" class="card p-8 text-center" data-test="olist-desconectado">
-      <p class="text-[15px] font-semibold text-ink">O Olist ERP ainda não está conectado.</p>
+      <p class="text-[15px] font-semibold text-ink">O ERP {{ erp }} ainda não está conectado.</p>
       <p class="mt-1 text-[13px] text-ink-3">
-        {{ olist.olist.value.status === 'reauth_required' ? 'O acesso salvo expirou (o Olist renova por no máximo 1 dia) e precisa ser autorizado de novo.' : 'Conecte a conta do Olist para ver os produtos.' }}
+        {{ olist.olist.value.status === 'reauth_required' ? `O acesso salvo expirou (o ${erp} renova por no máximo 1 dia) e precisa ser autorizado de novo.` : `Conecte a conta do ${erp} para ver os produtos.` }}
       </p>
       <button v-if="session.isAdmin" type="button" class="btn-primary mt-4" data-test="reconectar-olist" @click="olist.reconnect()">
-        Reconectar ao Olist
+        Reconectar ao {{ erp }}
       </button>
       <p v-else class="mt-2 text-[13px] text-ink-3">Peça a um administrador para reconectar.</p>
     </div>
@@ -147,8 +149,8 @@ watchEffect(() => {
         role="status"
         data-test="custo-indisponivel"
       >
-        O custo (PEPS) está indisponível: o Olist bloqueou a leitura do histórico de movimentações de estoque (acesso negado), mesmo com o aplicativo autorizado.
-        Confira se o usuário do Olist que autorizou tem permissão para ver o histórico do Controle de Estoque e, se continuar, peça ao suporte do Olist para liberar esse acesso ao aplicativo.
+        O custo (PEPS) está indisponível: o {{ erp }} bloqueou a leitura do histórico de movimentações de estoque (acesso negado), mesmo com o aplicativo autorizado.
+        Confira se o usuário do {{ erp }} que autorizou tem permissão para ver o histórico do Controle de Estoque e, se continuar, peça ao suporte do {{ erp }} para liberar esse acesso ao aplicativo.
       </p>
       <div class="card flex flex-wrap items-center gap-3 p-3">
         <div class="relative min-w-[240px] flex-1">
@@ -180,7 +182,7 @@ watchEffect(() => {
         </button>
       </div>
       <p v-if="olist.hidden.value" class="rounded-card border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-2" data-test="produtos-aviso-ocultos">
-        Produtos removidos da lista. Selecione e use "Restaurar" para trazê-los de volta. Quem foi excluído também no ERP volta como "Excluído" (o cadastro não é recriado no Olist).
+        Produtos removidos da lista. Selecione e use "Restaurar" para trazê-los de volta. Quem foi excluído também no ERP volta como "Excluído" (o cadastro não é recriado no {{ erp }}).
       </p>
 
       <div v-if="session.isAdmin && selected.size" class="card flex flex-wrap items-center gap-3 border-primary p-3 text-[13px]" data-test="produtos-acoes">
@@ -214,9 +216,9 @@ watchEffect(() => {
                 <th scope="col" class="px-3 py-2 text-right font-semibold">Preço</th>
                 <th scope="col" class="px-3 py-2 text-right font-semibold">Promocional</th>
                 <th scope="col" class="px-3 py-2 text-right font-semibold">Custo</th>
-                <th scope="col" class="px-3 py-2 text-right font-semibold">Estoque Olist<span class="block text-[11px] font-normal text-ink-3">disponível</span></th>
+                <th scope="col" class="px-3 py-2 text-right font-semibold">Estoque {{ erp }}<span class="block text-[11px] font-normal text-ink-3">disponível</span></th>
                 <th scope="col" class="px-3 py-2 text-right font-semibold">Estoque Full<span class="block text-[11px] font-normal text-ink-3">Mercado Livre</span></th>
-                <th scope="col" class="px-3 py-2 text-right font-semibold">Estoque total<span class="block text-[11px] font-normal text-ink-3">Olist + Full</span></th>
+                <th scope="col" class="px-3 py-2 text-right font-semibold">Estoque total<span class="block text-[11px] font-normal text-ink-3">{{ erp }} + Full</span></th>
               </tr>
             </thead>
             <tbody>

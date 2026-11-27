@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useErpName } from '../../composables/useErpName'
 import { BanknotesIcon, CalculatorIcon, CubeIcon, CurrencyDollarIcon, MegaphoneIcon, ReceiptPercentIcon, ShoppingBagIcon, TruckIcon } from '@heroicons/vue/24/outline'
 import { computed } from 'vue'
 import BarChart from '../dashboard/BarChart.vue'
@@ -10,6 +11,7 @@ import type { SalesDay, SalesSummary } from '../../types/sales'
 const props = defineProps<{ summary: SalesSummary; daily: SalesDay[] }>()
 /** Layout novo (27/11/2026): os mesmos cartões com ícone e número grande, e o gráfico diário com dica por barra. */
 const layoutPref = useLayoutPref()
+const { name: erp } = useErpName()
 const isNew = computed(() => layoutPref.pref.value === 'novo')
 const ICONS: Record<string, unknown> = { orders: ShoppingBagIcon, revenue: BanknotesIcon, profit: CurrencyDollarIcon, fees: TruckIcon, tax: ReceiptPercentIcon, cost: CubeIcon, ads: MegaphoneIcon, after_ads: CalculatorIcon }
 
@@ -29,7 +31,7 @@ const cards = computed(() => [
     ? { key: 'fees', label: 'Tarifas, frete e cupom', value: brl(props.summary.fee + props.summary.shipping_cost + props.summary.coupon_cost), hint: `Tarifa ${brl(props.summary.fee)} · frete ${brl(props.summary.shipping_cost)} · cupom ${brl(props.summary.coupon_cost)} (${int(props.summary.coupon_orders)} vendas, desconto ${brl(props.summary.coupon_discount)})` }
     : { key: 'fees', label: 'Tarifas + frete', value: brl(props.summary.fee + props.summary.shipping_cost), hint: `Tarifa ${brl(props.summary.fee)} · frete ${brl(props.summary.shipping_cost)}` },
   { key: 'tax', label: 'Imposto + despesas', value: brl(props.summary.tax + props.summary.fixed_expenses), hint: `Imposto ${brl(props.summary.tax)} · fixas ${brl(props.summary.fixed_expenses)}` },
-  { key: 'cost', label: 'Custo dos produtos', value: brl(props.summary.cost), hint: 'Do Olist (PEPS) pelo SKU' },
+  { key: 'cost', label: 'Custo dos produtos', value: brl(props.summary.cost), hint: `Do ${erp.value} (PEPS) pelo SKU` },
   { key: 'ads', label: 'Custo com Ads', value: brl(props.summary.ads_cost), hint: adsHint.value },
   { key: 'after_ads', label: 'Lucro pós Ads', value: brl(props.summary.net_profit_after_ads), hint: props.summary.net_profit_after_ads_pct === null ? 'Sem custo nos itens' : `${pct(props.summary.net_profit_after_ads_pct)} do faturamento`, tone: props.summary.net_profit_after_ads < 0 ? 'text-danger' : 'text-success' }
 ])
@@ -69,7 +71,7 @@ function dayLabel(date: string): string {
     </div>
 
     <p v-if="summary.orders_without_cost" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning" role="status">
-      {{ int(summary.orders_without_cost) }} {{ summary.orders_without_cost === 1 ? 'venda está' : 'vendas estão' }} sem custo de algum item no Olist; o lucro dela não entra no total. O custo vem do SKU em Produtos.
+      {{ int(summary.orders_without_cost) }} {{ summary.orders_without_cost === 1 ? 'venda está' : 'vendas estão' }} sem custo de algum item no {{ erp }}; o lucro dela não entra no total. O custo vem do SKU em Produtos.
     </p>
 
     <div class="card p-4">

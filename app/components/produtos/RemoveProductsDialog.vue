@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useErpName } from '../../composables/useErpName'
 import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import { nextTick, onMounted, ref } from 'vue'
 
@@ -22,6 +23,7 @@ function submit() {
   if (props.busy) return
   emit('confirm', !props.integrated || keep.value === 'sim')
 }
+const { name: erp } = useErpName()
 </script>
 
 <template>
@@ -37,7 +39,7 @@ function submit() {
       <div>
         <h2 id="remover-titulo" class="text-[17px] font-semibold text-ink">Excluir {{ count }} {{ count === 1 ? 'produto' : 'produtos' }}</h2>
         <p class="mt-1 text-[13px] text-ink-2">
-          {{ integrated ? 'Os produtos saem da lista do Lunna. Pretende manter o cadastro do produto no ERP (Olist)?' : 'Os produtos saem da lista do Lunna.' }}
+          {{ integrated ? `Os produtos saem da lista do Lunna. Pretende manter o cadastro do produto no ERP (${erp})?` : 'Os produtos saem da lista do Lunna.' }}
         </p>
       </div>
 
@@ -45,7 +47,7 @@ function submit() {
         <legend class="sr-only">Manter o cadastro no ERP?</legend>
         <label class="flex cursor-pointer items-start gap-2 rounded-card border border-line p-2" :class="keep === 'sim' ? 'border-primary bg-primary-soft' : ''">
           <input ref="simInput" v-model="keep" type="radio" name="manter-erp" value="sim" class="mt-1" data-test="manter-erp-sim" />
-          <span><strong>Sim</strong>, manter o cadastro no ERP <span class="block text-[12px] text-ink-3">Só some do Lunna; no Olist nada muda.</span></span>
+          <span><strong>Sim</strong>, manter o cadastro no ERP <span class="block text-[12px] text-ink-3">Só some do Lunna; no {{ erp }} nada muda.</span></span>
         </label>
         <label class="flex cursor-pointer items-start gap-2 rounded-card border border-line p-2" :class="keep === 'nao' ? 'border-danger bg-danger-soft' : ''">
           <input v-model="keep" type="radio" name="manter-erp" value="nao" class="mt-1" data-test="manter-erp-nao" />

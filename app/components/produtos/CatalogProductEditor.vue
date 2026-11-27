@@ -339,7 +339,7 @@ const TABS = [
       <template v-if="canEdit">
         <button type="button" class="btn-secondary h-9" :disabled="saving" data-test="produto-salvar" @click="save()">{{ saving ? 'Salvando…' : 'Salvar' }}</button>
         <button type="button" class="btn-primary h-9" :disabled="saving || problems.length > 0 || !form.name" data-test="produto-pronto" @click="save('pronto')">Marcar como pronto</button>
-        <button type="button" class="btn-secondary h-9" disabled title="Próxima etapa: exportar o produto para o ERP conectado (Olist hoje)" data-test="produto-exportar">Exportar para o ERP</button>
+        <button type="button" class="btn-secondary h-9" disabled title="Próxima etapa: exportar o produto para o ERP conectado à empresa" data-test="produto-exportar">Exportar para o ERP</button>
       </template>
     </div>
     <p v-if="problems.length" class="rounded-card border border-danger bg-danger-soft px-3 py-2 text-[13px] text-danger" data-test="produto-problemas">{{ problems.join(' · ') }}</p>

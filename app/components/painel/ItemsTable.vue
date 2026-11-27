@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useErpName } from '../../composables/useErpName'
 import LogisticBadge from '../ui/LogisticBadge.vue'
 import ItemsBulkEdit from './ItemsBulkEdit.vue'
 import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
@@ -12,15 +13,18 @@ import { useSessionStore } from '../../stores/session'
 import type { ItemsNumericFilterKey } from '../../lib/itemsQuery'
 import type { ItemEconomics, ItemRow } from '../../types/painel'
 
-const COST_SOURCE_LABEL: Record<string, string> = {
-  peps: 'Custo PEPS do Olist',
-  cadastro: 'Custo cadastrado no produto do Olist',
-  custo_medio: 'Custo médio do produto no Olist',
-  ultima_entrada: 'Custo da última entrada de estoque no Olist (produto sem saldo)',
-  kit: 'Kit: soma do custo dos componentes no Olist',
+// {erp} = nome do ERP conectado à empresa (useErpName)
+const COST_SOURCE_TEXT: Record<string, string> = {
+  peps: 'Custo PEPS do {erp}',
+  cadastro: 'Custo cadastrado no produto do {erp}',
+  custo_medio: 'Custo médio do produto no {erp}',
+  ultima_entrada: 'Custo da última entrada de estoque no {erp} (produto sem saldo)',
+  kit: 'Kit: soma do custo dos componentes no {erp}',
   manual: 'Custo informado manualmente',
   variacoes: 'Anúncio com variações: média do custo dos SKUs das variações vendidas nos últimos 90 dias (kits pela soma dos componentes)'
 }
+const { name: erp, erpText } = useErpName()
+const COST_SOURCE_LABEL = computed<Record<string, string>>(() => Object.fromEntries(Object.entries(COST_SOURCE_TEXT).map(([k, v]) => [k, erpText(v)])))
 
 const money = (v: number | null | undefined) => (v === null || v === undefined ? '—' : brl(v))
 /** Percentual de um custo sobre o preço de venda. */
@@ -441,7 +445,7 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
                       <span class="block text-danger">{{ money(item.economics.cost) }}</span>
                       <span class="block text-[11px] text-ink">{{ share(item.economics.cost, item.economics.price) }}</span>
                     </span>
-                    <span v-else class="text-[11px] text-warning" title="Sem custo no Olist para este SKU">sem custo</span>
+                    <span v-else class="text-[11px] text-warning" :title="`Sem custo no ${erp} para este SKU`">sem custo</span>
                   </template>
                   <span v-else class="text-ink-3">—</span>
                 </td>
@@ -469,7 +473,7 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
                     <span class="block font-semibold" :class="item.economics.net_profit < 0 ? 'text-danger' : 'text-success'" data-test="lucro-valor">{{ money(item.economics.net_profit) }}</span>
                     <span class="block text-[11px] text-ink" data-test="lucro-pct">{{ pct(item.economics.net_profit_pct) }}</span>
                   </template>
-                  <span v-else class="text-ink-3" :title="item.economics ? 'Sem custo no Olist: o lucro não pode ser calculado' : ''">—</span>
+                  <span v-else class="text-ink-3" :title="item.economics ? `Sem custo no ${erp}: o lucro não pode ser calculado` : ''">—</span>
                 </td>
                 <td class="px-2 py-2 text-right" data-numeric data-test="col-ads">
                   <span v-if="item.economics" :title="item.economics.ads_spend > 0 ? `${brl(item.economics.ads_spend)} em ${item.economics.ads_days} dias ÷ ${item.economics.ads_units} unidades vendidas` : `Sem gasto de Ads nos últimos ${item.economics.ads_days} dias`">
@@ -569,7 +573,7 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
                       <dl v-if="item.economics">
                         <div class="def-row"><dt>Preço de venda</dt><dd data-numeric>{{ brl(item.economics.price) }}</dd></div>
                         <div class="def-row">
-                          <dt>Custo (Olist)</dt>
+                          <dt>Custo ({{ erp }})</dt>
                           <dd data-numeric>
                             <template v-if="item.economics.cost !== null">− {{ brl(item.economics.cost) }}</template>
                             <span v-else class="text-warning">sem custo</span>
@@ -590,7 +594,7 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
                       </dl>
                       <p v-else class="text-ink-2">Sem preço de venda para calcular.</p>
                       <p v-if="item.economics && item.economics.cost === null" class="mt-2 text-[12px] text-warning">
-                        Este SKU não tem custo no Olist, por isso o lucro não foi calculado.
+                        Este SKU não tem custo no {{ erp }}, por isso o lucro não foi calculado.
                       </p>
                       <p v-if="item.economics && item.economics.cost !== null" class="mt-2 text-[12px] text-ink-3">{{ COST_SOURCE_LABEL[item.economics.cost_source ?? ''] }}.</p>
                       <p v-if="item.economics && !item.economics.fees_split && item.economics.fees_known" class="mt-1 text-[12px] text-ink-3">

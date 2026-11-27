@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useErpName } from '../../composables/useErpName'
 import LogisticBadge from '../../components/ui/LogisticBadge.vue'
 import { ArrowDownTrayIcon, ArrowTrendingDownIcon, ArrowTrendingUpIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
@@ -44,6 +45,7 @@ const TABS = [
 ] as const
 /** Layout novo (27/11/2026): guias com explicação, filtros num painel e logística em chips. */
 const layoutPref = useLayoutPref()
+const { name: erp } = useErpName()
 const isNew = computed(() => layoutPref.pref.value === 'novo')
 const NEW_TABS = [
   { key: 'geral', label: 'Visão geral e DRE', hint: 'O resultado do período: receita, custos, despesas e lucro, comparados com o período anterior.' },
@@ -518,7 +520,7 @@ function exportExpenses() {
 
       <p class="text-[12px] text-ink-3">
         Vendas guardadas no Lunna desde {{ dateShort(data.coverage.orders_from) }}; extrato do ML desde {{ data.coverage.billing_from ? dateShort(data.coverage.billing_from) : '—' }}.
-        Impostos e despesas operacionais são as porcentagens de Configurações › Empresa. Custo dos produtos: Olist (PEPS) ou custo manual.
+        Impostos e despesas operacionais são as porcentagens de Configurações › Empresa. Custo dos produtos: {{ erp }} (PEPS) ou custo manual.
       </p>
     </template>
   </div>

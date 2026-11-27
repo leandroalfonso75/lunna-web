@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useErpName } from '../composables/useErpName'
 import { ArchiveBoxIcon, BanknotesIcon, ClockIcon, CubeIcon, ExclamationTriangleIcon, PaperAirplaneIcon, ShoppingCartIcon, TruckIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon  } from '@heroicons/vue/24/outline'
 import KpiTile from '../components/dashboard/KpiTile.vue'
 import NvChips from '../components/nv/NvChips.vue'
@@ -33,6 +34,7 @@ const depot = ref<StockDepotResponse | null>(null)
 const full = ref<StockFullResponse | null>(null)
 const loading = ref(false)
 const error = ref('')
+const { name: erp } = useErpName()
 const depotFilters = reactive({ q: '', view: '', sort: 'value', page: 1 })
 // Ordenação por coluna, feita na API (pedido do usuário em 24/11/2026). Ao abrir: Sugerido, decrescente.
 const fullFilters = reactive({ q: '', view: 'repor', sort: 'suggested', dir: 'desc' as 'asc' | 'desc', page: 1 })
@@ -122,7 +124,7 @@ const fullCards = computed(() => {
   return [
     { label: 'Para repor', value: int(s.replenish), hint: `${int(s.urgent)} com envio urgente`, tone: s.urgent ? 'text-danger' : '' },
     { label: 'Unidades sugeridas', value: int(s.suggested_units), hint: 'pelo Mercado Livre' },
-    { label: 'Dá para enviar já', value: int(s.can_send_units), hint: 'com o disponível no depósito (Olist)', tone: 'text-success' },
+    { label: 'Dá para enviar já', value: int(s.can_send_units), hint: `com o disponível no depósito (${erp.value})`, tone: 'text-success' },
     { label: 'Falta comprar', value: int(s.to_buy_units), hint: 'sugerido menos o que há no depósito', tone: s.to_buy_units ? 'text-warning' : '' },
     { label: 'Receita perdida', value: brl(s.lost_revenue), hint: `dias sem estoque nas últimas 6 semanas · ${int(s.out_of_stock)} zerados agora`, tone: s.lost_revenue ? 'text-danger' : '' }
   ]
@@ -163,7 +165,7 @@ function pages(total: number, per: number) {
 
 watchEffect(() => {
   header.state.title = 'Estoque'
-  header.state.subtitle = session.selectedAccount ? `Mercado Livre · ${session.selectedAccount.nickname} · Olist` : 'Olist e Full'
+  header.state.subtitle = session.selectedAccount ? `Mercado Livre · ${session.selectedAccount.nickname} · ${erp.value}` : `${erp.value} e Full`
   header.state.sync = null
   header.state.generatedAt = null
   header.state.refreshing = loading.value
@@ -224,7 +226,7 @@ watchEffect(() => {
       </div>
       <p class="text-[12px] text-ink-3">
         Recomendações do próprio Mercado Livre (Planejamento de reposição do Full), relidas a cada 6 horas<template v-if="full?.synced_at"> · última leitura {{ dateTimeShort(full.synced_at) }}</template>.
-        "Dá para enviar" usa o disponível no depósito (Olist); "receita perdida" estima as vendas dos dias sem estoque nas últimas 6 semanas.
+        "Dá para enviar" usa o disponível no depósito ({{ erp }}); "receita perdida" estima as vendas dos dias sem estoque nas últimas 6 semanas.
       </p>
 
       <div class="card overflow-hidden">
@@ -327,7 +329,7 @@ watchEffect(() => {
         </select>
       </div>
       <p class="text-[12px] text-ink-3">
-        Estoque geral do Olist (disponível), lido a cada 3 minutos<template v-if="depot?.synced_at"> · {{ dateTimeShort(depot.synced_at) }}</template>.
+        Estoque geral do {{ erp }} (disponível), lido a cada 3 minutos<template v-if="depot?.synced_at"> · {{ dateTimeShort(depot.synced_at) }}</template>.
         Vendas de 30 dias no Mercado Livre: os kits contam para cada componente. Cobertura = (depósito + Full) ÷ venda por dia. Kits não têm estoque próprio e não aparecem.
       </p>
 

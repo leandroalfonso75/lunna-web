@@ -17,6 +17,8 @@ export interface User {
 export interface Company {
   id: string
   name: string
+  /** ERP conectado à empresa (nome para os textos da tela); null = nenhum. */
+  erp?: { key: string; name: string; status: string } | null
   tax_pct: number
   /** Despesas Operacionais padrão (% do preço de venda). */
   fixed_expenses_pct?: number

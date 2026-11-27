@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useErpName } from '../../composables/useErpName'
 import { ChevronDownIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import { ref } from 'vue'
 import { brl, dateTimeShort } from '../../lib/format'
@@ -9,6 +10,7 @@ import { KIND_LABEL, STATUS_LABEL, VARIATION_LABEL, formatQty, toNumber, type Ol
  * nome, uma seta: só ao clicar nela as variações aparecem (como linhas
  * recuadas logo abaixo). Clicar na linha abre/fecha os detalhes do produto.
  */
+const { name: erp } = useErpName()
 const props = defineProps<{ product: OlistProduct; level?: number; selectable?: boolean; selected?: boolean }>()
 const emit = defineEmits<{ toggle: [id: number] }>()
 
@@ -100,18 +102,18 @@ const costText = () => {
   <tr v-if="showDetail" class="border-b border-line bg-surface-2" data-test="produto-detalhe">
     <td colspan="10" class="px-6 py-4">
       <dl class="grid gap-x-8 gap-y-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
-        <div><dt class="text-ink-3">ID no Olist</dt><dd class="font-mono">{{ product.id }}</dd></div>
+        <div><dt class="text-ink-3">ID no {{ erp }}</dt><dd class="font-mono">{{ product.id }}</dd></div>
         <div><dt class="text-ink-3">GTIN / EAN</dt><dd>{{ product.gtin || '—' }}</dd></div>
         <div><dt class="text-ink-3">Tipo</dt><dd>{{ KIND_LABEL[product.kind ?? ''] ?? '—' }}</dd></div>
         <div><dt class="text-ink-3">Variação</dt><dd>{{ VARIATION_LABEL[product.variation_kind ?? ''] ?? '—' }}</dd></div>
         <div><dt class="text-ink-3">Unidade</dt><dd>{{ product.unit || '—' }}</dd></div>
         <div><dt class="text-ink-3">Localização no estoque</dt><dd>{{ product.stock.location || '—' }}</dd></div>
         <div>
-          <dt class="text-ink-3">Saldo no Olist</dt>
+          <dt class="text-ink-3">Saldo no {{ erp }}</dt>
           <dd>{{ formatQty(product.stock.balance) }}</dd>
         </div>
         <div>
-          <dt class="text-ink-3">Reservado no Olist</dt>
+          <dt class="text-ink-3">Reservado no {{ erp }}</dt>
           <dd>{{ formatQty(product.stock.reserved) }}</dd>
         </div>
         <div>
@@ -126,9 +128,9 @@ const costText = () => {
         </div>
         <div><dt class="text-ink-3">{{ product.kit ? 'Custo do kit (soma dos componentes)' : 'Custo PEPS (próxima saída)' }}</dt><dd>{{ costText() }}</dd></div>
         <div><dt class="text-ink-3">Valor do estoque (PEPS)</dt><dd>{{ product.cost.available ? money(product.cost.stock_value) : '—' }}</dd></div>
-        <div><dt class="text-ink-3">Custo cadastrado no Olist</dt><dd>{{ hasValue(product.cost.registered) ? money(product.cost.registered) : '—' }}</dd></div>
-        <div><dt class="text-ink-3">Cadastrado no Olist</dt><dd>{{ dateTimeShort(product.olist_created_at) }}</dd></div>
-        <div><dt class="text-ink-3">Alterado no Olist</dt><dd>{{ dateTimeShort(product.olist_updated_at) }}</dd></div>
+        <div><dt class="text-ink-3">Custo cadastrado no {{ erp }}</dt><dd>{{ hasValue(product.cost.registered) ? money(product.cost.registered) : '—' }}</dd></div>
+        <div><dt class="text-ink-3">Cadastrado no {{ erp }}</dt><dd>{{ dateTimeShort(product.olist_created_at) }}</dd></div>
+        <div><dt class="text-ink-3">Alterado no {{ erp }}</dt><dd>{{ dateTimeShort(product.olist_updated_at) }}</dd></div>
         <div><dt class="text-ink-3">Lido pelo Lunna</dt><dd>{{ dateTimeShort(product.synced_at) }}</dd></div>
       </dl>
       <p v-if="hasVariations()" class="mt-3 text-[12px] text-ink-3">
@@ -169,11 +171,11 @@ const costText = () => {
       <p v-if="product.cost.warning" class="mt-3 flex items-start gap-2 rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning" role="alert" data-test="custo-aviso-detalhe">
         <ExclamationTriangleIcon class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         <span>
-          {{ warningText() }} {{ product.kit ? 'Informe o custo dos componentes no Olist para o kit ter custo.' : 'Informe o custo da entrada no Olist (Suprimentos &gt; Controle de Estoque) para o PEPS ficar completo.' }}
+          {{ warningText() }} {{ product.kit ? `Informe o custo dos componentes no ${erp} para o kit ter custo.` : `Informe o custo da entrada no ${erp} (controle de estoque) para o PEPS ficar completo.` }}
         </span>
       </p>
       <p v-if="product.cost.balance_gap" class="mt-3 text-[12px] text-ink-3" data-test="custo-diferenca">
-        O histórico de movimentações do Olist explica {{ formatQty(Math.abs(product.cost.balance_gap)) }} unidade(s)
+        O histórico de movimentações do {{ erp }} explica {{ formatQty(Math.abs(product.cost.balance_gap)) }} unidade(s)
         {{ product.cost.balance_gap > 0 ? 'a mais' : 'a menos' }} do que o estoque de hoje; o custo PEPS considera só o que o histórico mostra.
       </p>
       <div v-if="!product.kit && product.cost.layers.length" class="mt-4">
