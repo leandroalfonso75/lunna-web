@@ -199,6 +199,8 @@ export function catalogClient(api: Api) {
     get: (id: number | string) => api<CatalogProduct>(`/api/catalog_products/${id}`),
     /** Ficha completa vinda do ERP (migração de 27/11/2026), pelo id do produto (ou da variação) no ERP. */
     byErp: (erpId: number | string) => api<ErpCatalogProduct>(`/api/catalog_products/erp/${erpId}`),
+    /** Relê agora no ERP a ficha vinda dele (admin; só leitura no ERP). */
+    reimport: (id: number) => api<ErpCatalogProduct>(`/api/catalog_products/${id}/reimport`, { method: 'POST' }),
     create: (kind: CatalogKind) => api<CatalogProduct>('/api/catalog_products', { method: 'POST', body: { kind } }),
     update: (id: number, body: Partial<CatalogProduct>) => api<CatalogProduct>(`/api/catalog_products/${id}`, { method: 'PATCH', body }),
     remove: (id: number) => api<unknown>(`/api/catalog_products/${id}`, { method: 'DELETE' }),

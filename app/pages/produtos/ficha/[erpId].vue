@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ArrowLeftIcon, ExclamationTriangleIcon, PhotoIcon } from '@heroicons/vue/24/outline'
+import { ArrowLeftIcon, ArrowPathIcon, ExclamationTriangleIcon, PhotoIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import { usePageHeader } from '../../../composables/usePageHeader'
 import { apiErrorMessage } from '../../../lib/apiErrors'
 import { KIND_LABELS, catalogClient, type ErpCatalogProduct, type ErpStockInfo } from '../../../lib/catalogProducts'
 import { brl, dateTimeShort } from '../../../lib/format'
+import { useToast } from '../../../composables/useToast'
+import { useSessionStore } from '../../../stores/session'
 
 /**
  * `/produtos/ficha/:erpId` — ficha completa de um produto vindo do ERP (migração de 27/11/2026), aberta pelo id dele (ou
@@ -21,6 +23,28 @@ const error = ref('')
 const loading = ref(true)
 const thumbs = ref<Record<number, string>>({})
 const big = ref<number | null>(null)
+const session = useSessionStore()
+const toast = useToast()
+const reimporting = ref(false)
+
+/** "Reimportar do ERP": relê agora a ficha (dados, fotos, variações e kit); a atualização automática também roda sozinha. */
+async function reimport() {
+  if (!product.value || reimporting.value) return
+  reimporting.value = true
+  try {
+    product.value = await client.reimport(product.value.id)
+    Object.values(thumbs.value).forEach((u) => URL.revokeObjectURL(u))
+    thumbs.value = {}
+    for (const a of product.value.assets.filter((x) => x.kind === 'foto')) {
+      client.assetBlob(a.id).then((b) => { thumbs.value = { ...thumbs.value, [a.id]: URL.createObjectURL(b) } }).catch(() => {})
+    }
+    toast.success('Ficha relida do ERP.')
+  } catch (e) {
+    toast.error(apiErrorMessage(e, 'Não foi possível reimportar agora.'))
+  } finally {
+    reimporting.value = false
+  }
+}
 
 async function load() {
   loading.value = true
@@ -105,9 +129,13 @@ const extras = computed(() => {
         <div v-if="p" class="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-ink-2">
           <span class="pill-primary">{{ KIND_LABELS[p.kind] }}</span>
           <span class="pill-neutral font-mono">{{ p.sku }}</span>
-          <span>Copiado do {{ p.erp_name ?? 'ERP' }} (id {{ p.erp_id }})<template v-if="p.erp_synced_at"> em {{ dateTimeShort(p.erp_synced_at) }}</template> · o ERP manda nos dados</span>
+          <span>Copiado do {{ p.erp_name ?? 'ERP' }} (id {{ p.erp_id }})<template v-if="p.erp_synced_at"> em {{ dateTimeShort(p.erp_synced_at) }}</template> · o ERP manda nos dados; atualiza sozinha quando o produto muda lá</span>
         </div>
       </div>
+      <button v-if="p && session.isAdmin" type="button" class="btn-secondary shrink-0" :disabled="reimporting" data-test="reimportar-erp" @click="reimport">
+        <ArrowPathIcon class="h-4 w-4" :class="{ 'animate-spin': reimporting }" aria-hidden="true" />
+        {{ reimporting ? 'Relendo no ERP…' : `Reimportar do ${p.erp_name ?? 'ERP'}` }}
+      </button>
     </header>
 
     <p v-if="loading && !p" class="card p-8 text-center text-ink-3">Carregando a ficha…</p>
