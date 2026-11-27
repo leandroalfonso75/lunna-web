@@ -17,18 +17,25 @@ const emit = defineEmits<{
   (e: 'page', page: number): void
 }>()
 
+// Vendas atribuídas x vendas reais (27/11/2026): o ML credita ao anúncio patrocinado vendas que podem ser de outro
+// anúncio da mesma família, pedidos cancelados e compras indiretas de outros produtos; "Vendas reais" é o que o
+// anúncio vendeu de fato no período (mesmo critério de Vendas) e o custo por venda real usa essa base.
+const ATTRIBUTED_HINT = 'Vendas que o Mercado Livre credita ao anúncio patrocinado (diretas + indiretas). Podem incluir vendas de outros anúncios da mesma família (ex.: a outra voltagem), pedidos cancelados e compras indiretas de outros produtos depois do clique.'
+const REAL_HINT = 'Unidades realmente vendidas deste anúncio no período (pedidos não cancelados), o mesmo número da seção Vendas.'
 const COLUMNS = [
-  { key: 'title', label: 'Anúncio', sort: 'title', width: 'w-[23%] max-xl:w-[28%]', align: 'left' },
+  { key: 'title', label: 'Anúncio', sort: 'title', width: 'w-[17%] max-xl:w-[22%]', align: 'left' },
   { key: 'cost', label: 'Investimento', sort: 'cost', width: 'w-[9%]', align: 'right' },
   // como na lista de campanhas (pedido do usuário em 04/11/2026)
-  { key: 'units', label: 'Qtde Vendas c/Ads', sort: 'units', width: 'w-[8%]', align: 'right', title: 'Unidades vendidas atribuídas ao Ads (diretas + indiretas)' },
-  { key: 'total_amount', label: 'Vendas por Ads', sort: 'total_amount', width: 'w-[9%]', align: 'right' },
-  { key: 'organic_units', label: 'Qtde Vendas s/Ads', sort: 'organic_units', width: 'w-[8%]', align: 'right', title: 'Unidades vendidas sem passar pelo Ads (orgânicas)' },
-  { key: 'acos', label: 'ACOS', sort: 'acos', width: 'w-[7%]', align: 'right' },
+  { key: 'units', label: 'Vendas atribuídas (ML)', sort: 'units', width: 'w-[8%]', align: 'right', title: ATTRIBUTED_HINT },
+  { key: 'real_units', label: 'Vendas reais', sort: 'real_units', width: 'w-[7%]', align: 'right', title: REAL_HINT },
+  { key: 'cost_per_real_sale', label: 'Ads por venda real', sort: 'cost_per_real_sale', width: 'w-[8%]', align: 'right', title: 'Investimento ÷ vendas reais do anúncio no período (o mesmo rateio do Custo Ads da seção Vendas).' },
+  { key: 'total_amount', label: 'Vendas por Ads', sort: 'total_amount', width: 'w-[8%]', align: 'right', title: 'Valor das vendas atribuídas pelo Mercado Livre (base do ACOS e do ROAS).' },
+  { key: 'organic_units', label: 'Qtde Vendas s/Ads', sort: 'organic_units', width: 'w-[7%]', align: 'right', title: 'Unidades vendidas sem passar pelo Ads (orgânicas), segundo o Mercado Livre' },
+  { key: 'acos', label: 'ACOS', sort: 'acos', width: 'w-[6%]', align: 'right' },
   { key: 'roas', label: 'ROAS', sort: 'roas', width: 'w-[6%]', align: 'right' },
-  { key: 'clicks', label: 'Cliques', sort: 'clicks', width: 'w-[7%]', align: 'right', hide: true },
-  { key: 'prints', label: 'Impressões', sort: 'prints', width: 'w-[8%]', align: 'right', hide: true },
-  { key: 'flag', label: 'Situação', width: 'w-[15%]', align: 'left' }
+  { key: 'clicks', label: 'Cliques', sort: 'clicks', width: 'w-[6%]', align: 'right', hide: true },
+  { key: 'prints', label: 'Impressões', sort: 'prints', width: 'w-[7%]', align: 'right', hide: true },
+  { key: 'flag', label: 'Situação', width: 'w-[11%]', align: 'left' }
 ]
 
 const FLAGS: { value: AdsItemsFilters['flag']; label: string; key?: string }[] = [
@@ -100,6 +107,11 @@ function flagCount(key?: string): string {
       <button v-if="hasFilters" type="button" class="btn-link" @click="emit('change', { campaignId: '', status: '', flag: '', q: '' })">Limpar filtros</button>
     </div>
 
+    <p class="text-[12px] text-ink-3" data-test="ads-dica-atribuidas">
+      <strong class="font-semibold text-ink-2">Vendas atribuídas (ML)</strong> são as que o Mercado Livre credita ao anúncio patrocinado e podem incluir outros anúncios da mesma família, pedidos cancelados e compras indiretas de outros produtos.
+      <strong class="font-semibold text-ink-2">Vendas reais</strong> e <strong class="font-semibold text-ink-2">Ads por venda real</strong> usam só o que o anúncio vendeu de fato, como na seção Vendas.
+      <template v-if="response?.daily">O investimento é a soma dos dias do período, o mesmo usado em Vendas.</template>
+    </p>
     <div class="card overflow-hidden">
       <table class="w-full table-fixed border-collapse text-[12px]">
         <thead>
@@ -146,6 +158,8 @@ function flagCount(key?: string): string {
             </td>
             <td class="px-2 py-2 text-right align-top" data-numeric>{{ brl(item.metrics.cost) }}</td>
             <td class="px-2 py-2 text-right align-top" data-numeric data-test="item-qtde-com-ads">{{ int(item.metrics.units) }}</td>
+            <td class="px-2 py-2 text-right align-top" data-numeric data-test="item-vendas-reais">{{ int(item.metrics.real_units ?? 0) }}</td>
+            <td class="px-2 py-2 text-right align-top" data-numeric data-test="item-ads-por-venda-real">{{ item.metrics.cost_per_real_sale === null || item.metrics.cost_per_real_sale === undefined ? '—' : brl(item.metrics.cost_per_real_sale) }}</td>
             <td class="px-2 py-2 text-right align-top" data-numeric>{{ brl(item.metrics.total_amount) }}</td>
             <td class="px-2 py-2 text-right align-top" data-numeric data-test="item-qtde-sem-ads">{{ int(item.metrics.organic_units) }}</td>
             <td class="px-2 py-2 text-right align-top" data-numeric>
@@ -162,7 +176,7 @@ function flagCount(key?: string): string {
       <div v-if="response && response.total > 0" class="flex flex-wrap items-center justify-between gap-2 border-t border-line px-3 py-2 text-[12px] text-ink-2">
         <span>
           {{ int(response.total) }} anúncios · página {{ response.page }} de {{ pages }} ·
-          total filtrado: investimento {{ brl(response.totals.cost) }}, vendas {{ brl(response.totals.total_amount) }}, ACOS {{ pct(response.totals.acos) }}
+          total filtrado: investimento {{ brl(response.totals.cost) }}, vendas {{ brl(response.totals.total_amount) }}, ACOS {{ pct(response.totals.acos) }}<template v-if="response.totals.real_units !== undefined">, vendas reais {{ int(response.totals.real_units) }}</template>
         </span>
         <div class="flex gap-2">
           <button type="button" class="btn-link" :disabled="response.page <= 1" @click="emit('page', response.page - 1)">Anterior</button>

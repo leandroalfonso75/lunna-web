@@ -13,6 +13,10 @@ export interface AdsMetrics {
   indirect_units: number
   organic_units: number
   organic_amount: number
+  /** Lista de anúncios: unidades realmente vendidas do anúncio no período (pedidos não cancelados, como em Vendas). */
+  real_units?: number
+  /** Lista de anúncios: investimento ÷ vendas reais. */
+  cost_per_real_sale?: number | null
   acos: number | null
   roas: number | null
   ctr: number | null
@@ -93,6 +97,8 @@ export interface AdsItemsResponse {
   /** true quando o período foi consultado no Mercado Livre na hora (hoje, ontem, datas, 60 dias). */
   live: boolean
   live_error: boolean
+  /** true quando investimento, cliques, impressões e vendas atribuídas vêm das linhas diárias (as mesmas de Vendas). */
+  daily?: boolean
   items: AdsItem[]
   total: number
   page: number
