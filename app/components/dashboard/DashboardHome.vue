@@ -88,7 +88,7 @@ const topMax = computed(() => Math.max(1, ...(props.painel?.top_sellers ?? []).m
         <div class="seg" role="group" aria-label="Período">
           <button v-for="p in PERIODS" :key="p.key" type="button" :class="dash.period.value === p.key ? 'seg-btn-active' : 'seg-btn'" :aria-pressed="dash.period.value === p.key" :data-test="`periodo-${p.key}`" @click="dash.setPeriod(p.key)">{{ p.label }}</button>
         </div>
-        <NuxtLink to="/produtos/ia/novo" class="btn-primary h-9" data-test="acao-principal"><SparklesIcon class="h-4 w-4" aria-hidden="true" /> Criar Produto com IA</NuxtLink>
+        <NuxtLink to="/produtos/ia/novo" class="nbtn-primary nbtn-lg" data-test="acao-principal"><SparklesIcon class="h-5 w-5" aria-hidden="true" /> Criar Produto com IA</NuxtLink>
       </div>
     </div>
 
@@ -112,14 +112,14 @@ const topMax = computed(() => Math.max(1, ...(props.painel?.top_sellers ?? []).m
             <h2 class="panel-title">Faturamento e lucro por dia</h2>
             <p class="panel-sub">{{ periodLabel }} · passe o mouse para ver cada dia</p>
           </div>
-          <label class="flex cursor-pointer items-center gap-2 text-[12px] text-ink-2">
+          <label class="flex cursor-pointer items-center gap-2 text-[13px] text-ink-2">
             <input v-model="compare" type="checkbox" class="h-4 w-4 accent-[var(--primary)]" data-test="comparar" /> Comparar com o período anterior
           </label>
         </div>
         <div class="px-5 pb-4 pt-2">
           <div v-if="loadingSales" class="h-[260px] animate-pulse rounded-card bg-surface-2" />
           <TrendChart v-else-if="daily.length" :labels="daily.map((d) => d.date)" :series="trendSeries" :format="brl" caption="Faturamento e lucro antes de Ads por dia" />
-          <p v-else class="py-16 text-center text-[13px] text-ink-3">Sem vendas no período.</p>
+          <p v-else class="py-16 text-center text-[14px] text-ink-3">Sem vendas no período.</p>
         </div>
       </div>
       <div class="panel">
@@ -133,7 +133,7 @@ const topMax = computed(() => Math.max(1, ...(props.painel?.top_sellers ?? []).m
         <div class="px-5 pb-5 pt-3">
           <div v-if="loadingSales" class="space-y-3"><div v-for="i in 7" :key="i" class="h-6 animate-pulse rounded bg-surface-2" /></div>
           <MoneyFlow v-else-if="flow.length" :rows="flow" :revenue="cur?.revenue ?? 0" />
-          <p v-else class="py-10 text-center text-[13px] text-ink-3">Sem vendas no período.</p>
+          <p v-else class="py-10 text-center text-[14px] text-ink-3">Sem vendas no período.</p>
         </div>
       </div>
     </section>
@@ -146,10 +146,10 @@ const topMax = computed(() => Math.max(1, ...(props.painel?.top_sellers ?? []).m
           <NuxtLink to="/ads" class="btn-link">Ver Ads</NuxtLink>
         </div>
         <dl class="grid grid-cols-4 gap-2 px-5 pt-3 text-center">
-          <div><dt class="text-[11px] text-ink-3">Investido</dt><dd class="text-[15px] font-semibold text-ink" data-numeric>{{ brl(ads?.cost) }}</dd></div>
-          <div><dt class="text-[11px] text-ink-3">ROAS</dt><dd class="text-[15px] font-semibold text-ink" data-numeric>{{ ads?.roas?.toLocaleString('pt-BR') ?? '—' }}</dd></div>
-          <div><dt class="text-[11px] text-ink-3">ACOS</dt><dd class="text-[15px] font-semibold text-ink" data-numeric>{{ pct(ads?.acos) }}</dd></div>
-          <div><dt class="text-[11px] text-ink-3" title="Investimento em Ads ÷ faturamento total">TACOS</dt><dd class="text-[15px] font-semibold text-ink" data-numeric>{{ pct(tacos) }}</dd></div>
+          <div><dt class="text-[12px] text-ink-3">Investido</dt><dd class="text-[15px] font-semibold text-ink" data-numeric>{{ brl(ads?.cost) }}</dd></div>
+          <div><dt class="text-[12px] text-ink-3">ROAS</dt><dd class="text-[15px] font-semibold text-ink" data-numeric>{{ ads?.roas?.toLocaleString('pt-BR') ?? '—' }}</dd></div>
+          <div><dt class="text-[12px] text-ink-3">ACOS</dt><dd class="text-[15px] font-semibold text-ink" data-numeric>{{ pct(ads?.acos) }}</dd></div>
+          <div><dt class="text-[12px] text-ink-3" title="Investimento em Ads ÷ faturamento total">TACOS</dt><dd class="text-[15px] font-semibold text-ink" data-numeric>{{ pct(tacos) }}</dd></div>
         </dl>
         <div class="flex-1 px-5 pb-4 pt-4">
           <div v-if="!dash.adsData.value && dash.loading.value" class="h-[230px] animate-pulse rounded-card bg-surface-2" />
@@ -164,10 +164,10 @@ const topMax = computed(() => Math.max(1, ...(props.painel?.top_sellers ?? []).m
         </div>
         <ol class="space-y-3 px-5 pb-5 pt-3">
           <li v-for="(t, i) in (painel?.top_sellers ?? []).slice(0, 6)" :key="t.id" class="grid grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
-            <span class="text-[12px] font-semibold text-ink-3">{{ i + 1 }}</span>
-            <span class="truncate text-[13px] text-ink" :title="t.title">{{ t.title }}</span>
-            <span class="text-right text-[13px] font-semibold text-ink" data-numeric>{{ int(t.units_week) }} un.
-              <span v-if="t.units_prev_week" class="ml-1 text-[11px] font-medium" :class="t.units_week >= t.units_prev_week ? 'text-success' : 'text-danger'">{{ t.units_week >= t.units_prev_week ? '▲' : '▼' }} {{ int(Math.abs(t.units_week - t.units_prev_week)) }}</span>
+            <span class="text-[13px] font-semibold text-ink-3">{{ i + 1 }}</span>
+            <span class="truncate text-[14px] text-ink" :title="t.title">{{ t.title }}</span>
+            <span class="text-right text-[14px] font-semibold text-ink" data-numeric>{{ int(t.units_week) }} un.
+              <span v-if="t.units_prev_week" class="ml-1 text-[12px] font-medium" :class="t.units_week >= t.units_prev_week ? 'text-success' : 'text-danger'">{{ t.units_week >= t.units_prev_week ? '▲' : '▼' }} {{ int(Math.abs(t.units_week - t.units_prev_week)) }}</span>
             </span>
             <div class="col-start-2 col-end-4 h-1.5 overflow-hidden rounded-full bg-surface-2"><div class="h-full rounded-full bg-chart-1" :style="{ width: `${(t.units_week / topMax) * 100}%` }" /></div>
           </li>
@@ -184,10 +184,10 @@ const topMax = computed(() => Math.max(1, ...(props.painel?.top_sellers ?? []).m
           <li v-for="s in (painel?.recent_sales ?? []).slice(0, 7)" :key="`${s.at}-${s.item_id}`" class="flex items-center gap-3 py-2.5">
             <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-soft text-success"><ShoppingCartIcon class="h-4 w-4" aria-hidden="true" /></span>
             <span class="min-w-0 flex-1">
-              <span class="block truncate text-[13px] text-ink" :title="s.title">{{ s.title }}</span>
-              <span class="text-[11px] text-ink-3"><template v-if="mounted">{{ relTime(s.at) }}</template><template v-if="s.quantity > 1"> · {{ s.quantity }} un.</template></span>
+              <span class="block truncate text-[14px] text-ink" :title="s.title">{{ s.title }}</span>
+              <span class="text-[12px] text-ink-3"><template v-if="mounted">{{ relTime(s.at) }}</template><template v-if="s.quantity > 1"> · {{ s.quantity }} un.</template></span>
             </span>
-            <span class="text-[13px] font-semibold text-ink" data-numeric>{{ brl(s.total) }}</span>
+            <span class="text-[14px] font-semibold text-ink" data-numeric>{{ brl(s.total) }}</span>
           </li>
           <li v-if="!painel" class="space-y-3 py-2"><div v-for="i in 5" :key="i" class="h-8 animate-pulse rounded bg-surface-2" /></li>
         </ul>

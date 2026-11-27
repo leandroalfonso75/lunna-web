@@ -40,7 +40,7 @@ const deltaText = computed(() => {
 <template>
   <component :is="to ? linkComponent : 'div'" :to="to" class="panel group flex flex-col gap-2 p-4 transition-shadow" :class="to ? 'hover:border-primary hover:shadow-lift' : ''" data-test="kpi">
     <div class="flex items-center justify-between gap-2">
-      <span class="text-[13px] font-medium text-ink-2">{{ label }}</span>
+      <span class="text-[14px] font-medium text-ink-2">{{ label }}</span>
       <span v-if="icon" class="flex h-8 w-8 items-center justify-center rounded-card bg-primary-soft text-primary"><component :is="icon" class="h-[18px] w-[18px]" aria-hidden="true" /></span>
     </div>
     <div v-if="loading" class="h-8 w-32 animate-pulse rounded bg-surface-2" />
@@ -52,7 +52,7 @@ const deltaText = computed(() => {
         <ArrowRightIcon v-else class="h-3.5 w-3.5" aria-hidden="true" />
         {{ deltaText }}
       </span>
-      <span v-if="hint" class="truncate text-[12px] text-ink-3">{{ hint }}</span>
+      <span v-if="hint" class="truncate text-[13px] text-ink-3">{{ hint }}</span>
     </div>
     <svg v-if="sparkPath && !loading" viewBox="0 0 100 30" preserveAspectRatio="none" class="h-8 w-full" aria-hidden="true">
       <path :d="sparkPath" fill="none" stroke="var(--chart-1)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />

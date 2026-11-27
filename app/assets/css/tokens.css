@@ -25,6 +25,8 @@
   --primary-ink: #ffffff;
 
   --accent: #8b5cf6;
+  --accent-soft: #f1ebff;
+  --accent-ink: #6a3fd6;
   --success: #1e8e4e;
   --success-soft: #e3f4ea;
   --warning: #b87a00;
@@ -63,6 +65,8 @@
   --primary-ink: #070b1f;
 
   --accent: #a78bfa;
+  --accent-soft: #241a45;
+  --accent-ink: #c4b0ff;
   --success: #4cc47f;
   --success-soft: #15301f;
   --warning: #e0a93a;
@@ -268,32 +272,32 @@ a {
     @apply flex flex-wrap items-center justify-between gap-2 px-5 pt-4;
   }
   .panel-title {
-    @apply text-[15px] font-semibold text-ink;
+    @apply text-[17px] font-bold tracking-tight text-ink;
   }
   .panel-sub {
-    @apply text-[12px] text-ink-3;
+    @apply text-[13px] text-ink-2;
   }
   .eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3;
+    @apply text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-2;
   }
   .kpi-value {
-    @apply text-[26px] font-semibold leading-tight tracking-tight text-ink;
+    @apply text-[30px] font-bold leading-tight tracking-tight text-ink;
     font-variant-numeric: tabular-nums;
   }
   .delta-up {
-    @apply inline-flex items-center gap-0.5 rounded-full bg-success-soft px-1.5 py-0.5 text-[12px] font-semibold text-success;
+    @apply inline-flex items-center gap-0.5 rounded-full bg-success-soft px-2 py-0.5 text-[13px] font-semibold text-success;
   }
   .delta-down {
-    @apply inline-flex items-center gap-0.5 rounded-full bg-danger-soft px-1.5 py-0.5 text-[12px] font-semibold text-danger;
+    @apply inline-flex items-center gap-0.5 rounded-full bg-danger-soft px-2 py-0.5 text-[13px] font-semibold text-danger;
   }
   .delta-flat {
-    @apply inline-flex items-center gap-0.5 rounded-full bg-surface-2 px-1.5 py-0.5 text-[12px] font-semibold text-ink-2;
+    @apply inline-flex items-center gap-0.5 rounded-full bg-surface-2 px-2 py-0.5 text-[13px] font-semibold text-ink-2;
   }
   .seg {
     @apply inline-flex rounded-card border border-line bg-surface-2 p-0.5;
   }
   .seg-btn {
-    @apply h-8 rounded-[8px] px-3 text-[13px] font-medium text-ink-2 transition-colors hover:text-ink;
+    @apply h-9 rounded-[8px] px-3.5 text-[14px] font-medium text-ink-2 transition-colors hover:text-ink;
   }
   .seg-btn-active {
     @apply seg-btn bg-surface text-ink shadow-card;
@@ -301,4 +305,177 @@ a {
   .page-new {
     @apply mx-auto w-full max-w-[1600px] px-4 py-6 md:px-6 lg:px-8;
   }
+
+  /* ---- Novo layout, 2ª rodada (27/11/2026): botões vivos, chips, selos e guias ----
+     Pedido do dono: fonte maior, botões mais dinâmicos e um pouco mais de ousadia nas cores (sem exagero).
+     Um primário por área; ao passar o mouse o botão levanta, ao clicar "afunda", carregando gira. */
+  .nbtn {
+    @apply relative inline-flex h-10 select-none items-center justify-center gap-2 whitespace-nowrap rounded-[10px] px-4 text-[14px] font-semibold transition-all duration-150 ease-out disabled:cursor-not-allowed disabled:opacity-55;
+  }
+  .nbtn:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+  .nbtn:not(:disabled):active {
+    transform: translateY(0) scale(0.98);
+  }
+  .nbtn-sm {
+    @apply h-9 rounded-[9px] px-3 text-[13px];
+  }
+  .nbtn-lg {
+    @apply h-11 px-5 text-[15px];
+  }
+  .nbtn-primary {
+    @apply nbtn text-white;
+    background: linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 68%, var(--accent)) 100%);
+    box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--primary) 65%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+  .nbtn-primary:not(:disabled):hover {
+    box-shadow: 0 10px 22px -8px color-mix(in srgb, var(--primary) 75%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    filter: brightness(1.07);
+  }
+  .nbtn-success {
+    @apply nbtn text-white;
+    background: linear-gradient(135deg, var(--success) 0%, color-mix(in srgb, var(--success) 75%, #0e9f9a) 100%);
+    box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--success) 60%, transparent);
+  }
+  .nbtn-success:not(:disabled):hover {
+    filter: brightness(1.07);
+  }
+  .nbtn-secondary {
+    @apply nbtn border border-line bg-surface text-ink shadow-card;
+  }
+  .nbtn-secondary:not(:disabled):hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 6px 14px -8px color-mix(in srgb, var(--primary) 45%, transparent);
+  }
+  .nbtn-ghost {
+    @apply nbtn px-3 text-ink-2 hover:bg-surface-2 hover:text-ink;
+  }
+  .nbtn-danger {
+    @apply nbtn border border-danger bg-surface text-danger hover:bg-danger-soft;
+  }
+  .nbtn-warning {
+    @apply nbtn border border-warning bg-warning-soft text-warning;
+  }
+  .nbtn-warning:not(:disabled):hover {
+    box-shadow: 0 6px 14px -8px color-mix(in srgb, var(--warning) 55%, transparent);
+  }
+  .nbtn-spin {
+    @apply inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent;
+  }
+
+  /* Chips de filtro (2º nível das guias): pílula com contador. */
+  .chip {
+    @apply inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-full border border-line bg-surface px-3.5 text-[14px] font-medium text-ink-2 transition-all duration-150 hover:-translate-y-px hover:text-ink;
+  }
+  .chip:hover {
+    border-color: var(--primary);
+  }
+  .chip-active {
+    @apply chip border-primary bg-primary-soft text-primary;
+    box-shadow: 0 4px 12px -6px color-mix(in srgb, var(--primary) 55%, transparent);
+  }
+  .chip-count {
+    @apply min-w-[22px] rounded-full bg-surface-2 px-1.5 text-center text-[12px] font-semibold leading-[20px] text-ink-2;
+  }
+  .chip-active .chip-count {
+    @apply bg-primary text-primary-ink;
+  }
+
+  /* Selos de situação: cor + ícone + texto (nunca só a cor). */
+  .badge {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[13px] font-semibold;
+  }
+  .badge-success {
+    @apply badge bg-success-soft text-success;
+  }
+  .badge-warning {
+    @apply badge bg-warning-soft text-warning;
+  }
+  .badge-danger {
+    @apply badge bg-danger-soft text-danger;
+  }
+  .badge-info {
+    @apply badge bg-primary-soft text-primary;
+  }
+  .badge-accent {
+    @apply badge;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  .badge-neutral {
+    @apply badge bg-surface-2 text-ink-2;
+  }
+
+  /* Guias principais do novo layout: trilho com pílulas grandes e contador. */
+  .ntabs {
+    @apply flex gap-1 overflow-x-auto rounded-[14px] border border-line bg-surface p-1.5 shadow-card;
+    scrollbar-width: none;
+  }
+  .ntabs::-webkit-scrollbar {
+    display: none;
+  }
+  .ntab {
+    @apply inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-[10px] px-4 text-[15px] font-semibold text-ink-2 transition-all duration-150 hover:bg-surface-2 hover:text-ink;
+  }
+  .ntab-active {
+    @apply ntab text-white hover:text-white;
+    background: linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 68%, var(--accent)) 100%);
+    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--primary) 70%, transparent);
+  }
+  .ntab-count {
+    @apply min-w-[24px] rounded-full bg-surface-2 px-1.5 text-center text-[12px] font-bold leading-[22px] text-ink-2;
+  }
+  .ntab-active .ntab-count {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.22);
+  }
+  .ntab-count-alert {
+    @apply bg-danger text-white;
+  }
+
+  /* Tabela do novo layout: fonte 14 px, cabeçalho em caixa-alta discreta, linhas com respiro. */
+  .ntable {
+    @apply w-full border-collapse text-[14px];
+  }
+  .ntable thead th {
+    @apply border-b border-line bg-surface-2 px-3 py-2.5 text-left text-[12px] font-bold uppercase tracking-[0.05em] text-ink-2;
+  }
+  .ntable tbody td {
+    @apply border-b border-line px-3 py-3 align-top;
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+.pop-in {
+  animation: pop-in 220ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pop-in {
+    animation: none;
+  }
+  .nbtn,
+  .chip,
+  .ntab {
+    transition: none;
+  }
+}
+
+/* Escuro: o azul claro do tema escuro com texto branco ficava sem contraste nos botões cheios; usa tons mais fundos. */
+:root[data-theme='dark'] .nbtn-primary,
+:root[data-theme='dark'] .ntab-active {
+  background: linear-gradient(135deg, #3b5cf0 0%, #6447d6 100%);
+}
+:root[data-theme='dark'] .nbtn-success {
+  background: linear-gradient(135deg, #1d8a4d 0%, #137a74 100%);
 }

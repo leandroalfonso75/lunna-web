@@ -16,10 +16,10 @@ const pct = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits:
 <template>
   <ul class="space-y-2.5" data-test="para-onde-vai">
     <li v-for="r in rows" :key="r.key" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
-      <span class="truncate text-[13px]" :class="r.kind === 'profit' ? 'font-semibold text-ink' : 'text-ink-2'">{{ r.label }}</span>
-      <span class="text-right text-[13px]" style="font-variant-numeric: tabular-nums">
+      <span class="truncate text-[14px]" :class="r.kind === 'profit' ? 'font-semibold text-ink' : 'text-ink-2'">{{ r.label }}</span>
+      <span class="text-right text-[14px]" style="font-variant-numeric: tabular-nums">
         <span :class="r.kind === 'profit' ? (r.value >= 0 ? 'font-semibold text-ink' : 'font-semibold text-danger') : 'text-ink'">{{ pct(r.share) }}</span>
-        <span class="ml-2 text-[12px] text-ink-3">{{ brl(r.value) }}</span>
+        <span class="ml-2 text-[13px] text-ink-3">{{ brl(r.value) }}</span>
       </span>
       <div class="col-span-2 h-2 overflow-hidden rounded-full bg-surface-2">
         <div

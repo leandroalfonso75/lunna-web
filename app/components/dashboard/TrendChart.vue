@@ -95,7 +95,7 @@ const weekday = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(
 
 <template>
   <div class="space-y-2">
-    <div v-if="series.length > 1" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-2" data-test="grafico-legenda">
+    <div v-if="series.length > 1" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-2" data-test="grafico-legenda">
       <span v-for="s in series" :key="s.key" class="inline-flex items-center gap-1.5">
         <svg width="18" height="8" aria-hidden="true"><line x1="1" y1="4" x2="17" y2="4" :stroke="s.color" stroke-width="2.5" :stroke-dasharray="s.dashed ? '4 3' : undefined" stroke-linecap="round" /></svg>
         {{ s.label }}
@@ -111,9 +111,9 @@ const weekday = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(
         </defs>
         <g v-for="t in scale.ticks" :key="t">
           <line :x1="PAD.left" :x2="width - PAD.right" :y1="y(t)" :y2="y(t)" class="stroke-chart-grid" :stroke-dasharray="t === 0 ? undefined : '3 4'" />
-          <text :x="PAD.left - 10" :y="y(t) + 4" text-anchor="end" class="fill-ink-3 text-[11px]" style="font-variant-numeric: tabular-nums">{{ compact(t) }}</text>
+          <text :x="PAD.left - 10" :y="y(t) + 4" text-anchor="end" class="fill-ink-3 text-[12px]" style="font-variant-numeric: tabular-nums">{{ compact(t) }}</text>
         </g>
-        <text v-for="t in xTicks" :key="t.i" :x="x(t.i)" :y="height - 8" text-anchor="middle" class="fill-ink-3 text-[11px]">{{ t.label }}</text>
+        <text v-for="t in xTicks" :key="t.i" :x="x(t.i)" :y="height - 8" text-anchor="middle" class="fill-ink-3 text-[12px]">{{ t.label }}</text>
         <template v-for="(s, k) in series" :key="s.key">
           <path v-if="s.area && k === 0" :d="areaPath(s.values)" :fill="`url(#${gradId})`" />
           <path :d="linePath(s.values)" fill="none" :stroke="s.color" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" :stroke-dasharray="s.dashed ? '5 4' : undefined" :opacity="s.dashed ? 0.75 : 1" />
@@ -128,7 +128,7 @@ const weekday = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(
       </svg>
       <div
         v-if="hover !== null"
-        class="pointer-events-none absolute top-2 z-10 min-w-[180px] rounded-card border border-line bg-surface px-3 py-2 text-[12px] shadow-lift"
+        class="pointer-events-none absolute top-2 z-10 min-w-[180px] rounded-card border border-line bg-surface px-3 py-2 text-[13px] shadow-lift"
         :style="{ left: `${tipLeft}px` }"
         data-test="grafico-tooltip"
       >

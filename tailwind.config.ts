@@ -25,6 +25,8 @@ export default <Partial<Config>>{
         'primary-soft': 'var(--primary-soft)',
         'primary-ink': 'var(--primary-ink)',
         accent: 'var(--accent)',
+        'accent-soft': 'var(--accent-soft)',
+        'accent-ink': 'var(--accent-ink)',
         success: 'var(--success)',
         'success-soft': 'var(--success-soft)',
         warning: 'var(--warning)',

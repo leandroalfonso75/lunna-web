@@ -20,7 +20,7 @@ const TONE = { danger: 'bg-danger-soft text-danger', warning: 'bg-warning-soft t
 <template>
   <section class="panel p-4" aria-labelledby="atencao-titulo" data-test="atencao">
     <div class="mb-3 flex items-center justify-between gap-2">
-      <h2 id="atencao-titulo" class="panel-title">Precisa da sua atenção <span v-if="items.length" class="ml-1 rounded-full bg-danger px-2 py-0.5 text-[12px] font-bold text-white">{{ items.length }}</span></h2>
+      <h2 id="atencao-titulo" class="panel-title">Precisa da sua atenção <span v-if="items.length" class="ml-1 rounded-full bg-danger px-2 py-0.5 text-[13px] font-bold text-white">{{ items.length }}</span></h2>
       <span class="panel-sub hidden sm:block">Do mais urgente ao que pode esperar</span>
     </div>
     <div v-if="loading && !items.length" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -41,9 +41,9 @@ const TONE = { danger: 'bg-danger-soft text-danger', warning: 'bg-warning-soft t
         <span class="min-w-0 flex-1">
           <span class="flex items-start gap-2">
             <span class="text-[20px] font-semibold leading-none text-ink" style="font-variant-numeric: tabular-nums">{{ item.count }}</span>
-            <span class="text-[13px] font-semibold leading-snug text-ink">{{ item.label }}</span>
+            <span class="text-[14px] font-semibold leading-snug text-ink">{{ item.label }}</span>
           </span>
-          <span class="mt-1 line-clamp-2 block text-[12px] text-ink-3">{{ item.detail }}</span>
+          <span class="mt-1 line-clamp-2 block text-[13px] text-ink-3">{{ item.detail }}</span>
         </span>
         <ArrowRightIcon class="mt-1 h-4 w-4 shrink-0 text-ink-3 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
       </NuxtLink>

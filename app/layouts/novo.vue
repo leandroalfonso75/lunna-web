@@ -113,15 +113,15 @@ function toggleTheme() { theme.setTheme(isDark.value ? 'claro' : 'escuro') }
         </div>
       </div>
 
-      <nav class="flex-1 space-y-3 overflow-y-auto px-3 pb-2" aria-label="Navegação principal">
+      <nav class="flex-1 space-y-2 overflow-y-auto px-3 pb-2" aria-label="Navegação principal">
         <div v-for="group in NAV_GROUPS" :key="group.label">
-          <p v-if="!collapsed" class="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-nav-ink-2">{{ group.label }}</p>
+          <p v-if="!collapsed" class="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-nav-ink-2">{{ group.label }}</p>
           <div v-else class="mx-auto mb-1 h-px w-6 bg-white/10" />
           <NuxtLink
             v-for="item in group.items"
             :key="item.to"
             :to="item.to"
-            class="group relative flex items-center gap-3 rounded-card px-2.5 py-1.5 text-[13.5px] font-medium transition-colors"
+            class="group relative flex items-center gap-3 rounded-card px-2.5 py-[5px] text-[14.5px] font-medium transition-colors"
             :class="[isActivePath(route.path, item.to) ? 'bg-nav-active text-white' : 'text-nav-ink-2 hover:bg-nav-hover hover:text-nav-ink', collapsed ? 'justify-center' : '']"
             :title="collapsed ? item.label : undefined"
             data-test="menu-novo-item"
@@ -160,13 +160,13 @@ function toggleTheme() { theme.setTheme(isDark.value ? 'claro' : 'escuro') }
           <Bars3Icon class="h-5 w-5" aria-hidden="true" />
         </button>
         <div class="min-w-0 flex-1 lg:flex-none lg:basis-64">
-          <p class="truncate text-[16px] font-semibold text-ink">{{ header.state.title || 'Lunna' }}</p>
-          <p v-if="header.state.subtitle" class="hidden truncate text-[12px] text-ink-3 sm:block">{{ header.state.subtitle }}</p>
+          <p class="truncate text-[19px] font-bold tracking-tight text-ink">{{ header.state.title || 'Lunna' }}</p>
+          <p v-if="header.state.subtitle" class="hidden truncate text-[13px] text-ink-2 sm:block">{{ header.state.subtitle }}</p>
         </div>
 
         <button
           type="button"
-          class="mx-auto hidden h-10 w-full max-w-md items-center gap-2 rounded-card border border-line bg-surface-2 px-3 text-left text-[13px] text-ink-3 transition-colors hover:border-primary hover:bg-surface md:flex"
+          class="mx-auto hidden h-10 w-full max-w-md items-center gap-2 rounded-card border border-line bg-surface-2 px-3 text-left text-[14px] text-ink-3 transition-colors hover:border-primary hover:bg-surface md:flex"
           data-test="abrir-busca"
           @click="searchOpen = true"
         >
@@ -177,7 +177,7 @@ function toggleTheme() { theme.setTheme(isDark.value ? 'claro' : 'escuro') }
 
         <div class="ml-auto flex items-center gap-1.5 md:ml-0">
           <button type="button" class="btn-ghost w-9 px-0 md:hidden" aria-label="Buscar" @click="searchOpen = true"><MagnifyingGlassIcon class="h-5 w-5" /></button>
-          <div v-if="syncLabel" class="hidden items-center gap-2 whitespace-nowrap rounded-full border border-line px-3 py-1.5 text-[12px] text-ink-2 xl:flex" role="status" data-test="topo-sync">
+          <div v-if="syncLabel" class="hidden items-center gap-2 whitespace-nowrap rounded-full border border-line px-3 py-1.5 text-[13px] text-ink-2 xl:flex" role="status" data-test="topo-sync">
             <span class="h-2 w-2 rounded-full" :class="syncTone" aria-hidden="true" />
             {{ syncLabel }}
             <button v-if="header.state.onRefresh" type="button" class="-mr-1 rounded-full p-0.5 text-ink-3 hover:bg-surface-2 hover:text-ink" :disabled="header.state.refreshing" aria-label="Atualizar agora" data-test="topo-atualizar" @click="header.state.onRefresh?.()">
@@ -192,7 +192,7 @@ function toggleTheme() { theme.setTheme(isDark.value ? 'claro' : 'escuro') }
           <Menu as="div" class="relative">
             <MenuButton class="flex items-center gap-2 rounded-full p-0.5 pr-2 hover:bg-surface-2" data-test="menu-usuario">
               <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-[12px] font-bold text-primary-ink">{{ initials(session.user?.name) }}</span>
-              <span class="hidden max-w-[120px] truncate text-[13px] font-medium text-ink lg:block">{{ session.user?.name }}</span>
+              <span class="hidden max-w-[120px] truncate text-[14px] font-semibold text-ink lg:block">{{ session.user?.name }}</span>
             </MenuButton>
             <MenuItems class="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded-panel border border-line bg-surface p-1.5 shadow-lift focus:outline-none">
               <div class="px-3 py-2">

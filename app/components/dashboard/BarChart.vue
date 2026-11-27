@@ -49,7 +49,7 @@ function bar(i: number, v: number) {
     </svg>
     <div
       v-if="hover !== null"
-      class="pointer-events-none absolute top-0 z-10 rounded-card border border-line bg-surface px-2.5 py-1.5 text-[12px] shadow-lift"
+      class="pointer-events-none absolute top-0 z-10 rounded-card border border-line bg-surface px-2.5 py-1.5 text-[13px] shadow-lift"
       :style="{ left: `${Math.min(PAD.left + hover * slot, width - 130)}px` }"
     >
       <span class="text-ink-3">{{ shortDate(labels[hover] ?? '') }}</span> · <span class="font-semibold text-ink">{{ format(values[hover] ?? 0) }}</span>

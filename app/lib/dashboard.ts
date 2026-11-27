@@ -99,9 +99,9 @@ export function attentionItems(input: AttentionInput): AttentionItem[] {
   if (a?.questions) items.push({ key: 'questions', label: 'Perguntas sem resposta', detail: 'Responder rápido ajuda a vender', count: a.questions, to: '/perguntas', tone: 'danger' })
   if (a?.messages) items.push({ key: 'messages', label: 'Mensagens de compradores', detail: 'Pós-venda aguardando', count: a.messages, to: '/mensagens', tone: 'warning' })
   const p = input.promotions
-  if (p?.below_min) items.push({ key: 'promo_below', label: 'Promoções abaixo da margem mínima', detail: 'Vendendo com margem menor que a sua regra', count: p.below_min, to: '/promocoes', tone: 'warning' })
-  if (p?.to_switch) items.push({ key: 'promo_switch', label: 'Ofertas melhores disponíveis', detail: 'Trocar de promoção aumenta o lucro', count: p.to_switch, to: '/promocoes', tone: 'info' })
-  if (p?.to_review) items.push({ key: 'promo_review', label: 'Promoções para revisar', detail: 'Barradas pelas regras', count: p.to_review, to: '/promocoes', tone: 'warning' })
+  if (p?.below_min) items.push({ key: 'promo_below', label: 'Promoções abaixo da margem mínima', detail: 'Vendendo com margem menor que a sua regra', count: p.below_min, to: '/promocoes?aba=decidir&filtro=abaixo_minima', tone: 'warning' })
+  if (p?.to_switch) items.push({ key: 'promo_switch', label: 'Ofertas melhores disponíveis', detail: 'Trocar de promoção aumenta o lucro', count: p.to_switch, to: '/promocoes?aba=decidir&filtro=trocar', tone: 'info' })
+  if (p?.to_review) items.push({ key: 'promo_review', label: 'Promoções para revisar', detail: 'Barradas pelas regras', count: p.to_review, to: '/promocoes?aba=decidir&filtro=para_revisar', tone: 'warning' })
   for (const al of input.alerts ?? []) {
     if (!al.count) continue
     items.push({ key: `alert_${al.key}`, label: al.title, detail: al.description, count: al.count, to: ALERT_LINKS[al.key] ?? '/anuncios', tone: al.severity === 'bad' ? 'danger' : al.severity === 'warn' ? 'warning' : 'info' })
