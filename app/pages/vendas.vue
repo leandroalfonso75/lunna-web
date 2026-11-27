@@ -27,11 +27,9 @@ const sales = useSales()
 /** Layout novo (27/11/2026): guias por situação do envio, filtros em chips e período numa linha (mesmos filtros). */
 const layoutPref = useLayoutPref()
 const isNew = computed(() => layoutPref.pref.value === 'novo')
-/** Colunas de custo (tarifa, frete, cupom, imposto, despesas, custo): no layout novo, só a partir de 1536 px (com a
- * fonte maior não cabem em 1366); continuam no detalhe da venda. */
-const hideCls = computed(() => (isNew.value ? 'max-2xl:hidden' : 'max-xl:hidden'))
-// larguras no layout novo (o Tailwind lê estas classes daqui): max-2xl:w-[24%] max-2xl:w-[14%]
-const colWidth = (w: string) => (isNew.value ? w.replaceAll('max-xl:', 'max-2xl:') : w)
+/** Colunas de custo: as mesmas do layout atual em qualquer largura (o layout novo nunca mostra menos informação). */
+const hideCls = 'max-xl:hidden'
+const colWidth = (w: string) => w
 const { filters, response, loading, stale, loadError, details, syncing, syncMessage } = sales
 
 const header = usePageHeader()

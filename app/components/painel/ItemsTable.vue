@@ -298,7 +298,7 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
 
     <div v-if="!loadError" class="card overflow-hidden">
       <div>
-        <table class="w-full table-fixed border-collapse text-[12px]">
+        <table class="nv-dense w-full table-fixed border-collapse text-[12px]">
           <thead>
             <tr class="border-b border-line">
               <th

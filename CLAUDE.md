@@ -24,6 +24,10 @@ Front-end do Lunna, painel para vendedores do Mercado Livre. A API fica em `lunn
 4. Sem barra de rolagem horizontal nas tabelas; telas pequenas escondem colunas secundárias.
 5. Segredos nunca entram no front nem no git.
 6. O Lunna é multi-conta: nada da Lunna Shop (loja piloto) fixo nos textos ou sugestões (SKU, prefixos, exemplos).
+7. Layout novo (`layouts/novo.vue`, peças em `components/nv`): as páginas ocupam a largura total ao lado do menu (sem
+   largura máxima nem recuo largo). O layout novo nunca reduz a largura útil nem a quantidade de informação visível
+   (colunas, cartões) em relação ao layout atual na mesma resolução; tabelas mantêm a fonte e as colunas do atual.
+   Conferir em 1366, 1536 e 1920 comparando com o layout atual (pedido do usuário em 27/11/2026).
 
 ## Comandos
 - Instalar: `npm install`. Rodar: `npm run dev` (porta 3000; a API local em `http://127.0.0.1:3100`).

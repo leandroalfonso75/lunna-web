@@ -6,6 +6,8 @@ import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import ItemsTable from '../components/painel/ItemsTable.vue'
 import ListingFilterSelect from '../components/painel/ListingFilterSelect.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
+import NvTabs from '../components/nv/NvTabs.vue'
+import { useLayoutPref } from '../composables/useLayoutPref'
 import { useSessionStore } from '../stores/session'
 
 /**
@@ -43,6 +45,15 @@ const SALES_OPTIONS = [
   { value: 'custom', label: 'Personalizado' }
 ]
 
+/** Layout novo (27/11/2026): guias com explicação e os dois filtros num painel só. */
+const layoutPref = useLayoutPref()
+const isNew = computed(() => layoutPref.pref.value === 'novo')
+const NEW_TABS = [
+  { key: 'todos', label: 'Todos os anúncios', hint: 'Todos os anúncios, com custos, lucro antes e depois do Ads, cobertura de estoque e edição em massa.' },
+  { key: 'catalogo', label: 'Catálogo', hint: 'Anúncios de catálogo: sincronização com o tradicional e quem está ganhando a vitrine.' },
+  { key: 'tradicional', label: 'Tradicional', hint: 'Só os anúncios que não são de catálogo, dizendo se cada um é sincronizado com um de catálogo.' }
+]
+
 const created = ref<string | null>(null)
 const sales = ref<string | null>(null)
 const createdOlderThan = computed(() => (created.value ? Number(created.value) : null))
@@ -60,7 +71,7 @@ function salesSummary(v: string) {
   <div v-else class="page space-y-6">
     <PageHeader />
 
-    <div class="space-y-2">
+    <div :class="isNew ? 'flex flex-wrap items-start gap-x-8 gap-y-3 rounded-panel border border-line bg-surface px-4 py-3 shadow-card' : 'space-y-2'" data-test="filtros-anuncios">
       <ListingFilterSelect
         v-model="created" input-id="criados-ha" label="Anúncios criados há mais de" :options="CREATED_OPTIONS"
         custom-unit="dias" custom-placeholder="ex.: 45" :max-digits="5" :max-value="36500" :summary="createdSummary" test-id="filtro-criacao"
@@ -75,7 +86,8 @@ function salesSummary(v: string) {
       </ListingFilterSelect>
     </div>
 
-    <div class="flex gap-1 border-b border-line" role="tablist" aria-label="Abas de anúncios">
+    <NvTabs v-if="isNew" :tabs="NEW_TABS" :model-value="tab" label="Abas de anúncios" @update:model-value="(v) => (tab = v as typeof tab)" />
+    <div v-else class="flex gap-1 border-b border-line" role="tablist" aria-label="Abas de anúncios">
       <button
         v-for="t in TABS" :key="t.value"
         type="button" role="tab" :aria-selected="tab === t.value"

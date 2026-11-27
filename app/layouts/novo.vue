@@ -77,7 +77,7 @@ function toggleTheme() { theme.setTheme(isDark.value ? 'claro' : 'escuro') }
     <!-- Menu lateral (>= 1024px) -->
     <aside
       class="nv hidden bg-nav-bg text-nav-ink transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 lg:flex-col"
-      :class="collapsed ? 'lg:w-[72px]' : 'lg:w-[248px]'"
+      :class="collapsed ? 'lg:w-[72px]' : 'lg:w-[232px]'"
       data-test="menu-novo"
     >
       <div class="flex h-16 items-center gap-2.5 px-4" :class="collapsed ? 'flex-col justify-center gap-1 px-0 py-2' : ''">

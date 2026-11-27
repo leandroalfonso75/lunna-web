@@ -302,8 +302,10 @@ a {
   .seg-btn-active {
     @apply seg-btn bg-surface text-ink shadow-card;
   }
+  /* Regra do layout novo (27/11/2026, pedido do usuário): a página ocupa a LARGURA TOTAL ao lado do menu, com respiro
+     lateral pequeno. O layout novo nunca reduz a largura útil nem a informação visível em relação ao layout atual. */
   .page-new {
-    @apply mx-auto w-full max-w-[1600px] px-4 py-6 md:px-6 lg:px-8;
+    @apply w-full px-4 py-6 md:px-6;
   }
 
   /* ---- Novo layout, 2ª rodada (27/11/2026): botões vivos, chips, selos e guias ----
@@ -485,16 +487,23 @@ a {
    Leva a base visual do layout novo (aprovada em Promoções) a TODAS as telas, sem mudar conteúdo nem organização:
    fonte maior, cartões com sombra, botões vivos, abas e selos. Vale só dentro de `.layout-novo` (o layout atual não
    muda). As telas já refeitas (`.page-new`) e a casca (`.nv`) têm tamanhos próprios e ficam fora do aumento de fonte. */
-.layout-novo .text-\[10px\]:not(.nv *):not(.page-new *) { font-size: 11.5px; }
-.layout-novo .text-\[10\.5px\]:not(.nv *):not(.page-new *) { font-size: 12px; }
-.layout-novo .text-\[11px\]:not(.nv *):not(.page-new *) { font-size: 12.5px; }
-.layout-novo .text-\[12px\]:not(.nv *):not(.page-new *) { font-size: 13.5px; }
-.layout-novo .text-\[13px\]:not(.nv *):not(.page-new *) { font-size: 14px; }
-.layout-novo .text-\[20px\]:not(.nv *):not(.page-new *) { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+.layout-novo .text-\[10px\]:not(.nv *):not(.page-new *):not(table):not(table *) { font-size: 11.5px; }
+.layout-novo .text-\[10\.5px\]:not(.nv *):not(.page-new *):not(table):not(table *) { font-size: 12px; }
+.layout-novo .text-\[11px\]:not(.nv *):not(.page-new *):not(table):not(table *) { font-size: 12.5px; }
+.layout-novo .text-\[12px\]:not(.nv *):not(.page-new *):not(table):not(table *) { font-size: 13.5px; }
+.layout-novo .text-\[13px\]:not(.nv *):not(.page-new *):not(table):not(table *) { font-size: 14px; }
+.layout-novo .text-\[20px\]:not(.nv *):not(.page-new *):not(table):not(table *) { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
 
-.layout-novo .page:not(.page-new) {
-  max-width: 1600px;
-  margin-inline: auto;
+/* Largura total (regra do layout novo): o `.page` das telas antigas perde o recuo lateral largo do layout atual. */
+.layout-novo .page {
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: 24px;
+}
+@media (max-width: 767px) {
+  .layout-novo .page {
+    padding-inline: 12px;
+  }
 }
 .layout-novo .card:not(.nv *) {
   border-radius: 14px;
@@ -561,14 +570,8 @@ a {
 .layout-novo .pill:not(.nv *) { font-size: 13.5px; font-weight: 600; }
 
 /* tabelas: cabeçalho em caixa-alta discreta e linhas com respiro */
-.layout-novo .card table:not(.nv *) thead th,
-.layout-novo .panel table:not(.nv *) thead th {
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-2);
-}
+/* tabelas: mesmo tamanho de fonte e mesmas colunas do layout atual (a fonte maior não pode custar colunas);
+   só ganham o fundo no cabeçalho */
 .layout-novo .card table:not(.nv *) thead tr { background: var(--surface-2); }
 .layout-novo table:not(.nv *) tbody tr { transition: background-color 120ms; }
 
