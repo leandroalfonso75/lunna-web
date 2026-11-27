@@ -153,6 +153,13 @@ function removeVariation(i: number) {
   form.variations = form.variations.filter((_, k) => k !== i)
 }
 const rowKey = (v: Variation, i: number) => v.key ?? `nova-${i}`
+// "Repetir em todas" (26/11/2026): o preço ou o estoque inicial da 1ª variação vai para todas as outras (substitui)
+const hasValue = (x: unknown) => x !== null && x !== undefined && x !== ''
+function repeatFirst(field: 'price' | 'stock') {
+  const value = form.variations[0]?.[field]
+  if (!hasValue(value)) return
+  form.variations = form.variations.map((v) => ({ ...v, [field]: value }))
+}
 const AXIS_PLACEHOLDERS: Record<string, string> = { Cor: 'Azul, Verde, Preto', Tamanho: 'P, M, G, GG', Voltagem: '127V, 220V', Tom: '104, 105, 109' }
 // quantas variações a grade vai ter (produto dos valores de cada tipo)
 const gridPreview = computed(() => {
@@ -370,8 +377,18 @@ const TABS = [
                 <td class="px-2 py-1 font-semibold text-ink">{{ variationLabel(v) }}</td>
                 <td class="px-2 py-1"><input v-model="v.sku" class="input h-8" :disabled="!canEdit" data-test="variacao-sku" /></td>
                 <td class="px-2 py-1"><input v-model="v.gtin" class="input h-8" :class="v.gtin && !validGtin(v.gtin) ? 'border-danger' : ''" :disabled="!canEdit" data-test="variacao-ean" /></td>
-                <td class="px-2 py-1"><input v-model.number="v.price" type="number" step="0.01" min="0" class="input h-8 w-28" :disabled="!canEdit" /></td>
-                <td class="px-2 py-1"><input v-model.number="v.stock" type="number" step="1" min="0" class="input h-8 w-24" :disabled="!canEdit" placeholder="opcional" /></td>
+                <td class="px-2 py-1">
+                  <div class="flex items-center gap-1">
+                    <input v-model.number="v.price" type="number" step="0.01" min="0" class="input h-8 w-28" :disabled="!canEdit" data-test="variacao-preco" />
+                    <button v-if="canEdit && i === 0 && hasValue(v.price) && form.variations.length > 1" type="button" class="btn-link whitespace-nowrap p-0 text-[12px]" data-test="repetir-preco" @click="repeatFirst('price')">Repetir em todas</button>
+                  </div>
+                </td>
+                <td class="px-2 py-1">
+                  <div class="flex items-center gap-1">
+                    <input v-model.number="v.stock" type="number" step="1" min="0" class="input h-8 w-24" :disabled="!canEdit" placeholder="opcional" data-test="variacao-estoque" />
+                    <button v-if="canEdit && i === 0 && hasValue(v.stock) && form.variations.length > 1" type="button" class="btn-link whitespace-nowrap p-0 text-[12px]" data-test="repetir-estoque" @click="repeatFirst('stock')">Repetir em todas</button>
+                  </div>
+                </td>
                 <td class="px-2 py-1">
                   <label class="flex items-center gap-1">
                     <input v-model="v.kit" type="checkbox" :disabled="!canEdit" data-test="variacao-kit" @change="v.kit && (openKitRow = rowKey(v, i))" />

@@ -141,4 +141,20 @@ describe('CatalogProductEditor', () => {
     await w.get('[data-test="eixo-adicionar"]').trigger('click')
     expect(w.find('[data-test="adicionar-tipo"]').exists()).toBe(false) // limite de 3 tipos
   })
+
+  it('"Repetir em todas": o preço e o estoque da 1ª variação vão para todas as outras', async () => {
+    asAdmin()
+    const row = (cor: string, price: number | null) => ({ attrs: { Cor: cor }, sku: null, gtin: null, price, stock: null, kit: false, components: [] })
+    const w = mount(CatalogProductEditor, { props: { product: product({ kind: 'variations', variation_axes: ['Cor'], variations: [row('Azul', null), row('Verde', 50), row('Preto', null)] }) } })
+
+    expect(w.find('[data-test="repetir-preco"]').exists()).toBe(false) // só aparece com o 1º preço preenchido
+    await w.findAll('[data-test="variacao-preco"]')[0]!.setValue('129.9')
+    await w.findAll('[data-test="variacao-estoque"]')[0]!.setValue('5')
+    expect(w.findAll('[data-test="repetir-preco"]')).toHaveLength(1)
+
+    await w.get('[data-test="repetir-preco"]').trigger('click')
+    await w.get('[data-test="repetir-estoque"]').trigger('click')
+    expect(w.findAll('[data-test="variacao-preco"]').map((i) => (i.element as HTMLInputElement).value)).toEqual(['129.9', '129.9', '129.9']) // substitui o 50
+    expect(w.findAll('[data-test="variacao-estoque"]').map((i) => (i.element as HTMLInputElement).value)).toEqual(['5', '5', '5'])
+  })
 })
