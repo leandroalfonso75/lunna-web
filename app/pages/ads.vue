@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, watchEffect } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watchEffect } from 'vue'
+import NvNotice from '../components/nv/NvNotice.vue'
+import NvPeriod from '../components/nv/NvPeriod.vue'
+import NvTabs from '../components/nv/NvTabs.vue'
+import { useLayoutPref } from '../composables/useLayoutPref'
 import AdsAnalysisPanel from '../components/ads/AdsAnalysisPanel.vue'
 import AdsItemsTable from '../components/ads/AdsItemsTable.vue'
 import AdsSummary from '../components/ads/AdsSummary.vue'
@@ -46,6 +50,23 @@ function onDate(which: 'from' | 'to', event: Event) {
   ads.setCustomRange(which === 'from' ? value : range.from, which === 'to' ? value : range.to)
 }
 
+/** Layout novo (27/11/2026): período numa linha, guias com contador e explicação (a Análise, que pede ação, primeiro). */
+const layoutPref = useLayoutPref()
+const isNew = computed(() => layoutPref.pref.value === 'novo')
+const newTabs = computed(() => [
+  { key: 'analise', label: 'Análise e ações', count: analysis.value?.queue.length ?? null, alert: true,
+    hint: 'O que fazer nos Ads agora: saúde da conta, fila de ações por valor em jogo e as ações feitas que chegaram na hora de revisar. Só recomenda; nada muda sozinho.' },
+  { key: 'campanhas', label: 'Campanhas', count: overview.value?.campaigns.length ?? null, hint: 'Cada campanha com investimento, vendas, ACOS e ROAS do período. "Ver anúncios" abre os anúncios dela.' },
+  { key: 'anuncios', label: 'Anúncios', count: overview.value?.sync.ads ?? null, hint: 'Cada anúncio em Ads, com busca e filtros por campanha e situação.' }
+])
+const dueReviews = computed(() => analysis.value?.history?.filter((h) => h.due).length ?? 0)
+function onPeriod(value: string) {
+  ads.setPeriod(value)
+}
+function onRange(which: 'from' | 'to', value: string) {
+  ads.setCustomRange(which === 'from' ? value : range.from, which === 'to' ? value : range.to)
+}
+
 const TABS = [
   { value: 'campanhas' as const, label: 'Campanhas' },
   { value: 'anuncios' as const, label: 'Anúncios' },
@@ -56,9 +77,20 @@ const TABS = [
 <template>
   <EmptyAccountState v-if="!session.selectedAccount" />
   <div v-else class="page space-y-5">
-    <PageHeader />
+    <PageHeader>
+      <template v-if="isNew && session.isAdmin" #actions>
+        <button type="button" class="btn-secondary" :disabled="syncing" data-test="atualizar-ml" @click="ads.syncNow">{{ syncing ? 'Pedindo…' : 'Atualizar do Mercado Livre' }}</button>
+      </template>
+    </PageHeader>
 
-    <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Período">
+    <template v-if="isNew">
+      <NvPeriod :periods="PERIODS" :period="range.period" :from="range.from" :to="range.to" @period="onPeriod" @range="onRange">
+        <span v-if="overview?.sync.recent_sync_at || overview?.sync.last_sync_at" class="text-[13px] text-ink-3">Lidos do ML em {{ dateTimeShort(overview.sync.recent_sync_at ?? overview.sync.last_sync_at) }}</span>
+      </NvPeriod>
+      <NvNotice v-if="syncMessage">{{ syncMessage }}</NvNotice>
+      <NvNotice v-if="stale" tone="warning">Não foi possível atualizar agora — mostrando os últimos dados.</NvNotice>
+    </template>
+    <div v-else class="flex flex-wrap items-center gap-2" role="group" aria-label="Período">
       <button
         v-for="p in PERIODS"
         :key="p.value"
@@ -79,8 +111,8 @@ const TABS = [
         {{ syncing ? 'Pedindo…' : 'Atualizar do Mercado Livre agora' }}
       </button>
     </div>
-    <p v-if="syncMessage" class="text-[13px] text-ink-2" role="status">{{ syncMessage }}</p>
-    <p v-if="stale" role="status" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning">
+    <p v-if="syncMessage && !isNew" class="text-[13px] text-ink-2" role="status">{{ syncMessage }}</p>
+    <p v-if="stale && !isNew" role="status" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning">
       Não foi possível atualizar agora — mostrando os últimos dados.
     </p>
 
@@ -97,7 +129,11 @@ const TABS = [
         Ainda não há campanhas lidas para esta conta. {{ session.isAdmin ? 'Use "Atualizar do Mercado Livre agora".' : 'Peça a um administrador para atualizar.' }}
       </p>
 
-      <div class="flex gap-1 border-b border-line" role="tablist">
+      <template v-if="isNew">
+        <NvTabs :tabs="newTabs" :model-value="tab" label="Guias de Ads" @update:model-value="(v) => (tab = v as typeof tab)" />
+        <p v-if="dueReviews" class="-mt-1 px-1 text-[13px] font-semibold text-primary">{{ dueReviews }} {{ dueReviews === 1 ? 'ação feita chegou' : 'ações feitas chegaram' }} na hora de revisar (em Análise e ações).</p>
+      </template>
+      <div v-else class="flex gap-1 border-b border-line" role="tablist">
         <button
           v-for="t in TABS"
           :key="t.value"

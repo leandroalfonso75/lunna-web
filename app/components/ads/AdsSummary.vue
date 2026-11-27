@@ -1,9 +1,32 @@
 <script setup lang="ts">
+import { ArrowTrendingUpIcon, BanknotesIcon, CursorArrowRaysIcon, EyeIcon, FunnelIcon, MegaphoneIcon, ReceiptPercentIcon, ShoppingBagIcon } from '@heroicons/vue/24/outline'
 import { computed } from 'vue'
+import KpiTile from '../dashboard/KpiTile.vue'
+import TrendChart from '../dashboard/TrendChart.vue'
+import { useLayoutPref } from '../../composables/useLayoutPref'
+import { delta as dashDelta } from '../../lib/dashboard'
 import { brl, int, pct } from '../../lib/format'
 import type { AdsDay, AdsMetrics } from '../../types/ads'
 
 const props = defineProps<{ summary: AdsMetrics; previous: AdsMetrics | null; daily: AdsDay[] }>()
+/** Layout novo (27/11/2026): cartões com ícone e variação (seta + texto + cor) e gráfico de linhas com dica por dia. */
+const layoutPref = useLayoutPref()
+const isNew = computed(() => layoutPref.pref.value === 'novo')
+const ICONS: Record<string, unknown> = { cost: MegaphoneIcon, amount: BanknotesIcon, acos: ReceiptPercentIcon, roas: ArrowTrendingUpIcon, clicks: CursorArrowRaysIcon, prints: EyeIcon, cvr: FunnelIcon, organic: ShoppingBagIcon }
+const BETTER: Record<string, boolean | null> = { cost: null, amount: true, acos: false, roas: true, clicks: true, prints: true, cvr: true, organic: null }
+const VALUES: Record<string, (m: AdsMetrics) => number | null> = {
+  cost: (m) => m.cost, amount: (m) => m.total_amount, acos: (m) => m.acos, roas: (m) => m.roas, clicks: (m) => m.clicks, prints: (m) => m.prints, cvr: (m) => m.cvr, organic: () => null
+}
+/** Variação do layout novo: investimento sobe/desce sem ser bom nem ruim (neutro). */
+function newDelta(key: string) {
+  const d = dashDelta(VALUES[key]!(props.summary), props.previous ? VALUES[key]!(props.previous) : null, BETTER[key] !== false)
+  if (!d) return null
+  return BETTER[key] === null ? { ...d, good: null } : d
+}
+const trend = computed(() => [
+  { key: 'amount', label: 'Vendas por Ads', color: 'var(--chart-1)', values: props.daily.map((d) => d.total_amount), area: true },
+  { key: 'cost', label: 'Investimento', color: 'var(--chart-2)', values: props.daily.map((d) => d.cost) }
+])
 
 type Better = 'up' | 'down' | 'none'
 
@@ -42,7 +65,20 @@ function dayLabel(date: string): string {
 </script>
 
 <template>
-  <section class="space-y-4" aria-label="Resumo de publicidade">
+  <section v-if="isNew" class="nv space-y-4" aria-label="Resumo de publicidade">
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <KpiTile v-for="card in cards" :key="card.key" :label="card.label" :value="card.value" :hint="card.hint" :icon="ICONS[card.key] as never" :delta="newDelta(card.key)" :data-test="`kpi-${card.key}`" />
+    </div>
+    <div class="panel p-5">
+      <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <p class="panel-title">Investimento e vendas por dia</p>
+        <p class="panel-sub">Variação dos cartões: contra o período anterior de mesmo tamanho</p>
+      </div>
+      <TrendChart v-if="daily.length" :labels="daily.map((d) => d.date)" :series="trend" :format="brl" :height="240" caption="Vendas por Ads e investimento por dia" />
+      <p v-else class="py-12 text-center text-[14px] text-ink-3">Sem dados de Ads no período.</p>
+    </div>
+  </section>
+  <section v-else class="space-y-4" aria-label="Resumo de publicidade">
     <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
       <div v-for="card in cards" :key="card.key" class="card p-4" :data-test="`kpi-${card.key}`">
         <p class="text-[12px] font-medium text-ink-2">{{ card.label }}</p>
