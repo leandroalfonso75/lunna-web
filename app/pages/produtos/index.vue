@@ -88,6 +88,7 @@ watchEffect(() => {
           <template v-else>Ainda sem sincronização.</template>
         </p>
       </div>
+      <div class="flex shrink-0 flex-wrap items-center gap-2">
       <NuxtLink
         v-if="session.isAdmin"
         to="/produtos/ia/novo"
@@ -108,6 +109,7 @@ watchEffect(() => {
         <ArrowPathIcon class="h-4 w-4" :class="{ 'animate-spin': olist.syncing.value }" aria-hidden="true" />
         Atualizar agora
       </button>
+      </div>
     </header>
 
     <section v-if="lunnaProducts.length" class="card overflow-hidden" data-test="produtos-lunna">

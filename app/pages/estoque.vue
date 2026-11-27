@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
+import { ArchiveBoxIcon, BanknotesIcon, ClockIcon, CubeIcon, ExclamationTriangleIcon, PaperAirplaneIcon, ShoppingCartIcon, TruckIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon  } from '@heroicons/vue/24/outline'
+import KpiTile from '../components/dashboard/KpiTile.vue'
+import NvChips from '../components/nv/NvChips.vue'
+import NvTabs from '../components/nv/NvTabs.vue'
+import { useLayoutPref } from '../composables/useLayoutPref'
 import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
@@ -125,6 +129,31 @@ const fullCards = computed(() => {
 })
 const cards = computed(() => (tab.value === 'deposito' ? depotCards.value : fullCards.value))
 
+/** Layout novo (27/11/2026): guias com explicação, cartões com ícone que levam ao filtro e filtros em chips. */
+const layoutPref = useLayoutPref()
+const isNew = computed(() => layoutPref.pref.value === 'novo')
+const NEW_TABS = [
+  { key: 'full', label: 'Full e reposição', hint: 'O que o Mercado Livre pede para repor no Full, o que dá para enviar já com o depósito e o que falta comprar.' },
+  { key: 'deposito', label: 'Depósito (ERP)', hint: 'Estoque do depósito do ERP: valor, cobertura em dias de venda, sem estoque e parados.' }
+]
+const CARD_ICONS: Record<string, unknown> = {
+  'Valor no depósito': BanknotesIcon, 'Valor no Full': TruckIcon, 'Sem estoque': ExclamationTriangleIcon, 'Cobertura baixa': ClockIcon, Parados: ArchiveBoxIcon,
+  'Para repor': CubeIcon, 'Unidades sugeridas': CubeIcon, 'Dá para enviar já': PaperAirplaneIcon, 'Falta comprar': ShoppingCartIcon, 'Receita perdida': BanknotesIcon
+}
+/** Cartão → filtro da lista (quando existe um filtro equivalente). */
+const CARD_VIEW: Record<string, { tab: 'full' | 'deposito'; view: string }> = {
+  'Sem estoque': { tab: 'deposito', view: 'sem_estoque' }, 'Cobertura baixa': { tab: 'deposito', view: 'baixo' }, Parados: { tab: 'deposito', view: 'parado' },
+  'Para repor': { tab: 'full', view: 'repor' }, 'Falta comprar': { tab: 'full', view: 'falta_comprar' }
+}
+function openCard(label: string) {
+  const v = CARD_VIEW[label]
+  if (!v) return
+  if (v.tab === 'full') { fullFilters.view = v.view; fullFilters.page = 1 } else { depotFilters.view = v.view; depotFilters.page = 1 }
+  reload()
+}
+const fullChips = computed(() => FULL_VIEWS.map((v) => ({ value: v.value, label: v.label, tone: v.value === 'urgente' ? 'danger' as const : v.value === 'falta_comprar' ? 'warning' as const : undefined })))
+const depotChips = computed(() => DEPOT_VIEWS.map((v) => ({ value: v.value, label: v.label, tone: v.value === 'sem_estoque' ? 'danger' as const : v.value === 'baixo' ? 'warning' as const : undefined })))
+
 function weekLabel(h: StockFullRow['history'][number]) {
   return `${h.start_date.slice(8, 10)}/${h.start_date.slice(5, 7)}`
 }
@@ -147,7 +176,8 @@ watchEffect(() => {
   <div v-else class="page space-y-5" data-test="estoque">
     <PageHeader />
 
-    <div class="flex flex-wrap items-end gap-1 border-b-2 border-line" role="tablist" aria-label="Estoque">
+    <NvTabs v-if="isNew" :tabs="NEW_TABS" :model-value="tab" label="Estoque" @update:model-value="(v) => (tab = v as typeof tab)" />
+    <div v-else class="flex flex-wrap items-end gap-1 border-b-2 border-line" role="tablist" aria-label="Estoque">
       <button v-for="t in [{ key: 'full', label: 'Full e reposição' }, { key: 'deposito', label: 'Depósito (ERP)' }] as const" :key="t.key" type="button" role="tab"
         class="-mb-0.5 rounded-t-card border-b-4 px-5 py-2 text-[15px] font-semibold"
         :class="tab === t.key ? 'border-primary bg-primary-soft text-primary' : 'border-transparent text-ink-2 hover:bg-surface-2'"
@@ -159,7 +189,12 @@ watchEffect(() => {
 
     <p v-if="error" class="text-[13px] text-danger" role="alert">{{ error }}</p>
 
-    <div v-if="cards.length" class="grid grid-cols-2 gap-3 md:grid-cols-5">
+    <div v-if="cards.length && isNew" class="nv grid grid-cols-2 gap-3 md:grid-cols-5">
+      <component :is="CARD_VIEW[c.label] ? 'button' : 'div'" v-for="c in cards" :key="c.label" :type="CARD_VIEW[c.label] ? 'button' : undefined" class="text-left" :data-test="`kpi-${c.label}`" @click="openCard(c.label)">
+        <KpiTile :label="c.label" :value="c.value" :hint="c.hint" :icon="CARD_ICONS[c.label] as never" class="h-full" :class="CARD_VIEW[c.label] ? 'cursor-pointer hover:border-primary hover:shadow-lift' : ''" />
+      </component>
+    </div>
+    <div v-else-if="cards.length" class="grid grid-cols-2 gap-3 md:grid-cols-5">
       <div v-for="c in cards" :key="c.label" class="card p-4">
         <p class="text-[12px] font-medium text-ink-2">{{ c.label }}</p>
         <p class="mt-1 text-[20px] font-semibold leading-tight" :class="c.tone || 'text-ink'" data-numeric>{{ c.value }}</p>
@@ -177,7 +212,11 @@ watchEffect(() => {
           @input="fullFilters.page = 1; reload(true)"
         />
       </div>
-      <div class="flex flex-wrap items-center gap-2">
+      <div v-if="isNew" class="flex flex-wrap items-center gap-2">
+        <NvChips :chips="fullChips" :model-value="fullFilters.view" label="Mostrar" test-prefix="full" @update:model-value="(v) => { fullFilters.view = v; fullFilters.page = 1; reload() }" />
+        <button v-if="session.isAdmin" type="button" class="btn-secondary ml-auto" @click="syncFull">Reler do Mercado Livre</button>
+      </div>
+      <div v-else class="flex flex-wrap items-center gap-2">
         <button v-for="v in FULL_VIEWS" :key="v.value" type="button" class="rounded-md px-2.5 py-1 text-[13px]"
           :class="fullFilters.view === v.value ? 'bg-primary-soft font-semibold text-primary' : 'text-ink-2 hover:bg-surface-2'"
           @click="fullFilters.view = v.value; fullFilters.page = 1; reload()">{{ v.label }}</button>
@@ -279,7 +318,8 @@ watchEffect(() => {
         />
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button v-for="v in DEPOT_VIEWS" :key="v.value" type="button" class="rounded-md px-2.5 py-1 text-[13px]"
+        <NvChips v-if="isNew" :chips="depotChips" :model-value="depotFilters.view" label="Mostrar" test-prefix="deposito" @update:model-value="(v) => { depotFilters.view = v; depotFilters.page = 1; reload() }" />
+        <button v-for="v in (isNew ? [] : DEPOT_VIEWS)" :key="v.value" type="button" class="rounded-md px-2.5 py-1 text-[13px]"
           :class="depotFilters.view === v.value ? 'bg-primary-soft font-semibold text-primary' : 'text-ink-2 hover:bg-surface-2'"
           @click="depotFilters.view = v.value; depotFilters.page = 1; reload()">{{ v.label }}</button>
         <select v-model="depotFilters.sort" class="input ml-auto h-9 w-60" @change="depotFilters.page = 1; reload()">

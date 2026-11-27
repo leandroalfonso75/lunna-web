@@ -213,7 +213,7 @@ const titleOf = (id: string) => response.value?.items.find((i) => i.id === id)?.
     </div>
 
     <template v-else>
-      <nav class="tab-bar" aria-label="Abas de status">
+      <nav class="tab-bar tab-bar-sub" aria-label="Abas de status">
         <button
           v-for="tab in STATUS_TABS"
           :key="tab.value"
