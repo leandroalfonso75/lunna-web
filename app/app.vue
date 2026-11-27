@@ -1,5 +1,13 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useLayoutPref } from './composables/useLayoutPref'
 import { themeAntiFlashScript } from './lib/theme'
+
+// Novo layout (27/11/2026): a casca nova (`layouts/novo.vue`) ou a de antes (`default`), pela preferência salva no
+// navegador; página sem layout (login, cadastro) continua sem.
+const route = useRoute()
+const layoutPref = useLayoutPref()
+const layoutName = computed(() => (route.meta.layout === false ? false : layoutPref.pref.value === 'novo' ? 'novo' : 'default'))
 
 /**
  * `titleTemplate` como função (o tipo de `app.head` no `nuxt.config` só
@@ -28,7 +36,7 @@ useHead({
 <template>
   <div>
     <NuxtRouteAnnouncer />
-    <NuxtLayout>
+    <NuxtLayout :name="layoutName">
       <NuxtPage />
     </NuxtLayout>
   </div>

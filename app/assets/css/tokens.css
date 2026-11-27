@@ -34,6 +34,16 @@
   --info: #2f66c8;
   --info-soft: #e4ecfa;
 
+  /* Novo layout (27/11/2026): gráficos e menu lateral. Azul + laranja passaram no validador de daltonismo. */
+  --chart-1: #2d5bff;
+  --chart-2: #eb6834;
+  --chart-grid: #e8eaf3;
+  --nav-bg: #0f1530;
+  --nav-ink: #eef1ff;
+  --nav-ink-2: #9aa3c7;
+  --nav-hover: rgba(255, 255, 255, 0.07);
+  --nav-active: rgba(107, 140, 255, 0.18);
+
   color-scheme: light;
 }
 
@@ -61,6 +71,15 @@
   --danger-soft: #3a1818;
   --info: #6d9bf0;
   --info-soft: #172542;
+
+  --chart-1: #5b7fff;
+  --chart-2: #d95926;
+  --chart-grid: #1f2850;
+  --nav-bg: #0a0f26;
+  --nav-ink: #eceef8;
+  --nav-ink-2: #8f97bb;
+  --nav-hover: rgba(255, 255, 255, 0.06);
+  --nav-active: rgba(107, 140, 255, 0.20);
 
   color-scheme: dark;
 }
@@ -238,5 +257,48 @@ a {
   }
   .empty-state {
     @apply flex flex-col items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface px-6 py-16 text-center;
+  }
+
+  /* ---- Novo layout (27/11/2026) ----
+     Painéis com sombra suave, hierarquia por tamanho/peso (não por cor), um botão primário por área. */
+  .panel {
+    @apply rounded-panel border border-line bg-surface shadow-panel;
+  }
+  .panel-head {
+    @apply flex flex-wrap items-center justify-between gap-2 px-5 pt-4;
+  }
+  .panel-title {
+    @apply text-[15px] font-semibold text-ink;
+  }
+  .panel-sub {
+    @apply text-[12px] text-ink-3;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3;
+  }
+  .kpi-value {
+    @apply text-[26px] font-semibold leading-tight tracking-tight text-ink;
+    font-variant-numeric: tabular-nums;
+  }
+  .delta-up {
+    @apply inline-flex items-center gap-0.5 rounded-full bg-success-soft px-1.5 py-0.5 text-[12px] font-semibold text-success;
+  }
+  .delta-down {
+    @apply inline-flex items-center gap-0.5 rounded-full bg-danger-soft px-1.5 py-0.5 text-[12px] font-semibold text-danger;
+  }
+  .delta-flat {
+    @apply inline-flex items-center gap-0.5 rounded-full bg-surface-2 px-1.5 py-0.5 text-[12px] font-semibold text-ink-2;
+  }
+  .seg {
+    @apply inline-flex rounded-card border border-line bg-surface-2 p-0.5;
+  }
+  .seg-btn {
+    @apply h-8 rounded-[8px] px-3 text-[13px] font-medium text-ink-2 transition-colors hover:text-ink;
+  }
+  .seg-btn-active {
+    @apply seg-btn bg-surface text-ink shadow-card;
+  }
+  .page-new {
+    @apply mx-auto w-full max-w-[1600px] px-4 py-6 md:px-6 lg:px-8;
   }
 }

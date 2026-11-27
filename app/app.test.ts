@@ -25,6 +25,9 @@ describe('app.vue — script anti-flash do tema', () => {
   beforeEach(() => {
     useHeadMock = vi.fn()
     vi.stubGlobal('useHead', useHeadMock)
+    // novo layout (27/11/2026): app.vue escolhe a casca pela preferência (cookie) e pela rota
+    vi.stubGlobal('useRoute', () => ({ meta: {} }))
+    vi.stubGlobal('useCookie', (_name: string, opts?: { default?: () => unknown }) => ({ value: opts?.default?.() }))
   })
 
   it('registra um <script> inline com o texto do anti-flash do tema', () => {

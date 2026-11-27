@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, watchEffect } from 'vue'
 import AlertsList from '../components/painel/AlertsList.vue'
+import DashboardHome from '../components/dashboard/DashboardHome.vue'
+import { useLayoutPref } from '../composables/useLayoutPref'
 import DailyChart from '../components/painel/DailyChart.vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import KpiCards from '../components/painel/KpiCards.vue'
@@ -19,6 +21,8 @@ import { useSessionStore } from '../stores/session'
 const session = useSessionStore()
 const { painel, stale, loadError, start, stop, refreshNow, refreshing } = usePainel()
 const header = usePageHeader()
+// novo layout (27/11/2026): a Visão geral redesenhada; no layout atual, a de antes
+const layoutPref = useLayoutPref()
 
 /** "AAAA-MM-DD" -> "DD/MM", sem passar por fuso (mesmo cuidado do gráfico). */
 function shortDate(iso: string): string {
@@ -43,6 +47,8 @@ onBeforeUnmount(stop)
 
 <template>
   <EmptyAccountState v-if="!session.selectedAccount" />
+
+  <DashboardHome v-else-if="layoutPref.pref.value === 'novo'" :painel="painel" :refreshing="refreshing" />
 
   <div v-else class="page space-y-6">
     <PageHeader />

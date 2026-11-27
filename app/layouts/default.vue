@@ -20,6 +20,7 @@ import {
 import { ref, watch } from 'vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { useAttention } from '../composables/useAttention'
+import { useLayoutPref } from '../composables/useLayoutPref'
 import { usePageHeader } from '../composables/usePageHeader'
 import { useToast } from '../composables/useToast'
 import { useSessionStore } from '../stores/session'
@@ -42,6 +43,8 @@ const toast = useToast()
 const header = usePageHeader()
 // ponto vermelho piscante em Reclamações, Perguntas e Mensagens quando há algo a atender
 const attention = useAttention()
+// novo layout (27/11/2026): botão para experimentar a casca nova
+const layoutPref = useLayoutPref()
 
 const NAV_SECTIONS = [
   {
@@ -165,6 +168,7 @@ watch(() => route.fullPath, closeDrawer)
       </nav>
 
       <div class="border-t border-line px-3 py-4">
+        <button type="button" class="btn-primary mb-3 w-full" data-test="experimentar-layout-novo" @click="layoutPref.setPref('novo')">Experimentar o novo layout</button>
         <div class="px-3 pb-3">
           <ThemeToggle compact />
         </div>
