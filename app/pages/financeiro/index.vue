@@ -7,6 +7,9 @@ import FinanceEntriesPanel from '../../components/financeiro/FinanceEntriesPanel
 import FinanceRepassesTab from '../../components/financeiro/FinanceRepassesTab.vue'
 import EmptyAccountState from '../../components/painel/EmptyAccountState.vue'
 import PageHeader from '../../components/painel/PageHeader.vue'
+import NvChips from '../../components/nv/NvChips.vue'
+import NvTabs from '../../components/nv/NvTabs.vue'
+import { useLayoutPref } from '../../composables/useLayoutPref'
 import { usePageHeader } from '../../composables/usePageHeader'
 import { apiErrorMessage } from '../../lib/apiErrors'
 import { brl, dateShort, dateTimeShort, int, pct } from '../../lib/format'
@@ -39,6 +42,16 @@ const TABS = [
   { key: 'geral', label: 'Visão geral e DRE' }, { key: 'receita', label: 'Receita' }, { key: 'despesas', label: 'Despesas' },
   { key: 'repasses', label: 'Repasses' }
 ] as const
+/** Layout novo (27/11/2026): guias com explicação, filtros num painel e logística em chips. */
+const layoutPref = useLayoutPref()
+const isNew = computed(() => layoutPref.pref.value === 'novo')
+const NEW_TABS = [
+  { key: 'geral', label: 'Visão geral e DRE', hint: 'O resultado do período: receita, custos, despesas e lucro, comparados com o período anterior.' },
+  { key: 'receita', label: 'Receita', hint: 'De onde veio o dinheiro: vendas por produto, logística e outras entradas.' },
+  { key: 'despesas', label: 'Despesas', hint: 'Para onde foi o dinheiro: tarifas, fretes, Ads, Full, impostos e despesas operacionais.' },
+  { key: 'repasses', label: 'Repasses', hint: 'O que o Mercado Pago liberou e vai liberar para a sua conta.' }
+]
+
 const PERIODS = [
   { value: 'today', label: 'Hoje' }, { value: 'yesterday', label: 'Ontem' }, { value: '7d', label: '7 dias' },
   { value: '30d', label: '30 dias' }, { value: '60d', label: '60 dias' }, { value: '90d', label: '3 meses' }
@@ -176,7 +189,8 @@ function exportExpenses() {
     <PageHeader />
 
     <!-- abas -->
-    <div class="flex flex-wrap items-end gap-1 border-b-2 border-line" role="tablist" aria-label="Financeiro">
+    <NvTabs v-if="isNew" :tabs="NEW_TABS" :model-value="tab" label="Financeiro" @update:model-value="(v) => (tab = v as typeof tab)" />
+    <div v-else class="flex flex-wrap items-end gap-1 border-b-2 border-line" role="tablist" aria-label="Financeiro">
       <button
         v-for="t in TABS"
         :key="t.key"
@@ -191,7 +205,7 @@ function exportExpenses() {
     </div>
 
     <!-- filtros (os mesmos de Vendas), valendo para todas as abas -->
-    <div class="space-y-2" data-test="financeiro-filtros">
+    <div class="space-y-2" :class="isNew ? 'rounded-panel border border-line bg-surface px-4 py-3 shadow-card' : ''" data-test="financeiro-filtros">
       <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Período">
         <select class="input h-8 w-auto rounded-full text-[13px]" :class="filters.month ? 'border-primary bg-primary text-white' : ''" aria-label="Mês" data-test="filtro-mes" :value="filters.month" @change="onMonth($event)">
           <option value="" disabled>Mês</option>
@@ -212,7 +226,8 @@ function exportExpenses() {
         <input type="date" class="input h-8 w-auto text-[13px]" :value="filters.to" aria-label="Data final" @change="onDate('to', $event)" />
       </div>
       <div class="flex flex-wrap items-center gap-3">
-        <div class="flex gap-1 text-[12px]" role="group" aria-label="Logística">
+        <NvChips v-if="isNew" :chips="LOGISTICS.map((l) => ({ value: l.value, label: l.label }))" :model-value="filters.logistic" label="Logística" test-prefix="logistica" @update:model-value="(v) => (filters.logistic = v as typeof filters.logistic)" />
+        <div v-else class="flex gap-1 text-[12px]" role="group" aria-label="Logística">
           <button v-for="l in LOGISTICS" :key="l.value" type="button" class="rounded-md px-2.5 py-1" :class="filters.logistic === l.value ? 'bg-primary-soft font-semibold text-primary' : 'text-ink-2 hover:bg-surface-2'" @click="filters.logistic = l.value">{{ l.label }}</button>
         </div>
         <div class="relative min-w-[220px]">

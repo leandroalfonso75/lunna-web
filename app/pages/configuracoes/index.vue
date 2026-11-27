@@ -70,7 +70,7 @@ watchEffect(() => {
       <p class="page-subtitle">Gerencie sua empresa, equipe e contas do Mercado Livre.</p>
     </header>
 
-    <nav class="tab-bar" aria-label="Abas de configurações">
+    <nav class="tab-bar" aria-label="Abas de configurações" data-test="abas-configuracoes">
       <button
         v-for="tab in tabs"
         :key="tab.value"
