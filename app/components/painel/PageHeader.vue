@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ArrowPathIcon } from '@heroicons/vue/24/outline'
+import { computed } from 'vue'
+import { useLayoutPref } from '../../composables/useLayoutPref'
 import { usePageHeader } from '../../composables/usePageHeader'
 import { timeShort } from '../../lib/format'
 
@@ -11,11 +13,18 @@ import { timeShort } from '../../lib/format'
  * ligado ao composable de dados dela).
  */
 const header = usePageHeader()
+/** Layout novo (27/11/2026): o cabeçalho vira um painel com personalidade (mesmo padrão de Promoções). */
+const layoutPref = useLayoutPref()
+const isNew = computed(() => layoutPref.pref.value === 'novo')
 </script>
 
 <template>
-  <header class="flex flex-wrap items-start justify-between gap-4">
-    <div class="min-w-0">
+  <header class="flex flex-wrap items-start justify-between gap-4" :class="isNew ? 'page-hero' : ''">
+    <template v-if="isNew">
+      <span class="page-hero-glow page-hero-glow-a" aria-hidden="true" />
+      <span class="page-hero-glow page-hero-glow-b" aria-hidden="true" />
+    </template>
+    <div class="relative min-w-0">
       <h1 class="page-title">{{ header.state.title }}</h1>
       <p v-if="header.state.subtitle" class="page-subtitle">{{ header.state.subtitle }}</p>
 
@@ -53,7 +62,7 @@ const header = usePageHeader()
       </p>
     </div>
 
-    <div class="flex shrink-0 flex-wrap items-center gap-2">
+    <div class="relative flex shrink-0 flex-wrap items-center gap-2">
     <!-- ações extras da página (ex.: "Configurar promoções"), ao lado de "Atualizar agora" -->
     <slot name="actions" />
     <button
@@ -69,3 +78,38 @@ const header = usePageHeader()
     </div>
   </header>
 </template>
+
+<style scoped>
+/* Layout novo: painel com brilho suave azul/violeta atrás do título (decorativo). */
+.page-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 20px 24px;
+  box-shadow: 0 1px 2px rgba(20, 24, 41, 0.04), 0 4px 16px -6px rgba(20, 24, 41, 0.10);
+}
+.page-hero-glow {
+  pointer-events: none;
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(40px);
+}
+.page-hero-glow-a {
+  right: -64px;
+  top: -96px;
+  height: 256px;
+  width: 256px;
+  opacity: 0.12;
+  background: radial-gradient(circle, var(--accent), transparent 70%);
+}
+.page-hero-glow-b {
+  right: 160px;
+  bottom: -112px;
+  height: 224px;
+  width: 224px;
+  opacity: 0.1;
+  background: radial-gradient(circle, var(--primary), transparent 70%);
+}
+</style>

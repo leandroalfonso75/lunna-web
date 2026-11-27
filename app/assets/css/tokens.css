@@ -479,3 +479,98 @@ a {
 :root[data-theme='dark'] .nbtn-success {
   background: linear-gradient(135deg, #1d8a4d 0%, #137a74 100%);
 }
+
+
+/* ==== Novo layout, passada geral (27/11/2026) ====
+   Leva a base visual do layout novo (aprovada em Promoções) a TODAS as telas, sem mudar conteúdo nem organização:
+   fonte maior, cartões com sombra, botões vivos, abas e selos. Vale só dentro de `.layout-novo` (o layout atual não
+   muda). As telas já refeitas (`.page-new`) e a casca (`.nv`) têm tamanhos próprios e ficam fora do aumento de fonte. */
+.layout-novo .text-\[10px\]:not(.nv *):not(.page-new *) { font-size: 11.5px; }
+.layout-novo .text-\[10\.5px\]:not(.nv *):not(.page-new *) { font-size: 12px; }
+.layout-novo .text-\[11px\]:not(.nv *):not(.page-new *) { font-size: 12.5px; }
+.layout-novo .text-\[12px\]:not(.nv *):not(.page-new *) { font-size: 13.5px; }
+.layout-novo .text-\[13px\]:not(.nv *):not(.page-new *) { font-size: 14px; }
+.layout-novo .text-\[20px\]:not(.nv *):not(.page-new *) { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+
+.layout-novo .page:not(.page-new) {
+  max-width: 1600px;
+  margin-inline: auto;
+}
+.layout-novo .card:not(.nv *) {
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(20, 24, 41, 0.04), 0 4px 16px -6px rgba(20, 24, 41, 0.10);
+}
+.layout-novo button.card:not(.nv *):hover,
+.layout-novo a.card:not(.nv *):hover {
+  box-shadow: 0 10px 30px -10px rgba(20, 24, 41, 0.25);
+}
+.layout-novo .page-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* botões: mesmos estados dos nbtn (levanta, afunda, degradê no primário) */
+.layout-novo .btn:not(.nv *) {
+  border-radius: 10px;
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out, filter 150ms ease-out, background-color 150ms, color 150ms, border-color 150ms;
+}
+.layout-novo .btn:not(.nv *):not(:disabled):hover { transform: translateY(-1px); }
+.layout-novo .btn:not(.nv *):not(:disabled):active { transform: translateY(0) scale(0.98); }
+.layout-novo .btn-primary:not(.nv *) {
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 68%, var(--accent)) 100%);
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--primary) 65%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.layout-novo .btn-primary:not(.nv *):not(:disabled):hover { filter: brightness(1.07); }
+:root[data-theme='dark'] .layout-novo .btn-primary:not(.nv *) { background: linear-gradient(135deg, #3b5cf0 0%, #6447d6 100%); }
+.layout-novo .btn-secondary:not(.nv *) { box-shadow: 0 1px 2px rgba(20, 24, 41, 0.06); }
+.layout-novo .btn-secondary:not(.nv *):not(:disabled):hover { border-color: var(--primary); color: var(--primary); background: var(--surface); }
+.layout-novo .btn-danger-solid:not(.nv *) { color: #fff; }
+.layout-novo .btn-link:not(.nv *) { font-size: 14px; }
+.layout-novo .btn-link:not(.nv *):hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* abas: viram pílulas grandes, como as guias de Promoções */
+.layout-novo .tab-bar:not(.nv *) {
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 6px;
+  box-shadow: 0 1px 2px rgba(20, 24, 41, 0.06);
+}
+.layout-novo .tab-bar:not(.nv *) .tab,
+.layout-novo .tab-bar:not(.nv *) .tab-active {
+  margin-bottom: 0;
+  border-bottom: 0;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.layout-novo .tab-bar:not(.nv *) .tab:hover { background: var(--surface-2); }
+.layout-novo .tab-bar:not(.nv *) .tab-active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 68%, var(--accent)) 100%);
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--primary) 70%, transparent);
+}
+:root[data-theme='dark'] .layout-novo .tab-bar:not(.nv *) .tab-active { background: linear-gradient(135deg, #3b5cf0 0%, #6447d6 100%); }
+.layout-novo .tab-bar:not(.nv *) .tab-active * { color: inherit; }
+
+/* selos e pílulas um pouco maiores e mais firmes */
+.layout-novo .pill:not(.nv *) { font-size: 13.5px; font-weight: 600; }
+
+/* tabelas: cabeçalho em caixa-alta discreta e linhas com respiro */
+.layout-novo .card table:not(.nv *) thead th,
+.layout-novo .panel table:not(.nv *) thead th {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.layout-novo .card table:not(.nv *) thead tr { background: var(--surface-2); }
+.layout-novo table:not(.nv *) tbody tr { transition: background-color 120ms; }
+
+.layout-novo .input:not(.nv *) { border-radius: 10px; }
+.layout-novo .empty-state:not(.nv *) { border-radius: 14px; }

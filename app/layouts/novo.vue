@@ -71,12 +71,12 @@ function toggleTheme() { theme.setTheme(isDark.value ? 'claro' : 'escuro') }
 </script>
 
 <template>
-  <div class="min-h-screen bg-bg text-ink lg:flex">
+  <div class="layout-novo min-h-screen bg-bg text-ink lg:flex">
     <a href="#conteudo" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-card focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-ink">Pular para o conteúdo</a>
 
     <!-- Menu lateral (>= 1024px) -->
     <aside
-      class="hidden bg-nav-bg text-nav-ink transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 lg:flex-col"
+      class="nv hidden bg-nav-bg text-nav-ink transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 lg:flex-col"
       :class="collapsed ? 'lg:w-[72px]' : 'lg:w-[248px]'"
       data-test="menu-novo"
     >
@@ -155,7 +155,7 @@ function toggleTheme() { theme.setTheme(isDark.value ? 'claro' : 'escuro') }
 
     <div class="flex min-w-0 flex-1 flex-col">
       <!-- Topo -->
-      <header class="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-line bg-surface px-4 md:px-6" data-test="topo-novo">
+      <header class="nv sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-line bg-surface px-4 md:px-6" data-test="topo-novo">
         <button type="button" class="btn-ghost w-9 shrink-0 px-0 lg:hidden" aria-label="Abrir menu" @click="drawerOpen = true">
           <Bars3Icon class="h-5 w-5" aria-hidden="true" />
         </button>
@@ -219,7 +219,7 @@ function toggleTheme() { theme.setTheme(isDark.value ? 'claro' : 'escuro') }
       <Dialog :open="drawerOpen" class="relative z-50 lg:hidden" @close="drawerOpen = false">
         <div class="fixed inset-0 bg-black/40" aria-hidden="true" />
         <div class="fixed inset-0 flex">
-          <DialogPanel class="flex h-full w-72 max-w-[85vw] flex-col bg-nav-bg text-nav-ink">
+          <DialogPanel class="nv flex h-full w-72 max-w-[85vw] flex-col bg-nav-bg text-nav-ink">
             <div class="flex h-16 items-center justify-between px-4">
               <span class="flex items-center gap-2.5"><img src="/brand/lunna-mark-128.png" alt="" class="h-8 w-8" /><span class="text-[18px] font-bold">Lunna</span></span>
               <button type="button" class="rounded-card p-2 text-nav-ink-2 hover:bg-nav-hover" aria-label="Fechar menu" @click="drawerOpen = false"><XMarkIcon class="h-5 w-5" /></button>
@@ -256,7 +256,7 @@ function toggleTheme() { theme.setTheme(isDark.value ? 'claro' : 'escuro') }
         v-for="t in toast.toasts"
         :key="t.id"
         role="status"
-        class="pointer-events-auto w-full max-w-sm rounded-panel border p-3 text-[14px] shadow-lift md:w-auto"
+        class="nv pointer-events-auto w-full max-w-sm rounded-panel border p-3 text-[14px] shadow-lift md:w-auto"
         :class="{
           'border-success bg-success-soft text-success': t.kind === 'success',
           'border-danger bg-danger-soft text-danger': t.kind === 'error',
