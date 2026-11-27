@@ -8,7 +8,7 @@ import { apiErrorMessage } from '../../lib/apiErrors'
 import { brl, dateTimeShort } from '../../lib/format'
 import { useSessionStore } from '../../stores/session'
 import {
-  AXIS_SUGGESTIONS, ICMS_ORIGINS, KIND_LABELS, SPED_TYPES, STATUS_LABELS, TITLE_MAX, buildGrid, catalogClient, compositionCost, importVariationsSheet, validGtin, variationsSheet,
+  AXIS_SUGGESTIONS, ICMS_ORIGINS, KIND_LABELS, SPED_TYPES, STATUS_LABELS, TITLE_MAX, buildGrid, catalogClient, compositionCost, compositionPrice, importVariationsSheet, validGtin, variationsSheet,
   type CatalogProduct, type ComponentInfo, type SkuHit, type Variation
 } from '../../lib/catalogProducts'
 
@@ -52,7 +52,27 @@ const showGrid = computed(() => form.kind === 'variations' || (variationKit.valu
 const showComponentRefs = computed(() => form.kind === 'kit' && !form.no_reference_skus &&
   (variationKit.value ? !!form.kit_simple_sku && form.variations.length > 0 : form.kit_components.length > 0))
 const componentsOnly = computed(() => showComponentRefs.value && form.use_component_references)
-watch(showComponentRefs, (show) => { if (!show && form.use_component_references) form.use_component_references = false })
+// "Usar como referências as fotos dos produtos do kit" (27/11/2026): mesma regra de exibição; marcada, desabilita
+// anexar e colar fotos (as já anexadas ficam guardadas)
+const componentPhotos = computed(() => showComponentRefs.value && form.use_component_photos)
+watch(showComponentRefs, (show) => {
+  if (show) return
+  if (form.use_component_references) form.use_component_references = false
+  if (form.use_component_photos) form.use_component_photos = false
+})
+// Preço sugerido do kit (27/11/2026): soma dos preços cheios dos componentes × quantidade, só com o preço vazio
+const kitPriceSuggestion = computed(() => compositionPrice(form.kit_components, info.value as Record<string, { price?: number | null }>))
+// acompanha a soma enquanto o preço for o que a própria sugestão pôs (ao adicionar o 2º componente, ela sobe); se a
+// pessoa editar o preço, a sugestão não mexe mais
+let autoPrice: number | null = null
+watch(() => kitPriceSuggestion.value.price, (price) => {
+  if (form.kind !== 'kit' || form.kit_with_variations || !price) return
+  const current = hasValue(form.price) ? Number(form.price) : null
+  if (current === null || (autoPrice !== null && current === autoPrice)) {
+    form.price = price
+    autoPrice = price
+  }
+})
 const kitCost = computed(() => compositionCost(form.kit_components, info.value))
 const fiscalSuggestion = computed(() => form.ai_suggestions?.fiscal ?? {})
 const kept = computed(() => (form.ai_suggestions?.kept ?? {}) as Record<string, unknown>)
@@ -104,7 +124,7 @@ function onFiles(e: Event) {
 }
 // Colar (Ctrl+V) um print ou imagem copiada (26/11/2026), além do upload de arquivo; texto colado segue normal.
 function onPaste(e: ClipboardEvent) {
-  if (!canEdit.value) return
+  if (!canEdit.value || componentPhotos.value) return
   const files = Array.from(e.clipboardData?.items ?? []).filter((it) => it.kind === 'file' && it.type.startsWith('image/')).map((it) => it.getAsFile()).filter((f): f is File => !!f)
   if (!files.length) return
   e.preventDefault()
@@ -216,14 +236,13 @@ async function onKitBuild(b: KitBuild) {
     return {
       ...(old?.key ? { key: old.key } : {}),
       attrs: { [b.axis]: r.value },
-      sku: old?.sku || (b.useSuggested ? r.suggestedSku : null),
-      gtin: old?.gtin ?? null, price: old?.price ?? null, stock: old?.stock ?? null,
+      sku: old?.sku ?? null,
+      gtin: old?.gtin ?? null, price: old?.price ?? r.suggestedPrice, stock: old?.stock ?? null,
       kit: true, components: [{ sku: r.childSku, quantity: b.parentQty }]
     }
   })
-  if (!form.sku && b.useSuggested && b.productSku) form.sku = b.productSku
   loadAxisValues()
-  if (await save()) toast.success(`${b.rows.length} kits montados. Preencha EAN, preço e estoque na grade.`)
+  if (await save()) toast.success(`${b.rows.length} kits montados. Preencha SKU, EAN e estoque; o preço veio sugerido pela soma dos preços cheios.`)
 }
 const kitComposition = (v: Variation) => [...v.components.map((c) => `${c.quantity > 1 ? `${c.quantity}× ` : ''}${c.sku}`),
   ...form.common_components.map((c) => `${c.quantity > 1 ? `${c.quantity}× ` : ''}${c.sku}`)].join(' + ')
@@ -351,6 +370,8 @@ const TABS = [
         <p class="text-[12px] text-ink-3">Textos, ficha técnica e imagens do kit partem dos dados desses produtos.</p>
         <SkuPicker v-model="form.kit_components" :info="info" :disabled="!canEdit || form.no_reference_skus" test-id="kit" @found="rememberHit" />
         <p v-if="kitCost !== null" class="text-[12px] text-ink-2">Custo somado dos componentes: <strong>{{ brl(kitCost) }}</strong></p>
+        <p v-if="kitPriceSuggestion.price !== null" class="text-[12px] text-ink-2" data-test="kit-preco-sugerido">Preço sugerido (soma dos preços cheios dos componentes): <strong>{{ brl(kitPriceSuggestion.price) }}</strong> · vai para o preço de venda se ele estiver vazio, e pode ser editado.</p>
+        <p v-else-if="kitPriceSuggestion.missing.length" class="text-[12px] text-warning" data-test="kit-preco-faltando">Sem preço de venda cadastrado: {{ kitPriceSuggestion.missing.join(', ') }}. O preço do kit não foi sugerido.</p>
         <label class="flex items-center gap-2 text-[13px] text-ink-2">
           <input v-model="form.no_reference_skus" type="checkbox" :disabled="!canEdit" data-test="kit-sem-skus" />
           Não tenho / não quero SKUs de referência (seguir com as referências abaixo)
@@ -363,8 +384,8 @@ const TABS = [
             <span class="mb-1 block font-semibold text-ink">Links (um por linha)</span>
             <textarea v-model="links" rows="4" class="input h-auto py-2 disabled:opacity-50" :disabled="!canEdit || componentsOnly" placeholder="https://www.mercadolivre.com.br/... ou site do fabricante" data-test="produto-links" />
           </label>
-          <label v-if="showComponentRefs" class="mt-2 flex items-start gap-2 text-[13px] text-ink-2" data-test="kit-usar-componentes">
-            <input v-model="form.use_component_references" type="checkbox" class="mt-0.5" :disabled="!canEdit" data-test="kit-usar-componentes-caixa" />
+          <label v-if="showComponentRefs" class="mt-2 flex cursor-pointer items-start gap-2 rounded-card border border-primary bg-primary-soft px-3 py-2 text-[14px] font-semibold text-ink" data-test="kit-usar-componentes">
+            <input v-model="form.use_component_references" type="checkbox" class="mt-1" :disabled="!canEdit" data-test="kit-usar-componentes-caixa" />
             <span>Usar como referências os produtos que formarão o(s) kit(s), inclusive suas descrições, fichas técnicas e demais especificações.</span>
           </label>
         </div>
@@ -382,15 +403,17 @@ const TABS = [
             <PhotoIcon v-else class="m-auto h-8 w-8 text-ink-3" />
             <button v-if="canEdit" type="button" class="absolute right-0.5 top-0.5 rounded-full bg-white/90 p-0.5" aria-label="Tirar foto" @click="removeImage(a.id)"><XMarkIcon class="h-3.5 w-3.5" /></button>
           </div>
-          <label v-if="canEdit && refImages.length < 6" class="btn-secondary h-9 cursor-pointer">
+          <label v-if="canEdit && refImages.length < 6" class="btn-secondary h-9" :class="componentPhotos ? 'pointer-events-none opacity-50' : 'cursor-pointer'" :aria-disabled="componentPhotos" data-test="produto-anexar-botao">
             Anexar fotos
-            <input type="file" accept="image/png,image/jpeg,image/webp" multiple class="hidden" data-test="produto-anexar" @change="onFiles" />
+            <input type="file" accept="image/png,image/jpeg,image/webp" multiple class="hidden" :disabled="componentPhotos" data-test="produto-anexar" @change="onFiles" />
           </label>
           <div
             v-if="canEdit && refImages.length < 6"
-            tabindex="0"
+            :tabindex="componentPhotos ? -1 : 0"
             role="button"
+            :aria-disabled="componentPhotos"
             class="flex h-20 min-w-[220px] flex-1 items-center justify-center rounded border-2 border-dashed border-line px-3 text-center text-[12px] text-ink-3 outline-none focus:border-primary focus:text-primary"
+            :class="componentPhotos ? 'pointer-events-none opacity-50' : ''"
             aria-label="Área para colar imagem: clique e pressione Ctrl+V"
             data-test="produto-colar"
           >
@@ -398,6 +421,10 @@ const TABS = [
           </div>
         </div>
       </div>
+      <label v-if="showComponentRefs" class="flex cursor-pointer items-start gap-2 rounded-card border border-primary bg-primary-soft px-3 py-2 text-[14px] font-semibold text-ink" data-test="kit-usar-fotos">
+        <input v-model="form.use_component_photos" type="checkbox" class="mt-1" :disabled="!canEdit" data-test="kit-usar-fotos-caixa" />
+        <span>Usar como referências as fotos dos produtos que formarão o(s) kit(s).</span>
+      </label>
       <label class="block text-[13px]">
         <span class="mb-1 block font-semibold text-ink">Observações para a IA</span>
         <textarea v-model="form.notes" rows="2" class="input h-auto py-2" :disabled="!canEdit" placeholder="Ex.: produto sem garantia de fábrica; destacar que vem com difusor." />

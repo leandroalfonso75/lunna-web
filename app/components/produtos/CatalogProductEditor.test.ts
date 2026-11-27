@@ -18,7 +18,7 @@ function product(over: Partial<CatalogProduct> = {}): CatalogProduct {
     package_width: null, package_height: null, package_length: null, package_source: null, stock_control: true, initial_stock: null, min_stock: null, max_stock: null,
     location: null, preparation_days: null, ncm: null, cest: null, icms_origin: null, sped_item_type: null, brand: null, line: null, model: null, category: null,
     condition: 'novo', sale_format: 'unidade', titles: [], description: null, technical_sheet: [], keywords: null, seo_title: null, seo_description: null, video_url: null,
-    warranty: null, supplier: null, regulatory: {}, notes: null, references: { links: [], text: '' }, no_reference_skus: false, use_component_references: false, kit_with_variations: false, kit_simple_sku: null, kit_simple_quantity: 1, kit_parent_sku: null, kit_parent_quantity: 1, kit_components: [], variation_axes: [],
+    warranty: null, supplier: null, regulatory: {}, notes: null, references: { links: [], text: '' }, no_reference_skus: false, use_component_references: false, kit_with_variations: false, kit_simple_sku: null, kit_simple_quantity: 1, kit_parent_sku: null, kit_parent_quantity: 1, use_component_photos: false, kit_components: [], variation_axes: [],
     variations: [], common_components: [], ai_suggestions: {}, ai_review: [], ai_generated_at: null, ai_error: null, erp_exports: {}, created_at: '', updated_at: '',
     assets: [], components_info: {}, ...over
   }
@@ -181,12 +181,11 @@ describe('CatalogProductEditor', () => {
   it('kit = produto com variações + produto simples: importa as variações do pai, monta um kit por variação e salva', async () => {
     asAdmin()
     const parts = {
-      simple: { sku: 'LS-DIF', name: 'Difusor Universal', cost: 7.6, ok: true },
+      simple: { sku: 'LS-DIF', name: 'Difusor Universal', cost: 7.6, price: 43.9, ok: true },
       parent: { sku: 'LS-SCN01', name: 'Secador Mondial SCN-01', ok: true }, axis: 'Voltagem',
-      children: [{ sku: 'LS-SCN01-110', name: 'Secador - 127V', gtin: null, cost: 85.98, price: null, value: '127V' },
+      children: [{ sku: 'LS-SCN01-110', name: 'Secador - 127V', gtin: null, cost: 85.98, price: 209.9, value: '127V' },
         { sku: 'LS-SCN01-220', name: 'Secador - 220V', gtin: null, cost: 85.98, price: null, value: '220V' },
-        { sku: 'LS-SCN01-BIV', name: 'Secador - Bivolt', gtin: null, cost: 90, price: null, value: 'Bivolt' }],
-      suggested: { product_sku: 'LS-SCN01-DIF', kit_skus: { 'LS-SCN01-110': 'LS-SCN01-DIF-110', 'LS-SCN01-220': 'LS-SCN01-DIF-220', 'LS-SCN01-BIV': 'LS-SCN01-DIF-BIV' } }
+        { sku: 'LS-SCN01-BIV', name: 'Secador - Bivolt', gtin: null, cost: 90, price: 219.9, value: 'Bivolt' }]
     }
     api.mockImplementation(async (url: string, opts?: { method?: string; body?: Record<string, unknown> }) => {
       if (url === '/api/catalog_products/kit_parts') return parts
@@ -207,16 +206,20 @@ describe('CatalogProductEditor', () => {
     expect(w.get('[data-test="kit-simples-ok"]').text()).toContain('Difusor Universal')
     expect(w.get('[data-test="kit-pai-ok"]').text()).toContain('3 variações')
     expect(w.findAll('[data-test="kit-previa-linha"]')).toHaveLength(3)
+    expect(w.findAll('[data-test="kit-previa-preco"]').map((c) => c.text().replace(/\s/g, ' '))).toEqual(['R$ 253,80', '—', 'R$ 263,80']) // preço cheio da variação + do simples
+    expect(w.get('[data-test="kit-sem-preco"]').text()).toContain('LS-SCN01-220')
+    expect(w.text()).not.toContain('SKU sugerido') // sem sugestão de SKU
     await w.findAll('[data-test="kit-previa-entra"]')[2]!.setValue(false) // Bivolt não vira kit
     await w.get('[data-test="kit-montar"]').trigger('click')
     await flushPromises()
 
     const patch = api.mock.calls.find(([url, o]) => url === '/api/catalog_products/5' && o?.method === 'PATCH')
     const body = patch?.[1].body
-    expect(body).toMatchObject({ kit_with_variations: true, kit_simple_sku: 'LS-DIF', kit_parent_sku: 'LS-SCN01', sku: 'LS-SCN01-DIF', variation_axes: ['Voltagem'],
+    expect(body.sku).toBeNull()
+    expect(body).toMatchObject({ kit_with_variations: true, kit_simple_sku: 'LS-DIF', kit_parent_sku: 'LS-SCN01', variation_axes: ['Voltagem'],
       common_components: [{ sku: 'LS-DIF', quantity: 1 }], kit_components: [] })
-    expect(body.variations.map((v: { attrs: Record<string, string>; sku: string; kit: boolean; components: { sku: string }[] }) => [v.attrs.Voltagem, v.sku, v.kit, v.components[0]?.sku]))
-      .toEqual([['127V', 'LS-SCN01-DIF-110', true, 'LS-SCN01-110'], ['220V', 'LS-SCN01-DIF-220', true, 'LS-SCN01-220']])
+    expect(body.variations.map((v: { attrs: Record<string, string>; sku: string | null; price: number | null; kit: boolean; components: { sku: string }[] }) => [v.attrs.Voltagem, v.sku, v.price, v.kit, v.components[0]?.sku]))
+      .toEqual([['127V', null, 253.8, true, 'LS-SCN01-110'], ['220V', null, null, true, 'LS-SCN01-220']])
     expect(w.get('[data-test="kits-por-variacao"]').text()).toContain('LS-SCN01')
     expect(w.findAll('[data-test="variacao-composicao"]').map((c) => c.text())).toEqual(['LS-SCN01-110 + LS-DIF', 'LS-SCN01-220 + LS-DIF'])
     expect(w.find('[data-test="kit-usar-componentes"]').exists()).toBe(true) // a caixa de referências dos componentes aparece
@@ -235,5 +238,47 @@ describe('CatalogProductEditor', () => {
     await w.get('[data-test="kit-variacoes-nao"]').trigger('click')
     expect(w.find('[data-test="produto-variacoes"]').exists()).toBe(false)
     expect(w.find('[data-test="kit-componentes"]').exists()).toBe(true)
+  })
+
+  it('kit comum: preço sugerido pela soma dos preços cheios dos componentes (só com o preço vazio)', async () => {
+    asAdmin()
+    const info = { 'LS-DIF': { name: 'Difusor', cost: 7.6, price: 43.9, gtin: null }, 'LS-SEC': { name: 'Secador', cost: 86, price: 209.9, gtin: null } }
+    const w = mount(CatalogProductEditor, { props: { product: product({ kind: 'kit', sale_format: 'kit', components_info: info }) } })
+
+    await w.setProps({ product: product({ kind: 'kit', sale_format: 'kit', components_info: info, kit_components: [{ sku: 'LS-SEC', quantity: 1 }] }) })
+    await flushPromises()
+    expect((w.get('[data-test="campo-preco"]').element as HTMLInputElement).value).toBe('209.9') // 1º componente
+    await w.setProps({ product: product({ kind: 'kit', sale_format: 'kit', price: 209.9, components_info: info, kit_components: [{ sku: 'LS-DIF', quantity: 2 }, { sku: 'LS-SEC', quantity: 1 }] }) })
+    await flushPromises()
+    expect(w.get('[data-test="kit-preco-sugerido"]').text().replace(/\s/g, ' ')).toContain('R$ 297,70') // 2 × 43,90 + 209,90
+    expect((w.get('[data-test="campo-preco"]').element as HTMLInputElement).value).toBe('297.7')
+
+    await w.setProps({ product: product({ kind: 'kit', sale_format: 'kit', price: 250, components_info: { ...info, 'LS-X': { name: 'X', cost: 1, price: null, gtin: null } },
+      kit_components: [{ sku: 'LS-DIF', quantity: 1 }, { sku: 'LS-X', quantity: 1 }] }) })
+    await flushPromises()
+    expect(w.get('[data-test="kit-preco-faltando"]').text()).toContain('LS-X')
+    expect((w.get('[data-test="campo-preco"]').element as HTMLInputElement).value).toBe('250') // não troca o preço preenchido
+  })
+
+  it('kit: "Usar como referências as fotos dos produtos do kit" desabilita anexar e colar fotos', async () => {
+    asAdmin()
+    const w = mount(CatalogProductEditor, { props: { product: product({ kind: 'kit', sale_format: 'kit', kit_components: [{ sku: 'LS-DIF', quantity: 1 }] }) } })
+
+    expect(w.get('[data-test="kit-usar-fotos"]').text()).toBe('Usar como referências as fotos dos produtos que formarão o(s) kit(s).')
+    expect(w.get('[data-test="kit-usar-fotos"]').classes()).toContain('font-semibold') // destaque maior
+    expect(w.get('[data-test="kit-usar-componentes"]').classes()).toContain('bg-primary-soft')
+    await w.get('[data-test="kit-usar-fotos-caixa"]').setValue(true)
+    expect((w.get('[data-test="produto-anexar"]').element as HTMLInputElement).disabled).toBe(true)
+    expect(w.get('[data-test="produto-colar"]').attributes('aria-disabled')).toBe('true')
+
+    const paste = new Event('paste', { bubbles: true }) as ClipboardEvent
+    Object.defineProperty(paste, 'clipboardData', { value: { items: [{ kind: 'file', type: 'image/png', getAsFile: () => new File([new Uint8Array([1])], 'a.png', { type: 'image/png' }) }] } })
+    w.get('[data-test="produto-colar"]').element.dispatchEvent(paste)
+    await flushPromises()
+    expect(api.mock.calls.some(([url]) => String(url).endsWith('/assets'))).toBe(false)
+
+    await w.setProps({ product: product({ kind: 'kit', sale_format: 'kit', use_component_photos: true, kit_components: [] }) }) // sem componentes: some e desmarca
+    expect(w.find('[data-test="kit-usar-fotos"]').exists()).toBe(false)
+    expect((w.get('[data-test="produto-anexar"]').element as HTMLInputElement).disabled).toBe(false)
   })
 })

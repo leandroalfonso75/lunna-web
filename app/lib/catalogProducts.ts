@@ -17,7 +17,6 @@ export interface KitPart { sku: string; name?: string; gtin?: string | null; cos
 export interface KitParts {
   simple: KitPart; parent: KitPart; axis: string
   children: { sku: string; name: string; gtin: string | null; cost: number | null; price: number | null; value: string }[]
-  suggested: { product_sku: string; kit_skus: Record<string, string> } | null
 }
 
 export interface CatalogProduct {
@@ -34,6 +33,8 @@ export interface CatalogProduct {
   references: { links?: string[]; text?: string }; no_reference_skus: boolean; use_component_references: boolean
   /** Kit = 1 produto com variações + 1 produto simples: cada variação do pai vira um kit (variação + simples). */
   kit_with_variations: boolean; kit_simple_sku: string | null; kit_simple_quantity: string | number; kit_parent_sku: string | null; kit_parent_quantity: string | number
+  /** Kit: "Usar como referências as fotos dos produtos que formarão o(s) kit(s)" (desabilita anexar/colar fotos). */
+  use_component_photos: boolean
   kit_components: Component[]; variation_axes: string[]; variations: Variation[]; common_components: Component[]
   ai_suggestions: { fiscal?: { ncm?: string; cest?: string; icms_origin?: number; sped_item_type?: string; why?: string }; kept?: Record<string, unknown> }
   ai_review: string[]; ai_generated_at: string | null; ai_error: string | null
@@ -162,6 +163,18 @@ export function importVariationsSheet(text: string, axes: string[], current: Var
     }
   })
   return { variations: result, updated, added, problems }
+}
+
+/**
+ * Preço sugerido de um kit (27/11/2026): soma do preço cheio (preço de venda cadastrado, não o promocional) de cada
+ * componente × quantidade. Se algum componente não tiver preço, não sugere e diz quais faltam.
+ */
+export function compositionPrice(components: Component[], info: Record<string, { price?: number | null } | undefined>): { price: number | null; missing: string[] } {
+  if (!components.length) return { price: null, missing: [] }
+  const missing = components.filter((c) => !(info[c.sku]?.price && info[c.sku]!.price! > 0)).map((c) => c.sku)
+  if (missing.length) return { price: null, missing }
+  const total = components.reduce((acc, c) => acc + (info[c.sku]!.price as number) * c.quantity, 0)
+  return { price: Math.round(total * 100) / 100, missing: [] }
 }
 
 type Api = <T>(path: string, options?: Record<string, unknown>) => Promise<T>
