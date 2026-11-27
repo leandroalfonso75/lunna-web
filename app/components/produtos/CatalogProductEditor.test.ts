@@ -18,7 +18,7 @@ function product(over: Partial<CatalogProduct> = {}): CatalogProduct {
     package_width: null, package_height: null, package_length: null, package_source: null, stock_control: true, initial_stock: null, min_stock: null, max_stock: null,
     location: null, preparation_days: null, ncm: null, cest: null, icms_origin: null, sped_item_type: null, brand: null, line: null, model: null, category: null,
     condition: 'novo', sale_format: 'unidade', titles: [], description: null, technical_sheet: [], keywords: null, seo_title: null, seo_description: null, video_url: null,
-    warranty: null, supplier: null, regulatory: {}, notes: null, references: { links: [], text: '' }, no_reference_skus: false, kit_components: [], variation_axes: [],
+    warranty: null, supplier: null, regulatory: {}, notes: null, references: { links: [], text: '' }, no_reference_skus: false, use_component_references: false, kit_components: [], variation_axes: [],
     variations: [], common_components: [], ai_suggestions: {}, ai_review: [], ai_generated_at: null, ai_error: null, erp_exports: {}, created_at: '', updated_at: '',
     assets: [], components_info: {}, ...over
   }
@@ -156,5 +156,25 @@ describe('CatalogProductEditor', () => {
     await w.get('[data-test="repetir-estoque"]').trigger('click')
     expect(w.findAll('[data-test="variacao-preco"]').map((i) => (i.element as HTMLInputElement).value)).toEqual(['129.9', '129.9', '129.9']) // substitui o 50
     expect(w.findAll('[data-test="variacao-estoque"]').map((i) => (i.element as HTMLInputElement).value)).toEqual(['5', '5', '5'])
+  })
+
+  it('kit: a caixa "usar como referências os produtos do kit" só aparece com componentes e, marcada, desabilita Links e Texto', async () => {
+    asAdmin()
+    const w = mount(CatalogProductEditor, { props: { product: product({ kind: 'kit', sale_format: 'kit', references: { links: ['https://x.com/a'], text: 'manual' } }) } })
+    const disabled = (sel: string) => (w.get(sel).element as HTMLTextAreaElement).disabled
+
+    expect(w.find('[data-test="kit-usar-componentes"]').exists()).toBe(false) // sem componentes
+    await w.setProps({ product: product({ kind: 'kit', sale_format: 'kit', kit_components: [{ sku: 'LS-DIF', quantity: 1 }], references: { links: ['https://x.com/a'], text: 'manual' } }) })
+    expect(w.get('[data-test="kit-usar-componentes"]').text()).toContain('Usar como referências os produtos que formarão o(s) kit(s)')
+
+    await w.get('[data-test="kit-usar-componentes-caixa"]').setValue(true)
+    expect(disabled('[data-test="produto-links"]')).toBe(true)
+    expect(disabled('[data-test="produto-texto"]')).toBe(true)
+    expect((w.get('[data-test="produto-texto"]').element as HTMLTextAreaElement).value).toBe('manual') // o conteúdo fica
+
+    await w.get('[data-test="kit-sem-skus"]').setValue(true) // "Não tenho / não quero SKUs": a caixa some e é desmarcada
+    expect(w.find('[data-test="kit-usar-componentes"]').exists()).toBe(false)
+    expect(disabled('[data-test="produto-links"]')).toBe(false)
+    expect(disabled('[data-test="produto-texto"]')).toBe(false)
   })
 })

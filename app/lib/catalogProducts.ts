@@ -23,7 +23,7 @@ export interface CatalogProduct {
   brand: string | null; line: string | null; model: string | null; category: string | null; condition: string; sale_format: string
   titles: string[]; description: string | null; technical_sheet: SheetRow[]; keywords: string | null; seo_title: string | null; seo_description: string | null; video_url: string | null
   warranty: string | null; supplier: string | null; regulatory: { anvisa?: string }; notes: string | null
-  references: { links?: string[]; text?: string }; no_reference_skus: boolean
+  references: { links?: string[]; text?: string }; no_reference_skus: boolean; use_component_references: boolean
   kit_components: Component[]; variation_axes: string[]; variations: Variation[]; common_components: Component[]
   ai_suggestions: { fiscal?: { ncm?: string; cest?: string; icms_origin?: number; sped_item_type?: string; why?: string }; kept?: Record<string, unknown> }
   ai_review: string[]; ai_generated_at: string | null; ai_error: string | null

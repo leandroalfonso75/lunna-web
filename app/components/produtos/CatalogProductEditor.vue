@@ -41,6 +41,12 @@ const thumbs = reactive<Record<number, string>>({})
 const info = computed<Record<string, ComponentInfo | SkuHit>>(() => ({ ...form.components_info, ...found }))
 const refImages = computed(() => form.assets.filter((a) => a.kind === 'referencia'))
 const hasKitRows = computed(() => form.variations.some((v) => v.kit))
+// Kit (26/11/2026): "Usar como referências os produtos que formarão o(s) kit(s)" só aparece com componentes indicados e
+// sem "Não tenho / não quero SKUs"; marcada, Links e Texto ficam desabilitados (o conteúdo fica guardado). Sem os
+// componentes, a caixa some e é desmarcada.
+const showComponentRefs = computed(() => form.kind === 'kit' && !form.no_reference_skus && form.kit_components.length > 0)
+const componentsOnly = computed(() => showComponentRefs.value && form.use_component_references)
+watch(showComponentRefs, (show) => { if (!show && form.use_component_references) form.use_component_references = false })
 const kitCost = computed(() => compositionCost(form.kit_components, info.value))
 const fiscalSuggestion = computed(() => form.ai_suggestions?.fiscal ?? {})
 const kept = computed(() => (form.ai_suggestions?.kept ?? {}) as Record<string, unknown>)
@@ -288,13 +294,19 @@ const TABS = [
       </div>
 
       <div class="grid gap-3 md:grid-cols-2">
-        <label class="text-[13px]">
-          <span class="mb-1 block font-semibold text-ink">Links (um por linha)</span>
-          <textarea v-model="links" rows="4" class="input h-auto py-2" :disabled="!canEdit" placeholder="https://www.mercadolivre.com.br/... ou site do fabricante" data-test="produto-links" />
-        </label>
+        <div class="text-[13px]">
+          <label class="block">
+            <span class="mb-1 block font-semibold text-ink">Links (um por linha)</span>
+            <textarea v-model="links" rows="4" class="input h-auto py-2 disabled:opacity-50" :disabled="!canEdit || componentsOnly" placeholder="https://www.mercadolivre.com.br/... ou site do fabricante" data-test="produto-links" />
+          </label>
+          <label v-if="showComponentRefs" class="mt-2 flex items-start gap-2 text-[13px] text-ink-2" data-test="kit-usar-componentes">
+            <input v-model="form.use_component_references" type="checkbox" class="mt-0.5" :disabled="!canEdit" data-test="kit-usar-componentes-caixa" />
+            <span>Usar como referências os produtos que formarão o(s) kit(s), inclusive suas descrições, fichas técnicas e demais especificações.</span>
+          </label>
+        </div>
         <label class="text-[13px]">
           <span class="mb-1 block font-semibold text-ink">Texto (manual, especificações, descrição do fornecedor…)</span>
-          <textarea v-model="form.references.text" rows="4" class="input h-auto py-2" :disabled="!canEdit" data-test="produto-texto" />
+          <textarea v-model="form.references.text" rows="4" class="input h-auto py-2 disabled:opacity-50" :disabled="!canEdit || componentsOnly" data-test="produto-texto" />
           <span class="mt-1 block text-[12px] text-ink-3" data-test="produto-texto-dica">Sugerimos colar aqui a ficha técnica, descrição, perguntas e respostas e avaliações do(s) anúncio(s) utilizado(s) como referência no campo anterior.</span>
         </label>
       </div>
