@@ -32,7 +32,8 @@ export const PROMO_TABS: PromoTabDef[] = [
     hint: 'Anúncios em que uma escolha sua aumenta o lucro ou evita vender abaixo da sua margem.',
     chips: [
       { value: 'para_revisar', label: 'Para revisar', hint: 'Nenhuma oferta coube nas suas regras: veja a cabível ou aplique mesmo assim.', tone: 'danger' },
-      { value: 'trocar', label: 'Trocar por melhor', hint: 'Existe outra oferta com mais lucro dentro das suas regras.', tone: 'success' },
+      { value: 'trocar', label: 'Trocar por melhor', hint: 'Existe outra oferta com mais lucro por unidade dentro das suas regras.', tone: 'success' },
+      { value: 'baixar_alvo', label: 'Baixar até o alvo', hint: 'Preço menor, mais perto da margem mínima: o lucro por unidade cai um pouco, dentro da tolerância de redução que você configurou.' },
       { value: 'sem_promocao', label: 'Sem promoção', hint: 'Podem entrar numa oferta.', tone: 'warning' },
       { value: 'abaixo_minima', label: 'Abaixo da mínima', hint: 'A promoção atual deixa a margem abaixo da mínima.', tone: 'danger' },
       { value: 'acima_maxima', label: 'Acima da máxima', hint: 'Margem acima da máxima: um desconto maior pode vender mais.', tone: 'warning' },

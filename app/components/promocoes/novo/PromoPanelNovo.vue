@@ -76,6 +76,11 @@ const retry = computed(() => {
   return { done: false, pct: Math.round((elapsed / total) * 100), next: `${m}:${String(s).padStart(2, '0')}` }
 })
 
+/** "Baixar preço até o alvo": o botão não sugere ganho (o lucro por unidade cai, dentro da tolerância). */
+const lowering = computed(() => props.detail?.status.key === 'baixar_alvo' && (props.detail?.gain ?? 0) < 0)
+const REF_SOURCE: Record<string, string> = { inicial: 'implantação', automacao: 'antes da 1ª redução da automação', manual: 'sua última decisão' }
+const pp = (v: number) => `${v.toFixed(1).replace('.', ',')} p.p.`
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 const COLUMN_STYLE: Record<string, string> = { ok: 'border-primary', blocked: 'border-danger', fit: 'border-success' }
 const name = (o: { name: string | null; label: string }) => o.name || o.label
 </script>
@@ -106,6 +111,13 @@ const name = (o: { name: string | null; label: string }) => o.name || o.label
               <template v-if="detail.ads.spend > 0">{{ brl(detail.ads.spend) }} ÷ {{ detail.ads.units }} {{ detail.ads.units === 1 ? 'unidade' : 'unidades' }} = {{ brl(detail.ads.unit) }}/un.<template v-if="detail.ads.units === 0"> (gastou sem vender; fica zero na conta)</template></template>
               <template v-else>sem gasto (zero na conta)</template>
             </p>
+            <p v-if="detail.drop_ref" class="mt-1 text-[13px] text-ink-2" data-test="referencia-reducao">
+              <span class="font-semibold text-ink">Referência da redução:</span> {{ pct(detail.drop_ref.ref_pct) }}
+              <template v-if="detail.drop_ref.set_at"> em {{ shortDate(detail.drop_ref.set_at) }} ({{ REF_SOURCE[detail.drop_ref.source ?? ''] ?? detail.drop_ref.source }})</template>
+              <template v-else> (margem de hoje{{ detail.drop_ref.renewed ? ', renovada' : '' }})</template>
+              · tolerância usada {{ pp(detail.drop_ref.used_pp) }} de {{ pp(detail.drop_ref.tolerance_pp) }}
+              · não desce abaixo de {{ pct(detail.drop_ref.floor_pct) }}
+            </p>
           </div>
           <a v-if="detail.permalink" :href="detail.permalink" target="_blank" rel="noopener" class="nbtn-ghost nbtn-sm">Ver no Mercado Livre ↗</a>
         </div>
@@ -127,8 +139,8 @@ const name = (o: { name: string | null; label: string }) => o.name || o.label
             <p class="mt-1.5 text-[15px] font-bold" :class="(c.profit ?? 0) < 0 ? 'text-danger' : 'text-success'" data-numeric>{{ brl(c.profit) }} <span class="text-[13px] font-semibold">· {{ pct(c.margin) }}</span></p>
             <p class="text-[12px] text-ink-3">lucro real por unidade (pós Ads)</p>
             <p v-if="c.validity" class="mt-1 text-[12px] text-ink-3" data-test="validade-melhor">Validade: {{ c.validity }}</p>
-            <span v-if="c.tone === 'ok' && detail.gain" class="absolute -top-3 right-3 rounded-full px-2.5 py-0.5 text-[13px] font-bold text-white shadow-card" :class="detail.gain > 0 ? 'bg-success' : 'bg-danger'" data-numeric>
-              {{ detail.gain > 0 ? '+' : '' }}{{ brl(detail.gain) }}/un.
+            <span v-if="c.tone === 'ok' && detail.gain" class="absolute -top-3 right-3 rounded-full px-2.5 py-0.5 text-[13px] font-bold shadow-card" :class="detail.gain > 0 ? 'bg-success text-white' : 'bg-surface-2 text-ink-2'" data-numeric>
+              {{ detail.gain > 0 ? '+' : '' }}{{ brl(detail.gain) }}/un.{{ detail.gain < 0 ? ' para vender mais barato' : '' }}
             </span>
           </div>
         </div>
@@ -139,7 +151,10 @@ const name = (o: { name: string | null; label: string }) => o.name || o.label
 
         <!-- ações -->
         <div v-if="isAdmin" class="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
-          <button v-if="primary === 'best'" type="button" class="nbtn-primary nbtn-lg" :disabled="acting" data-test="aplicar-melhor" @click="askBest">
+          <button v-if="primary === 'best' && lowering" type="button" class="nbtn-secondary nbtn-lg" :disabled="acting" data-test="aplicar-melhor" @click="askBest">
+            Baixar o preço até o alvo ({{ brl(detail.gain) }}/un.)
+          </button>
+          <button v-else-if="primary === 'best'" type="button" class="nbtn-primary nbtn-lg" :disabled="acting" data-test="aplicar-melhor" @click="askBest">
             <SparklesIcon class="h-5 w-5" aria-hidden="true" /> Aplicar a melhor oferta
           </button>
           <button v-if="fitting && (primary === 'fitting' || blocked)" type="button" :class="primary === 'fitting' ? 'nbtn-success nbtn-lg' : 'nbtn-secondary'" :disabled="acting" data-test="aplicar-cabivel"

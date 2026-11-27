@@ -113,7 +113,7 @@ const cards = computed(() => {
   const decide = tabCount(c, 'decidir') ?? 0
   return [
     { key: 'decidir', label: 'Para decidir', value: int(decide), hint: `${int(s.to_review)} para revisar · ${int(s.to_switch)} trocas · ${int(s.without_promotion)} sem promoção`, icon: ClipboardDocumentCheckIcon, tone: 'primary', go: () => openTab('decidir') },
-    { key: 'ganho', label: 'Ganho somando as trocas', value: `${s.switch_gain > 0 ? '+' : ''}${brl(s.switch_gain)}`, hint: `por unidade, somando as ${int(s.to_switch)} trocas`, icon: BanknotesIcon, tone: s.switch_gain >= 0 ? 'success' : 'danger', go: () => openTab('decidir', 'trocar') },
+    { key: 'ganho', label: 'Ganho somando as trocas', value: `${s.switch_gain > 0 ? '+' : ''}${brl(s.switch_gain)}`, hint: `por unidade, somando as ${int(s.to_switch)} trocas que rendem mais${s.to_lower ? ` · ${int(s.to_lower)} para baixar até o alvo (${brl(s.lower_loss ?? 0)})` : ''}`, icon: BanknotesIcon, tone: s.switch_gain >= 0 ? 'success' : 'danger', go: () => openTab('decidir', 'trocar') },
     { key: 'abaixo', label: 'Abaixo da margem mínima', value: int(s.below_min), hint: `margem mínima geral ${pct(response.value?.rules.min_margin_pct ?? 0)}`, icon: ExclamationTriangleIcon, tone: s.below_min ? 'warning' : 'neutral', go: () => openTab('decidir', 'abaixo_minima') },
     { key: 'em', label: 'Em promoção', value: int(s.with_promotion), hint: `de ${int(s.items)} anúncios ativos`, icon: CheckBadgeIcon, tone: 'accent', bar: s.items ? Math.round((s.with_promotion / s.items) * 100) : 0, go: () => openTab('todos', '') },
     { key: 'recusas', label: 'Recusas do ML (24 h)', value: int(failures.value.length), hint: failures.value.length ? 'pode haver nova tentativa automática' : 'nenhuma recusa recente', icon: ShieldExclamationIcon, tone: failures.value.length ? 'danger' : 'neutral', go: () => openTab('historico', 'falhou') }
@@ -230,7 +230,7 @@ const COLUMNS = computed(() => [
   { key: 'action', label: 'Ação', width: 'w-[16%]', right: true }
 ])
 const STATUS_SHORT: Record<string, string> = {
-  trocar: 'trocar', acima_maxima: 'acima da máx.', sem_promocao: 'sem promoção', ok: 'na melhor', abaixo_minima: 'abaixo da mín.',
+  trocar: 'trocar', baixar_alvo: 'baixar até o alvo', acima_maxima: 'acima da máx.', sem_promocao: 'sem promoção', ok: 'na melhor', abaixo_minima: 'abaixo da mín.',
   sem_custo: 'sem custo', para_revisar: 'para revisar', programado: 'programado', minima_inalcancavel: 'mín. inalcançável'
 }
 function groupRound(children: PromotionItemRow[]) {
@@ -450,7 +450,7 @@ function setHist(value: string) {
                     </td>
                     <td class="text-[13px] text-ink-2" data-numeric>{{ row.best_margin === null ? '—' : `até ${pct(row.best_margin)}` }}</td>
                     <td class="text-right">
-                      <span v-if="row.gain" class="inline-block rounded-[8px] px-2 py-1 text-[15px] font-bold" :class="row.gain > 0 ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'" data-numeric>{{ row.gain > 0 ? '+' : '' }}{{ brl(row.gain) }}</span>
+                      <span v-if="row.gain" class="inline-block rounded-[8px] px-2 py-1 text-[15px] font-bold" :class="row.gain > 0 ? 'bg-success-soft text-success' : row.status.key === 'baixar_alvo' ? 'bg-surface-2 text-ink-2' : 'bg-danger-soft text-danger'" data-numeric>{{ row.gain > 0 ? '+' : '' }}{{ brl(row.gain) }}</span>
                       <span v-else class="text-ink-3">—</span>
                     </td>
                     <td>

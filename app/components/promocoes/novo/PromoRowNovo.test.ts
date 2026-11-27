@@ -43,6 +43,15 @@ describe('PromoRowNovo', () => {
     expect(w.emitted('review')?.[0]).toEqual([true])
   })
 
+  it('baixar até o alvo: valor negativo neutro "para vender mais barato" e botão que não sugere ganho', async () => {
+    const w = mount(PromoRowNovo, { props: { row: makeRow({ status: { key: 'baixar_alvo', label: 'Baixar preço até o alvo', tone: 'neutral' }, gain: -0.32 }), isAdmin: true, checked: false, selected: false } })
+    expect(w.get('[data-test="reducao-alvo"]').text()).toContain('-R$')
+    expect(w.text()).toContain('para vender mais barato')
+    expect(w.find('[data-test="linha-aplicar-melhor"]').exists()).toBe(false)
+    await w.get('[data-test="linha-baixar-alvo"]').trigger('click')
+    expect(w.emitted('act')?.[0]).toEqual(['best'])
+  })
+
   it('quem não é administrador só vê "Detalhes"', () => {
     const w = mount(PromoRowNovo, { props: { row: makeRow(), isAdmin: false, checked: false, selected: false } })
     expect(w.find('[data-test="linha-aplicar-melhor"]').exists()).toBe(false)

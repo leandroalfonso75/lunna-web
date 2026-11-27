@@ -70,6 +70,20 @@ export interface PromotionSettings {
   effective_max_pct: number | null
 }
 
+/** Referência da redução de margem do anúncio ("travar a escada", 27/11/2026). */
+export interface PromotionDropRefInfo {
+  ref_pct: number
+  today_pct: number
+  tolerance_pp: number
+  used_pp: number
+  floor_pct: number
+  /** De quando é a referência gravada (null = não há; vale a margem de hoje). */
+  set_at: string | null
+  source: 'inicial' | 'automacao' | 'manual' | null
+  /** Havia referência, mas configurações/custo mudaram (ou decisão manual): vale a margem de hoje. */
+  renewed: boolean
+}
+
 export interface PromotionItemRow {
   item_id: string
   title: string
@@ -125,6 +139,7 @@ export interface PromotionItemRow {
   manual: boolean
   /** "Ciente, nada a ser feito": fora da guia "Para revisar" (fica na guia "Ciente") enquanto seguir em revisão. */
   review_dismissed?: boolean
+  drop_ref?: PromotionDropRefInfo | null
 }
 
 /** Produto com variações: uma linha para o produto pai (Olist) e os anúncios de todas as variações dentro. */
@@ -226,6 +241,9 @@ export interface PromotionsResponse {
     without_promotion: number
     to_switch: number
     switch_gain: number
+    /** "Baixar preço até o alvo" (27/11/2026): quantos e quanto de lucro por unidade a menos, somados. */
+    to_lower?: number
+    lower_loss?: number
     below_min: number
     to_review: number
     scheduled?: number

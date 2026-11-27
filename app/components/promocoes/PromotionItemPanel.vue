@@ -104,6 +104,7 @@ const {
       <p v-if="acting" class="my-2 text-[12px] text-ink-2" role="status">Falando com o Mercado Livre…</p>
       <p v-else-if="actionResult" class="my-2 text-[12px]" :class="actionResult.ok ? 'text-success' : 'text-danger'" role="status">{{ actionResult.message }}</p>
       <p class="mb-3 text-[12px] text-ink-3">
+        <template v-if="detail.drop_ref">Referência da redução: {{ pct(detail.drop_ref.ref_pct) }}<template v-if="detail.drop_ref.set_at"> em {{ new Date(detail.drop_ref.set_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) }}</template><template v-else> (margem de hoje)</template>, tolerância usada {{ detail.drop_ref.used_pp.toFixed(1).replace('.', ',') }} de {{ detail.drop_ref.tolerance_pp.toFixed(1).replace('.', ',') }} p.p. · </template>
         Preço cheio {{ brl(detail.full_price) }} · custo {{ detail.cost === null ? 'sem custo' : brl(detail.cost) }}
         · Ads nos últimos {{ detail.ads.days }} dias:
         <template v-if="detail.ads.spend > 0">{{ brl(detail.ads.spend) }} ÷ {{ detail.ads.units }} {{ detail.ads.units === 1 ? 'unidade' : 'unidades' }} = {{ brl(detail.ads.unit) }} por unidade<template v-if="detail.ads.units === 0"> (gastou sem vender; fica zero na conta)</template></template>

@@ -38,6 +38,7 @@ onBeforeUnmount(promos.stop)
 const STATUS_TABS = [
   { value: '', label: 'Todos' },
   { value: 'trocar', label: 'Trocar por melhor' },
+  { value: 'baixar_alvo', label: 'Baixar até o alvo' },
   { value: 'sem_promocao', label: 'Sem promoção' },
   { value: 'abaixo_minima', label: 'Abaixo da mínima' },
   { value: 'acima_maxima', label: 'Acima da máxima' },
@@ -152,7 +153,7 @@ function groupRound(children: PromotionItemRow[]) {
 
 const TONE: Record<string, string> = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger', neutral: 'text-ink-3' }
 const STATUS_SHORT: Record<string, string> = {
-  trocar: 'trocar', acima_maxima: 'acima da máx.', sem_promocao: 'sem promoção', ok: 'na melhor', abaixo_minima: 'abaixo da mín.',
+  trocar: 'trocar', baixar_alvo: 'baixar até o alvo', acima_maxima: 'acima da máx.', sem_promocao: 'sem promoção', ok: 'na melhor', abaixo_minima: 'abaixo da mín.',
   sem_custo: 'sem custo', para_revisar: 'para revisar', programado: 'programado', minima_inalcancavel: 'mín. inalcançável'
 }
 const tone = (t: string) => TONE[t] ?? 'text-ink-2'
@@ -173,7 +174,7 @@ const cards = computed(() => {
   return [
     { key: 'with', label: 'Em promoção', value: int(s.with_promotion), hint: `de ${int(s.items)} anúncios ativos`, status: '' },
     { key: 'without', label: 'Sem promoção', value: int(s.without_promotion), hint: 'podem entrar numa oferta', tone: s.without_promotion ? 'text-warning' : '', status: 'sem_promocao' },
-    { key: 'switch', label: 'Trocas que rendem mais', value: int(s.to_switch), hint: `+${brl(s.switch_gain)} por unidade somando todas`, tone: s.to_switch ? 'text-warning' : '', status: 'trocar' },
+    { key: 'switch', label: 'Trocas que rendem mais', value: int(s.to_switch), hint: `+${brl(s.switch_gain)} por unidade somando todas${s.to_lower ? ` · ${int(s.to_lower)} para baixar até o alvo` : ''}`, tone: s.to_switch ? 'text-warning' : '', status: 'trocar' },
     { key: 'review', label: 'Para revisar', value: int(s.to_review), hint: reviewHint(s), tone: s.to_review ? 'text-danger' : '', status: 'para_revisar' }
   ]
 })

@@ -38,7 +38,8 @@ export function usePromotionPanel(props: PromotionPanelProps, emit: PromotionPan
 
   const canApplyBest = computed(() => {
     const d = props.detail
-    return !!d?.best && d.best.action !== 'manter' && (!d.current || !d.current.valid || (d.gain ?? 0) > 0)
+    // "Baixar preço até o alvo" (27/11/2026): a redução cabe na tolerância; a confirmação diz quanto o lucro cai
+    return !!d?.best && d.best.action !== 'manter' && (!d.current || !d.current.valid || (d.gain ?? 0) > 0 || d.status.key === 'baixar_alvo')
   })
 
   function describe(o: { name: string | null; label: string; price: number | null; margin_pct: number | null; profit?: number | null }) {
@@ -52,7 +53,10 @@ export function usePromotionPanel(props: PromotionPanelProps, emit: PromotionPan
     const from = d.current ? `Sai de ${describe(d.current)} e entra em ` : 'Entra em '
     spread.alsoSku = false
     spread.alsoVariations = false
-    pending.value = { text: `${from}${describe(d.best)}. O preço muda no Mercado Livre na hora.`, run: (goNext) => emit('apply', undefined, { ...spread }, goNext), spreadable: true }
+    const loss = d.current && d.gain !== null && d.gain < 0
+      ? ` O lucro por unidade CAI ${brl(Math.abs(d.gain))} (de ${brl(d.current.profit)} para ${brl(d.best.profit)}), para vender mais barato; fica dentro da tolerância de redução.`
+      : ''
+    pending.value = { text: `${from}${describe(d.best)}.${loss} O preço muda no Mercado Livre na hora.`, run: (goNext) => emit('apply', undefined, { ...spread }, goNext), spreadable: true }
   }
 
   function askOffer(o: PromotionOffer) {

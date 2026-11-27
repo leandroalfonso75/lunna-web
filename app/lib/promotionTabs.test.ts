@@ -18,6 +18,8 @@ describe('guias de Promoções (layout novo)', () => {
     expect(chipCount(counts, '')).toBe(2 + 14 + 17 + 24 + 14 + 77 + 11 + 3 + 69 + 12)
     expect(chipCount(counts, 'catalogo')).toBe(41)
     expect(tabCount(counts, 'decidir')).toBe(2 + 14 + 17 + 24 + 14 + 11)
+    expect(tabCount({ ...counts, baixar_alvo: 14 }, 'decidir')).toBe(2 + 14 + 14 + 17 + 24 + 14 + 11)
+    expect(PROMO_TABS[0]!.chips.map((c) => c.value)).toContain('baixar_alvo')
     expect(tabCount(counts, 'automacao')).toBe(69 + 12)
     expect(tabCount(counts, 'campanhas')).toBeNull()
   })
@@ -65,6 +67,9 @@ describe('linha de Promoções: selo e ação principal', () => {
     expect(rowAction(row({ gain: -0.32, current: { valid: false } }), true)).toBe('best')
     expect(canApplyBest(row({ best: { action: 'manter' } }))).toBe(false)
     expect(rowAction(row({ manual: true }), true)).toBe('details')
+    // "Baixar preço até o alvo" (27/11/2026): ação própria, que não sugere ganho
+    expect(rowAction(row({ status: { key: 'baixar_alvo' }, gain: -0.32 }), true)).toBe('lower')
+    expect(rowAction(row({ status: { key: 'baixar_alvo' }, gain: -0.32, manual: true }), true)).toBe('details')
     expect(rowAction(row(), false)).toBe('details')
   })
 
@@ -76,6 +81,7 @@ describe('linha de Promoções: selo e ação principal', () => {
   it('selo com cor e ícone pela situação; situação nova cai no tom da API', () => {
     expect(statusBadge({ key: 'para_revisar', tone: 'bad' }).cls).toBe('badge-danger')
     expect(statusBadge({ key: 'programado', tone: 'ok' }).cls).toBe('badge-accent')
+    expect(statusBadge({ key: 'baixar_alvo', tone: 'neutral' }).cls).toBe('badge-info')
     expect(statusBadge({ key: 'nova', tone: 'warn' }).cls).toBe('badge-warning')
   })
 })

@@ -156,7 +156,12 @@ const name = (o: { name: string | null; label: string }) => o.name || o.label
 
     <!-- ganho -->
     <td class="text-right">
-      <span v-if="row.gain" class="inline-block rounded-[8px] px-2 py-1 text-[15px] font-bold" :class="row.gain > 0 ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'" data-numeric>
+      <!-- baixar até o alvo (27/11/2026): não é ganho; o lucro por unidade cai para vender mais barato -->
+      <template v-if="row.status.key === 'baixar_alvo' && row.gain">
+        <span class="inline-block rounded-[8px] bg-surface-2 px-2 py-1 text-[15px] font-bold text-ink-2" data-numeric data-test="reducao-alvo">{{ signed(row.gain) }}</span>
+        <span class="mt-0.5 block text-[12px] text-ink-3">para vender mais barato</span>
+      </template>
+      <span v-else-if="row.gain" class="inline-block rounded-[8px] px-2 py-1 text-[15px] font-bold" :class="row.gain > 0 ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'" data-numeric>
         {{ signed(row.gain) }}
       </span>
       <span v-else class="text-ink-3">—</span>
@@ -188,6 +193,11 @@ const name = (o: { name: string | null; label: string }) => o.name || o.label
         <button v-if="action === 'best'" type="button" class="nbtn-primary nbtn-sm" :disabled="busy" data-test="linha-aplicar-melhor" @click.stop="emit('act', 'best')">
           <span v-if="busy" class="nbtn-spin" aria-hidden="true" /><SparklesIcon v-else class="h-4 w-4" aria-hidden="true" />
           {{ busy ? 'Aplicando…' : 'Aplicar melhor' }}
+        </button>
+        <button v-else-if="action === 'lower'" type="button" class="nbtn-secondary nbtn-sm" :disabled="busy" data-test="linha-baixar-alvo"
+          title="Abre a confirmação: o lucro por unidade cai, dentro da tolerância de redução" @click.stop="emit('act', 'best')">
+          <span v-if="busy" class="nbtn-spin" aria-hidden="true" />
+          {{ busy ? 'Aplicando…' : 'Baixar preço' }}
         </button>
         <button v-else-if="action === 'fitting'" type="button" class="nbtn-success nbtn-sm" :disabled="busy" data-test="linha-aplicar-cabivel" @click.stop="emit('act', 'fitting')">
           <span v-if="busy" class="nbtn-spin" aria-hidden="true" />
