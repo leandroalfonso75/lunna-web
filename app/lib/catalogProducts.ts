@@ -12,6 +12,14 @@ export interface Asset { id: number; kind: 'referencia' | 'foto'; name: string |
 export interface ComponentInfo { name: string; cost: number | null; price: number | null; gtin: string | null }
 export interface SkuHit { sku: string; name: string; gtin: string | null; unit: string | null; price: number | null; cost: number | null; kit: boolean }
 
+/** `GET /api/catalog_products/kit_parts`: conferência dos dois SKUs e as variações do pai, com os SKUs sugeridos. */
+export interface KitPart { sku: string; name?: string; gtin?: string | null; cost?: number | null; price?: number | null; ok: boolean; error?: string }
+export interface KitParts {
+  simple: KitPart; parent: KitPart; axis: string
+  children: { sku: string; name: string; gtin: string | null; cost: number | null; price: number | null; value: string }[]
+  suggested: { product_sku: string; kit_skus: Record<string, string> } | null
+}
+
 export interface CatalogProduct {
   id: number; kind: CatalogKind; status: CatalogStatus
   name: string | null; sku: string | null; gtin: string | null; unit: string; price: string | number | null; cost_price: string | number | null
@@ -24,6 +32,8 @@ export interface CatalogProduct {
   titles: string[]; description: string | null; technical_sheet: SheetRow[]; keywords: string | null; seo_title: string | null; seo_description: string | null; video_url: string | null
   warranty: string | null; supplier: string | null; regulatory: { anvisa?: string }; notes: string | null
   references: { links?: string[]; text?: string }; no_reference_skus: boolean; use_component_references: boolean
+  /** Kit = 1 produto com variações + 1 produto simples: cada variação do pai vira um kit (variação + simples). */
+  kit_with_variations: boolean; kit_simple_sku: string | null; kit_simple_quantity: string | number; kit_parent_sku: string | null; kit_parent_quantity: string | number
   kit_components: Component[]; variation_axes: string[]; variations: Variation[]; common_components: Component[]
   ai_suggestions: { fiscal?: { ncm?: string; cest?: string; icms_origin?: number; sped_item_type?: string; why?: string }; kept?: Record<string, unknown> }
   ai_review: string[]; ai_generated_at: string | null; ai_error: string | null
@@ -167,6 +177,7 @@ export function catalogClient(api: Api) {
     addAsset: (id: number, data: string, name: string) => api<Asset>(`/api/catalog_products/${id}/assets`, { method: 'POST', body: { data, name } }),
     removeAsset: (assetId: number) => api<unknown>(`/api/catalog_product_assets/${assetId}`, { method: 'DELETE' }),
     assetBlob: (assetId: number) => api<Blob>(`/api/catalog_product_assets/${assetId}`, { responseType: 'blob' }),
-    skuSearch: (q: string) => api<{ items: SkuHit[] }>('/api/catalog_products/sku_search', { query: { q } })
+    skuSearch: (q: string) => api<{ items: SkuHit[] }>('/api/catalog_products/sku_search', { query: { q } }),
+    kitParts: (simple: string, parent: string) => api<KitParts>('/api/catalog_products/kit_parts', { query: { simple, parent } })
   }
 }

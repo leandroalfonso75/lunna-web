@@ -2,6 +2,7 @@
 import { ArrowPathIcon, ExclamationTriangleIcon, PhotoIcon, SparklesIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, reactive, ref, toRaw, watch } from 'vue'
 import SkuPicker from './SkuPicker.vue'
+import KitVariationsCard, { type KitBuild } from './KitVariationsCard.vue'
 import { useToast } from '../../composables/useToast'
 import { apiErrorMessage } from '../../lib/apiErrors'
 import { brl, dateTimeShort } from '../../lib/format'
@@ -44,7 +45,12 @@ const hasKitRows = computed(() => form.variations.some((v) => v.kit))
 // Kit (26/11/2026): "Usar como referências os produtos que formarão o(s) kit(s)" só aparece com componentes indicados e
 // sem "Não tenho / não quero SKUs"; marcada, Links e Texto ficam desabilitados (o conteúdo fica guardado). Sem os
 // componentes, a caixa some e é desmarcada.
-const showComponentRefs = computed(() => form.kind === 'kit' && !form.no_reference_skus && form.kit_components.length > 0)
+// Kit = 1 produto com variações + 1 produto simples (26/11/2026): a grade de variações vale para o kit, cada linha é
+// variação do pai + o simples (que fica nos itens comuns).
+const variationKit = computed(() => form.kind === 'kit' && form.kit_with_variations)
+const showGrid = computed(() => form.kind === 'variations' || (variationKit.value && form.variations.length > 0))
+const showComponentRefs = computed(() => form.kind === 'kit' && !form.no_reference_skus &&
+  (variationKit.value ? !!form.kit_simple_sku && form.variations.length > 0 : form.kit_components.length > 0))
 const componentsOnly = computed(() => showComponentRefs.value && form.use_component_references)
 watch(showComponentRefs, (show) => { if (!show && form.use_component_references) form.use_component_references = false })
 const kitCost = computed(() => compositionCost(form.kit_components, info.value))
@@ -178,6 +184,50 @@ const variationLabel = (v: Variation) => form.variation_axes.map((a) => v.attrs[
 
 function rememberHit(hit: SkuHit) { found[hit.sku] = hit }
 
+function onKitToggle(yes: boolean) {
+  form.kit_with_variations = yes
+  if (yes) {
+    form.no_reference_skus = false
+    form.kit_components = []
+    return
+  }
+  // "Não": a grade de kits sai (o usuário confirmou no card quando já havia kits montados)
+  form.variations = []
+  form.variation_axes = []
+  form.common_components = []
+  form.kit_simple_sku = null
+  form.kit_parent_sku = null
+}
+
+// Monta a grade: uma variação por variação escolhida do pai, cada uma = variação + simples. Linhas que continuam (mesma
+// variação do pai) mantêm SKU, EAN, preço e estoque já preenchidos.
+async function onKitBuild(b: KitBuild) {
+  const byChild = new Map(form.variations.map((v) => [v.components[0]?.sku, v]))
+  form.kit_with_variations = true
+  form.kit_simple_sku = b.simple
+  form.kit_simple_quantity = b.simpleQty
+  form.kit_parent_sku = b.parent
+  form.kit_parent_quantity = b.parentQty
+  form.kit_components = []
+  form.variation_axes = [b.axis]
+  form.common_components = [{ sku: b.simple, quantity: b.simpleQty }]
+  form.variations = b.rows.map((r) => {
+    const old = byChild.get(r.childSku)
+    return {
+      ...(old?.key ? { key: old.key } : {}),
+      attrs: { [b.axis]: r.value },
+      sku: old?.sku || (b.useSuggested ? r.suggestedSku : null),
+      gtin: old?.gtin ?? null, price: old?.price ?? null, stock: old?.stock ?? null,
+      kit: true, components: [{ sku: r.childSku, quantity: b.parentQty }]
+    }
+  })
+  if (!form.sku && b.useSuggested && b.productSku) form.sku = b.productSku
+  loadAxisValues()
+  if (await save()) toast.success(`${b.rows.length} kits montados. Preencha EAN, preço e estoque na grade.`)
+}
+const kitComposition = (v: Variation) => [...v.components.map((c) => `${c.quantity > 1 ? `${c.quantity}× ` : ''}${c.sku}`),
+  ...form.common_components.map((c) => `${c.quantity > 1 ? `${c.quantity}× ` : ''}${c.sku}`)].join(' + ')
+
 // ----- salvar / IA
 function payload(): Partial<CatalogProduct> {
   const { id: _id, assets: _a, components_info: _c, ai_suggestions: _s, ai_review: _r, ai_generated_at: _g, ai_error: _e, erp_exports: _x, created_at: _ca, updated_at: _ua, kind: _k, ...rest } = toRaw(form)
@@ -275,6 +325,20 @@ const TABS = [
     </div>
     <p v-if="problems.length" class="rounded-card border border-danger bg-danger-soft px-3 py-2 text-[13px] text-danger" data-test="produto-problemas">{{ problems.join(' · ') }}</p>
 
+    <!-- kit: 1 produto com variações + 1 produto simples -->
+    <KitVariationsCard
+      v-if="form.kind === 'kit'"
+      :enabled="form.kit_with_variations"
+      :simple-sku="form.kit_simple_sku"
+      :simple-qty="Number(form.kit_simple_quantity) || 1"
+      :parent-sku="form.kit_parent_sku"
+      :parent-qty="Number(form.kit_parent_quantity) || 1"
+      :built-count="form.kit_with_variations ? form.variations.length : 0"
+      :can-edit="canEdit"
+      @toggle="onKitToggle"
+      @build="onKitBuild"
+    />
+
     <!-- 1. referências -->
     <section class="card space-y-4 p-5" data-test="produto-referencias">
       <div>
@@ -282,7 +346,7 @@ const TABS = [
         <p class="text-[12px] text-ink-3">A IA usa só o que estiver aqui. Links de anúncios do Mercado Livre são lidos pela API; outros sites, pelo texto da página.</p>
       </div>
 
-      <div v-if="form.kind === 'kit'" class="space-y-2 rounded-card border border-line p-3" data-test="kit-componentes">
+      <div v-if="form.kind === 'kit' && !form.kit_with_variations" class="space-y-2 rounded-card border border-line p-3" data-test="kit-componentes">
         <p class="text-[13px] font-semibold text-ink">SKUs que compõem o kit</p>
         <p class="text-[12px] text-ink-3">Textos, ficha técnica e imagens do kit partem dos dados desses produtos.</p>
         <SkuPicker v-model="form.kit_components" :info="info" :disabled="!canEdit || form.no_reference_skus" test-id="kit" @found="rememberHit" />
@@ -341,8 +405,15 @@ const TABS = [
     </section>
 
     <!-- 2. variações -->
-    <section v-if="form.kind === 'variations'" class="card space-y-4 p-5" data-test="produto-variacoes">
-      <div>
+    <section v-if="showGrid" class="card space-y-4 p-5" data-test="produto-variacoes">
+      <div v-if="variationKit">
+        <p class="text-[15px] font-semibold text-ink">2. Kits por variação</p>
+        <p class="text-[12px] text-ink-3" data-test="kits-por-variacao">
+          Cada linha é um kit: a variação de <strong class="font-mono">{{ form.kit_parent_sku }}</strong> + <strong class="font-mono">{{ form.kit_simple_sku }}</strong>.
+          Preencha SKU, EAN, preço e estoque inicial de cada kit (ou use a planilha). Para trocar os SKUs ou as variações, use "Montar de novo" em Composição do kit.
+        </p>
+      </div>
+      <div v-else>
         <p class="text-[15px] font-semibold text-ink">2. Variações</p>
         <p class="text-[12px] text-ink-3">
           Escolha os <strong>tipos de variação</strong> do produto: pode combinar até 3 (ex.: roupas com <strong>Cor</strong> e <strong>Tamanho</strong>).
@@ -350,20 +421,20 @@ const TABS = [
           Uma variação pode ser um kit: marque "É kit" e escolha o item dela; o que vai em todas fica em "Itens em todas as variações-kit".
         </p>
       </div>
-      <div v-if="form.variation_axes.length" class="space-y-2" data-test="tipos-variacao">
+      <div v-if="form.variation_axes.length && !variationKit" class="space-y-2" data-test="tipos-variacao">
         <div v-for="(axis, i) in form.variation_axes" :key="axis" class="grid items-center gap-2 md:grid-cols-[200px_1fr_auto]">
           <span class="text-[13px] font-semibold text-ink">{{ i + 1 }}º tipo: {{ axis }}</span>
           <input v-model="axisValues[axis]" class="input h-9" :disabled="!canEdit" :placeholder="AXIS_PLACEHOLDERS[axis] ?? 'valor 1, valor 2, valor 3'" :data-test="`eixo-${axis}`" />
           <button v-if="canEdit" type="button" class="btn-link p-0 text-[12px]" :aria-label="`Remover ${axis}`" @click="removeAxis(axis)">remover</button>
         </div>
       </div>
-      <div v-if="canEdit && form.variation_axes.length < 3" class="flex flex-wrap items-center gap-2 rounded-card border border-dashed border-line px-3 py-2" data-test="adicionar-tipo">
+      <div v-if="canEdit && form.variation_axes.length < 3 && !variationKit" class="flex flex-wrap items-center gap-2 rounded-card border border-dashed border-line px-3 py-2" data-test="adicionar-tipo">
         <span class="text-[13px] text-ink-2">{{ form.variation_axes.length ? 'Adicionar outro tipo de variação:' : 'Adicionar tipo de variação:' }}</span>
         <button v-for="s in AXIS_SUGGESTIONS.filter((x) => !form.variation_axes.includes(x))" :key="s" type="button" class="btn-secondary h-8 px-3 text-[13px]" :data-test="`tipo-sugestao-${s}`" @click="addAxis(s)">+ {{ s }}</button>
         <input v-model="newAxis" class="input h-8 w-48" placeholder="Outro tipo de variação" data-test="eixo-novo" @keydown.enter.prevent="addAxis(newAxis)" />
         <button type="button" class="btn-secondary h-8 px-3 text-[13px]" :disabled="!newAxis.trim()" data-test="eixo-adicionar" @click="addAxis(newAxis)">Adicionar</button>
       </div>
-      <div v-if="canEdit && form.variation_axes.length" class="flex items-center gap-3">
+      <div v-if="canEdit && form.variation_axes.length && !variationKit" class="flex items-center gap-3">
         <button type="button" class="btn-primary h-9" data-test="montar-grade" @click="makeGrid">Montar grade</button>
         <span class="text-[12px] text-ink-3">{{ gridPreview }}</span>
       </div>
@@ -381,7 +452,7 @@ const TABS = [
       <div v-if="form.variations.length" class="overflow-x-auto">
         <table class="w-full min-w-[820px] border-collapse text-[13px]">
           <thead class="bg-surface-2 text-left text-ink-2">
-            <tr><th class="px-2 py-2">Variação</th><th class="px-2 py-2">SKU</th><th class="px-2 py-2">EAN</th><th class="px-2 py-2">Preço</th><th class="px-2 py-2">Estoque inicial</th><th class="px-2 py-2">É kit</th><th class="px-2 py-2" /></tr>
+            <tr><th class="px-2 py-2">Variação</th><th class="px-2 py-2">SKU</th><th class="px-2 py-2">EAN</th><th class="px-2 py-2">Preço</th><th class="px-2 py-2">Estoque inicial</th><th class="px-2 py-2">{{ variationKit ? 'Composição' : 'É kit' }}</th><th class="px-2 py-2" /></tr>
           </thead>
           <tbody>
             <template v-for="(v, i) in form.variations" :key="rowKey(v, i)">
@@ -401,7 +472,8 @@ const TABS = [
                     <button v-if="canEdit && i === 0 && hasValue(v.stock) && form.variations.length > 1" type="button" class="btn-link whitespace-nowrap p-0 text-[12px]" data-test="repetir-estoque" @click="repeatFirst('stock')">Repetir em todas</button>
                   </div>
                 </td>
-                <td class="px-2 py-1">
+                <td v-if="variationKit" class="px-2 py-1 font-mono text-[12px] text-ink-2" data-test="variacao-composicao">{{ kitComposition(v) }}</td>
+                <td v-else class="px-2 py-1">
                   <label class="flex items-center gap-1">
                     <input v-model="v.kit" type="checkbox" :disabled="!canEdit" data-test="variacao-kit" @change="v.kit && (openKitRow = rowKey(v, i))" />
                     <button v-if="v.kit" type="button" class="btn-link p-0 text-[12px]" @click="openKitRow = openKitRow === rowKey(v, i) ? null : rowKey(v, i)">{{ v.components.length ? `${v.components.length} item(ns)` : 'escolher' }}</button>
@@ -409,7 +481,7 @@ const TABS = [
                 </td>
                 <td class="px-2 py-1 text-right"><button v-if="canEdit" type="button" class="btn-link p-0.5" aria-label="Tirar variação" @click="removeVariation(i)"><TrashIcon class="h-4 w-4" /></button></td>
               </tr>
-              <tr v-if="v.kit && openKitRow === rowKey(v, i)" class="border-b border-line bg-surface-2">
+              <tr v-if="v.kit && !variationKit && openKitRow === rowKey(v, i)" class="border-b border-line bg-surface-2">
                 <td colspan="7" class="px-3 py-2">
                   <p class="mb-1 text-[12px] text-ink-2">Item próprio de <strong>{{ variationLabel(v) }}</strong> (o que muda nesta variação). Os itens comuns entram sozinhos.</p>
                   <SkuPicker v-model="v.components" :info="info" :disabled="!canEdit" test-id="variacao-componente" @found="rememberHit" />
@@ -420,7 +492,7 @@ const TABS = [
           </tbody>
         </table>
       </div>
-      <div v-if="hasKitRows" class="space-y-2 rounded-card border border-line p-3" data-test="itens-comuns">
+      <div v-if="hasKitRows && !variationKit" class="space-y-2 rounded-card border border-line p-3" data-test="itens-comuns">
         <p class="text-[13px] font-semibold text-ink">Itens em todas as variações-kit</p>
         <p class="text-[12px] text-ink-3">Ex.: o Pó Solto que vai junto de cada tom de base, ou o difusor que vai com o secador de 127V e de 220V.</p>
         <SkuPicker v-model="form.common_components" :info="info" :disabled="!canEdit" test-id="comum" @found="rememberHit" />
@@ -430,7 +502,7 @@ const TABS = [
     <!-- 3. IA -->
     <section class="card flex flex-wrap items-center gap-3 p-5" data-test="produto-ia-gerar">
       <div class="min-w-0 flex-1">
-        <p class="text-[15px] font-semibold text-ink">{{ form.kind === 'variations' ? '3' : '2' }}. Rascunho com IA</p>
+        <p class="text-[15px] font-semibold text-ink">{{ showGrid ? '3' : '2' }}. Rascunho com IA</p>
         <p class="text-[12px] text-ink-3">Preenche nome, marca, modelo, categoria, títulos (até {{ TITLE_MAX }} caracteres), descrição, ficha técnica e SEO só com o que está nas referências, e sugere os campos fiscais. O que você já digitou não é trocado.</p>
         <p v-if="form.ai_error" class="mt-1 text-[12px] text-danger">{{ form.ai_error }}</p>
       </div>
@@ -447,7 +519,7 @@ const TABS = [
     <!-- 4. revisão -->
     <section class="grid gap-5 lg:grid-cols-[1fr_320px]">
       <div class="card space-y-4 p-5" data-test="produto-revisao">
-        <p class="text-[15px] font-semibold text-ink">{{ form.kind === 'variations' ? '4' : '3' }}. Revisão do cadastro</p>
+        <p class="text-[15px] font-semibold text-ink">{{ showGrid ? '4' : '3' }}. Revisão do cadastro</p>
         <nav class="flex flex-wrap gap-1 border-b border-line">
           <button v-for="t in TABS" :key="t.key" type="button" class="-mb-px border-b-2 px-3 py-2 text-[13px]" :class="tab === t.key ? 'border-primary font-semibold text-primary' : 'border-transparent text-ink-2'" :data-test="`aba-${t.key}`" @click="tab = t.key">{{ t.label }}</button>
         </nav>
@@ -455,8 +527,8 @@ const TABS = [
         <fieldset :disabled="!canEdit" class="space-y-3">
           <div v-if="tab === 'gerais'" class="grid gap-3 md:grid-cols-2">
             <label class="text-[13px] md:col-span-2"><span class="mb-1 block font-semibold">Nome do produto</span><input v-model="form.name" class="input" maxlength="120" data-test="campo-nome" /></label>
-            <label class="text-[13px]"><span class="mb-1 block font-semibold">SKU{{ form.kind === 'variations' ? ' do produto pai' : '' }}</span><input v-model="form.sku" class="input" data-test="campo-sku" /></label>
-            <label v-if="form.kind !== 'variations'" class="text-[13px]"><span class="mb-1 block font-semibold">EAN / GTIN</span><input v-model="form.gtin" class="input" :class="form.gtin && !validGtin(form.gtin) ? 'border-danger' : ''" data-test="campo-ean" /></label>
+            <label class="text-[13px]"><span class="mb-1 block font-semibold">SKU{{ showGrid ? ' do produto pai' : '' }}</span><input v-model="form.sku" class="input" data-test="campo-sku" /></label>
+            <label v-if="!showGrid" class="text-[13px]"><span class="mb-1 block font-semibold">EAN / GTIN</span><input v-model="form.gtin" class="input" :class="form.gtin && !validGtin(form.gtin) ? 'border-danger' : ''" data-test="campo-ean" /></label>
             <label class="text-[13px]"><span class="mb-1 block font-semibold">Marca</span><input v-model="form.brand" class="input" /></label>
             <label class="text-[13px]"><span class="mb-1 block font-semibold">Linha</span><input v-model="form.line" class="input" /></label>
             <label class="text-[13px]"><span class="mb-1 block font-semibold">Modelo</span><input v-model="form.model" class="input" /></label>
@@ -536,7 +608,7 @@ const TABS = [
             </div>
             <div class="grid gap-3 border-t border-line pt-3 md:grid-cols-3">
               <label class="flex items-center gap-2 text-[13px] md:col-span-3"><input v-model="form.stock_control" type="checkbox" /> Controlar estoque</label>
-              <label v-if="form.kind !== 'variations'" class="text-[13px]"><span class="mb-1 block font-semibold">Estoque inicial</span><input v-model="form.initial_stock" type="number" min="0" step="1" class="input" placeholder="opcional" data-test="campo-estoque" />
+              <label v-if="!showGrid" class="text-[13px]"><span class="mb-1 block font-semibold">Estoque inicial</span><input v-model="form.initial_stock" type="number" min="0" step="1" class="input" placeholder="opcional" data-test="campo-estoque" />
                 <span class="mt-1 block text-[11px] text-ink-3">Pode deixar em branco e lançar depois na seção Estoque.</span></label>
               <p v-else class="text-[12px] text-ink-3 md:col-span-3">O estoque inicial de cada variação fica na grade de variações (opcional; pode lançar depois na seção Estoque).</p>
               <label class="text-[13px]"><span class="mb-1 block font-semibold">Estoque mínimo</span><input v-model="form.min_stock" type="number" min="0" step="1" class="input" /></label>
