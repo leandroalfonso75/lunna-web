@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import NvTabs from '../components/nv/NvTabs.vue'
+import { useLayoutPref } from '../composables/useLayoutPref'
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
-import { onMounted, reactive, ref, watch, watchEffect } from 'vue'
+import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import ConversationCard from '../components/mensagens/ConversationCard.vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
@@ -32,6 +34,15 @@ const VIEWS = [
   { value: 'aguardando', label: 'Aguardando você' },
   { value: 'todas', label: 'Todas' }
 ] as const
+
+/** Layout novo (27/11/2026): situações como guias com contador e explicação ("Aguardando você" primeiro). */
+const layoutPref = useLayoutPref()
+const isNew = computed(() => layoutPref.pref.value === 'novo')
+const M_HINT: Record<string, string> = {
+  aguardando: 'Conversas pós-venda em que o comprador escreveu por último e espera a sua resposta.',
+  todas: 'Todas as conversas pós-venda lidas do Mercado Livre.'
+}
+const newTabs = computed(() => VIEWS.map((v) => ({ key: v.value, label: v.label, count: response.value ? response.value.counts[v.value] : null, alert: v.value === 'aguardando', hint: M_HINT[v.value] })))
 
 async function load() {
   if (!session.selectedAccountId) return
@@ -96,7 +107,17 @@ watchEffect(() => {
   <div v-else class="page space-y-5">
     <PageHeader />
 
-    <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Situação" data-test="mensagens-filtro">
+    <template v-if="isNew">
+      <NvTabs :tabs="newTabs" :model-value="filters.view" label="Situação" data-test="mensagens-filtro" @update:model-value="(v) => Object.assign(filters, { view: v, page: 1 })" />
+      <div class="flex flex-wrap items-center gap-2">
+        <QuestionTemplatesMenu kind="mensagem" :templates="templates" @changed="loadTemplates" />
+        <label class="relative ml-auto w-full max-w-md">
+          <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-3" aria-hidden="true" />
+          <input v-model="filters.q" type="search" class="input h-10 w-full pl-10" placeholder="Buscar na mensagem, comprador ou nº da venda" data-test="mensagens-busca">
+        </label>
+      </div>
+    </template>
+    <div v-else class="flex flex-wrap items-center gap-2" role="group" aria-label="Situação" data-test="mensagens-filtro">
       <button
         v-for="v in VIEWS" :key="v.value" type="button"
         class="rounded-full border px-3 py-1 text-[13px]"

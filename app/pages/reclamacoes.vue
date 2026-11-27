@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { useLayoutPref } from '../composables/useLayoutPref'
 import LogisticBadge from '../components/ui/LogisticBadge.vue'
 import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
-import { onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
 import ClaimAttentionCard from '../components/reclamacoes/ClaimAttentionCard.vue'
@@ -277,6 +278,9 @@ watchEffect(() => {
 })
 
 const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total / response.value.per_page)) : 1)
+
+/** Layout novo (27/11/2026): os quatro cartões de ação dividem a largura numa linha. */
+const isNewLayout = computed(() => useLayoutPref().pref.value === 'novo')
 </script>
 
 <template>
@@ -322,7 +326,7 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
     </div>
 
     <!-- A atender: reclamações que aguardam o vendedor (maior e mais chamativo que os filtros de data) -->
-    <div class="flex flex-wrap items-stretch gap-3" data-test="reclamacoes-atender">
+    <div class="flex flex-wrap items-stretch gap-3" :class="isNewLayout ? 'reclamacoes-cards-nv' : ''" data-test="reclamacoes-atender">
       <button
         type="button"
         class="group relative flex min-w-[260px] items-center gap-3 rounded-card border-2 px-5 py-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
@@ -590,3 +594,10 @@ const pages = () => (response.value ? Math.max(1, Math.ceil(response.value.total
     </div>
   </div>
 </template>
+
+<style scoped>
+.reclamacoes-cards-nv > button {
+  flex: 1 1 0;
+  min-width: 220px;
+}
+</style>

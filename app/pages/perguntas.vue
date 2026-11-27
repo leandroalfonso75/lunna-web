@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import NvTabs from '../components/nv/NvTabs.vue'
+import { useLayoutPref } from '../composables/useLayoutPref'
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
-import { onMounted, reactive, ref, watch, watchEffect } from 'vue'
+import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
 import PageHeader from '../components/painel/PageHeader.vue'
 import QuestionCard from '../components/perguntas/QuestionCard.vue'
@@ -33,6 +35,16 @@ const VIEWS = [
   { value: 'respondidas', label: 'Respondidas' },
   { value: 'todas', label: 'Todas' }
 ] as const
+
+/** Layout novo (27/11/2026): situações como guias com contador e explicação ("Sem resposta" pede ação e vem primeiro). */
+const layoutPref = useLayoutPref()
+const isNew = computed(() => layoutPref.pref.value === 'novo')
+const Q_HINT: Record<string, string> = {
+  sem_resposta: 'Perguntas de compradores esperando resposta. Responder rápido ajuda a vender.',
+  respondidas: 'Perguntas já respondidas, com a resposta dada.',
+  todas: 'Todas as perguntas lidas do Mercado Livre.'
+}
+const newTabs = computed(() => VIEWS.map((v) => ({ key: v.value, label: v.label, count: response.value ? response.value.counts[v.value] : null, alert: v.value === 'sem_resposta', hint: Q_HINT[v.value] })))
 
 async function load() {
   if (!session.selectedAccountId) return
@@ -102,7 +114,17 @@ watchEffect(() => {
   <div v-else class="page space-y-5">
     <PageHeader />
 
-    <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Situação" data-test="perguntas-filtro">
+    <template v-if="isNew">
+      <NvTabs :tabs="newTabs" :model-value="filters.view" label="Situação" data-test="perguntas-filtro" @update:model-value="(v) => setView(v as QuestionsResponse['view'])" />
+      <div class="flex flex-wrap items-center gap-2">
+        <QuestionTemplatesMenu :templates="templates" @changed="loadTemplates" />
+        <label class="relative ml-auto w-full max-w-md">
+          <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-3" aria-hidden="true" />
+          <input v-model="filters.q" type="search" class="input h-10 w-full pl-10" placeholder="Buscar na pergunta, resposta, anúncio ou MLB" data-test="perguntas-busca">
+        </label>
+      </div>
+    </template>
+    <div v-else class="flex flex-wrap items-center gap-2" role="group" aria-label="Situação" data-test="perguntas-filtro">
       <button
         v-for="v in VIEWS" :key="v.value" type="button"
         class="rounded-full border px-3 py-1 text-[13px]"
