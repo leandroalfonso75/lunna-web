@@ -3,6 +3,11 @@ import LogisticBadge from '../components/ui/LogisticBadge.vue'
 import { ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShoppingCartIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import EmptyAccountState from '../components/painel/EmptyAccountState.vue'
+import NvChips from '../components/nv/NvChips.vue'
+import NvNotice from '../components/nv/NvNotice.vue'
+import NvPeriod from '../components/nv/NvPeriod.vue'
+import NvTabs from '../components/nv/NvTabs.vue'
+import { useLayoutPref } from '../composables/useLayoutPref'
 import PageHeader from '../components/painel/PageHeader.vue'
 import SaleDetailPanel from '../components/vendas/SaleDetailPanel.vue'
 import SalesSummary from '../components/vendas/SalesSummary.vue'
@@ -19,6 +24,14 @@ import type { SaleRow, SalesFilters } from '../types/sales'
  */
 const session = useSessionStore()
 const sales = useSales()
+/** Layout novo (27/11/2026): guias por situação do envio, filtros em chips e período numa linha (mesmos filtros). */
+const layoutPref = useLayoutPref()
+const isNew = computed(() => layoutPref.pref.value === 'novo')
+/** Colunas de custo (tarifa, frete, cupom, imposto, despesas, custo): no layout novo, só a partir de 1536 px (com a
+ * fonte maior não cabem em 1366); continuam no detalhe da venda. */
+const hideCls = computed(() => (isNew.value ? 'max-2xl:hidden' : 'max-xl:hidden'))
+// larguras no layout novo (o Tailwind lê estas classes daqui): max-2xl:w-[24%] max-2xl:w-[14%]
+const colWidth = (w: string) => (isNew.value ? w.replaceAll('max-xl:', 'max-2xl:') : w)
 const { filters, response, loading, stale, loadError, details, syncing, syncMessage } = sales
 
 const header = usePageHeader()
@@ -112,6 +125,33 @@ function tone(t: string): string {
   return { ok: 'pill-success', warn: 'pill-warning', bad: 'pill-danger', neutral: 'pill-neutral' }[t] ?? 'pill-neutral'
 }
 
+const SHIP_HINT: Record<string, string> = {
+  '': 'Todas as vendas do período, de qualquer situação de envio.',
+  preparing: 'Vendas que ainda precisam ser preparadas e despachadas.',
+  transit: 'Já despachadas, a caminho do comprador.',
+  delivered: 'Entregues ao comprador.',
+  problem: 'Envio com problema (atraso, devolução, não entregue): vale olhar uma a uma.'
+}
+const shipTabs = computed(() => SHIPPING_TABS.map((t) => ({
+  key: t.value, label: t.value ? t.label : 'Todas', hint: SHIP_HINT[t.value],
+  count: t.key ? (response.value?.counts.shipping[t.key] ?? null) : null, alert: t.value === 'problem'
+})))
+const statusChips = computed(() => STATUS_TABS.map((t) => ({
+  value: t.value, label: t.label, count: t.value ? (response.value?.counts.status[t.value] ?? null) : null,
+  tone: t.value === 'cancelled' ? 'danger' as const : t.value === 'paid' ? 'success' as const : undefined
+})))
+const logisticChips = computed(() => LOGISTIC_TABS.map((t) => ({ value: t.value, label: t.value ? t.label : 'Todas', count: t.value ? (response.value?.counts.logistic[t.value] ?? null) : null })))
+
+/** Período no layout novo: os atalhos e o mês vão para setPeriod; as datas, para o intervalo (como no atual). */
+function onPeriod(value: string) {
+  if (value) sales.setPeriod(value)
+}
+function onRange(which: 'from' | 'to', value: string) {
+  sales.setCustomRange(which === 'from' ? value : filters.from, which === 'to' ? value : filters.to)
+  if (which === 'from') filters.from = value
+  else filters.to = value
+}
+
 /** Lista de meses: escolher um mostra do dia 1º ao último dia (o atual vai até hoje). */
 function onMonth(event: Event) {
   const value = (event.target as HTMLSelectElement).value
@@ -129,10 +169,26 @@ function onDate(which: 'from' | 'to', event: Event) {
 <template>
   <EmptyAccountState v-if="!session.selectedAccount" />
   <div v-else class="page space-y-5">
-    <PageHeader />
+    <PageHeader>
+      <template v-if="isNew && session.isAdmin" #actions>
+        <button type="button" class="btn-secondary" :disabled="syncing" data-test="baixar-3-meses" @click="sales.syncThreeMonths">
+          {{ syncing ? 'Pedindo…' : 'Baixar os 3 meses de novo' }}
+        </button>
+      </template>
+    </PageHeader>
+
+    <!-- período (layout novo) -->
+    <template v-if="isNew">
+      <NvPeriod :periods="PERIODS" :period="filters.period" :months="response?.months ?? []" :from="filters.from" :to="filters.to" @period="onPeriod" @range="onRange" />
+      <NvNotice v-if="syncMessage">{{ syncMessage }}</NvNotice>
+      <NvNotice v-if="pendingShipments > 0" title="Completando os dados de envio">
+        Buscando frete pago, entrega e rastreio de {{ int(pendingShipments) }} vendas. Enquanto isso, o lucro delas ainda não considera o frete. Isso se completa sozinho.
+      </NvNotice>
+      <NvNotice v-if="stale" tone="warning">Não foi possível atualizar agora — mostrando os últimos dados.</NvNotice>
+    </template>
 
     <!-- período -->
-    <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Período">
+    <div v-else class="flex flex-wrap items-center gap-2" role="group" aria-label="Período">
       <button
         v-for="p in PERIODS"
         :key="p.value"
@@ -163,12 +219,12 @@ function onDate(which: 'from' | 'to', event: Event) {
         {{ syncing ? 'Pedindo…' : 'Baixar os 3 meses de novo' }}
       </button>
     </div>
-    <p v-if="syncMessage" class="text-[13px] text-ink-2" role="status">{{ syncMessage }}</p>
-    <p v-if="pendingShipments > 0" class="rounded-card border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-2" role="status">
+    <p v-if="syncMessage && !isNew" class="text-[13px] text-ink-2" role="status">{{ syncMessage }}</p>
+    <p v-if="pendingShipments > 0 && !isNew" class="rounded-card border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink-2" role="status">
       Buscando os dados de envio de {{ int(pendingShipments) }} vendas (frete pago, entrega, rastreio). Enquanto isso, o lucro delas ainda não considera o frete. Isso se completa sozinho.
     </p>
 
-    <p v-if="stale" role="status" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning">
+    <p v-if="stale && !isNew" role="status" class="rounded-card border border-warning bg-warning-soft px-3 py-2 text-[13px] text-warning">
       Não foi possível atualizar agora — mostrando os últimos dados.
     </p>
 
@@ -181,8 +237,23 @@ function onDate(which: 'from' | 'to', event: Event) {
       <SalesSummary v-if="response" :summary="response.summary" :daily="response.daily" />
       <div v-else class="h-24 animate-pulse rounded-card bg-surface-2" />
 
+      <!-- filtros (layout novo): guias pela situação do envio; venda e logística em chips -->
+      <div v-if="isNew" class="space-y-3">
+        <NvTabs :tabs="shipTabs" :model-value="filters.shipping" label="Situação do envio" @update:model-value="(v) => sales.change({ shipping: v as SalesFilters['shipping'] })" />
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <NvChips :chips="statusChips" :model-value="filters.status" label="Venda" test-prefix="venda" @update:model-value="(v) => sales.change({ status: v as SalesFilters['status'] })" />
+          <NvChips :chips="logisticChips" :model-value="filters.logistic" label="Logística" test-prefix="logistica" @update:model-value="(v) => sales.change({ logistic: v as SalesFilters['logistic'] })" />
+          <button v-if="hasFilters" type="button" class="nbtn-ghost nbtn-sm" @click="sales.clearFilters">Limpar filtros</button>
+          <div class="relative ml-auto w-full max-w-md md:w-auto md:min-w-[360px]">
+            <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-3" aria-hidden="true" />
+            <input :value="filters.q" type="search" class="input h-10 w-full pl-10" placeholder="Nº da venda, produto, SKU, anúncio, comprador ou rastreio"
+              aria-label="Buscar vendas" @input="sales.setQuery(($event.target as HTMLInputElement).value)" />
+          </div>
+        </div>
+      </div>
+
       <!-- filtros -->
-      <div class="space-y-3">
+      <div v-else class="space-y-3">
         <div class="relative max-w-xl">
           <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" aria-hidden="true" />
           <input
@@ -239,7 +310,7 @@ function onDate(which: 'from' | 'to', event: Event) {
                 :key="c.key"
                 scope="col"
                 class="px-2 py-2 font-semibold text-ink-2"
-                :class="[c.width, c.align === 'right' ? 'text-right' : 'text-left', c.hide ? 'max-xl:hidden' : '']"
+                :class="[colWidth(c.width), c.align === 'right' ? 'text-right' : 'text-left', c.hide ? hideCls : '']"
                 :aria-sort="c.sort && response?.sort === c.sort ? (response?.dir === 'asc' ? 'ascending' : 'descending') : undefined"
               >
                 <button v-if="c.sort" type="button" class="inline-flex items-center gap-1 hover:text-ink" :class="response?.sort === c.sort ? 'text-ink' : ''" @click="sales.sortBy(c.sort)">
@@ -305,33 +376,33 @@ function onDate(which: 'from' | 'to', event: Event) {
                   </template>
                 </td>
                 <td class="px-2 py-2 text-right align-top" data-numeric>{{ brl(row.economics?.revenue ?? row.total_amount) }}</td>
-                <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>
+                <td class="px-2 py-2 text-right align-top" :class="hideCls" data-numeric>
                   <template v-if="row.economics"><span class="block text-danger">{{ money(row.economics.fee) }}</span><span class="block text-[11px] text-ink">{{ share(row.economics.fee, row.economics.revenue) }}</span></template>
                   <template v-else>—</template>
                 </td>
-                <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>
+                <td class="px-2 py-2 text-right align-top" :class="hideCls" data-numeric>
                   <template v-if="row.economics">
                     <template v-if="row.economics.shipping_known"><span class="block text-danger">{{ money(row.economics.shipping_cost) }}</span><span class="block text-[11px] text-ink">{{ share(row.economics.shipping_cost, row.economics.revenue) }}</span></template>
                     <template v-else>…</template>
                   </template>
                   <template v-else>—</template>
                 </td>
-                <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric data-test="col-cupom">
+                <td class="px-2 py-2 text-right align-top" :class="hideCls" data-numeric data-test="col-cupom">
                   <span v-if="row.economics && (row.economics.coupon_discount || row.economics.coupon_cost)" :title="`Desconto de cupom dado ao comprador: ${money(row.economics.coupon_discount)}. Sua parte, descontada no pagamento do Mercado Pago: ${money(row.economics.coupon_cost)}`">
                     <span class="block" :class="row.economics.coupon_cost ? 'text-danger' : 'text-ink-3'">{{ money(row.economics.coupon_cost) }}</span>
                     <span class="block text-[11px] text-ink">desc. {{ money(row.economics.coupon_discount) }}</span>
                   </span>
                   <span v-else class="text-ink-3">—</span>
                 </td>
-                <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric data-test="col-imposto">
+                <td class="px-2 py-2 text-right align-top" :class="hideCls" data-numeric data-test="col-imposto">
                   <span v-if="row.economics" :title="`${num(taxPct(row), 1)}% da receita dos itens`"><span class="block text-danger">{{ money(row.economics.tax) }}</span><span class="block text-[11px] text-ink">{{ share(row.economics.tax, row.economics.revenue) }}</span></span>
                   <span v-else>—</span>
                 </td>
-                <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric data-test="col-despesas">
+                <td class="px-2 py-2 text-right align-top" :class="hideCls" data-numeric data-test="col-despesas">
                   <span v-if="row.economics" :title="`${num(fixedPct(row), 1)}% do valor da venda`"><span class="block text-danger">{{ money(row.economics.fixed_expenses) }}</span><span class="block text-[11px] text-ink">{{ share(row.economics.fixed_expenses, row.economics.revenue) }}</span></span>
                   <span v-else>—</span>
                 </td>
-                <td class="px-2 py-2 text-right align-top max-xl:hidden" data-numeric>
+                <td class="px-2 py-2 text-right align-top" :class="hideCls" data-numeric>
                   <template v-if="row.economics">
                     <span v-if="row.economics.cost !== null">{{ money(row.economics.cost) }}</span>
                     <span v-else class="text-[11px] text-warning">sem custo</span>

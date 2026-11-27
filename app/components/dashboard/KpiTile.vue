@@ -52,7 +52,7 @@ const deltaText = computed(() => {
         <ArrowRightIcon v-else class="h-3.5 w-3.5" aria-hidden="true" />
         {{ deltaText }}
       </span>
-      <span v-if="hint" class="truncate text-[13px] text-ink-3">{{ hint }}</span>
+      <span v-if="hint" class="line-clamp-2 text-[13px] text-ink-3" :title="hint">{{ hint }}</span>
     </div>
     <svg v-if="sparkPath && !loading" viewBox="0 0 100 30" preserveAspectRatio="none" class="h-8 w-full" aria-hidden="true">
       <path :d="sparkPath" fill="none" stroke="var(--chart-1)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />

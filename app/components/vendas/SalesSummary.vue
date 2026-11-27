@@ -1,9 +1,17 @@
 <script setup lang="ts">
+import { BanknotesIcon, CalculatorIcon, CubeIcon, CurrencyDollarIcon, MegaphoneIcon, ReceiptPercentIcon, ShoppingBagIcon, TruckIcon } from '@heroicons/vue/24/outline'
 import { computed } from 'vue'
+import BarChart from '../dashboard/BarChart.vue'
+import KpiTile from '../dashboard/KpiTile.vue'
+import { useLayoutPref } from '../../composables/useLayoutPref'
 import { brl, int, pct } from '../../lib/format'
 import type { SalesDay, SalesSummary } from '../../types/sales'
 
 const props = defineProps<{ summary: SalesSummary; daily: SalesDay[] }>()
+/** Layout novo (27/11/2026): os mesmos cartões com ícone e número grande, e o gráfico diário com dica por barra. */
+const layoutPref = useLayoutPref()
+const isNew = computed(() => layoutPref.pref.value === 'novo')
+const ICONS: Record<string, unknown> = { orders: ShoppingBagIcon, revenue: BanknotesIcon, profit: CurrencyDollarIcon, fees: TruckIcon, tax: ReceiptPercentIcon, cost: CubeIcon, ads: MegaphoneIcon, after_ads: CalculatorIcon }
 
 const adsHint = computed(() => {
   const s = props.summary
@@ -36,7 +44,22 @@ function dayLabel(date: string): string {
 </script>
 
 <template>
-  <section class="space-y-4" aria-label="Resumo das vendas">
+  <section v-if="isNew" class="nv space-y-4" aria-label="Resumo das vendas">
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <KpiTile v-for="card in cards" :key="card.key" :label="card.label" :value="card.value" :hint="card.hint" :icon="ICONS[card.key] as never" :data-test="`kpi-${card.key}`" />
+    </div>
+    <p v-if="summary.orders_without_cost" class="rounded-panel border border-warning bg-warning-soft px-4 py-3 text-[14px] text-ink" role="status">
+      <strong class="text-warning">{{ int(summary.orders_without_cost) }} {{ summary.orders_without_cost === 1 ? 'venda está' : 'vendas estão' }} sem custo</strong> de algum item no ERP; o lucro dela não entra no total. O custo vem do SKU em Produtos.
+    </p>
+    <div class="panel p-5">
+      <div class="mb-2 flex items-baseline justify-between">
+        <p class="panel-title">Faturamento por dia</p>
+        <p class="panel-sub">Passe o mouse na barra para ver o dia</p>
+      </div>
+      <BarChart :labels="daily.map((d) => d.date)" :values="daily.map((d) => d.revenue)" :format="brl" :height="200" caption="Faturamento por dia no período" />
+    </div>
+  </section>
+  <section v-else class="space-y-4" aria-label="Resumo das vendas">
     <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
       <div v-for="card in cards" :key="card.key" class="card p-4" :data-test="`kpi-${card.key}`">
         <p class="text-[12px] font-medium text-ink-2">{{ card.label }}</p>
